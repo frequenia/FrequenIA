@@ -14,7 +14,26 @@ async function carregarCargos() {
   });
 }
 
-window.onload = carregarCargos;
+async function carregarSetores() {
+  const select = document.getElementById("setor");
+
+  const res = await fetch("http://127.0.0.1:5000/listar_setores");
+  const setores = await res.json();
+
+  select.innerHTML = '<option value="">Selecione</option>';
+
+  setores.forEach((setor) => {
+    const option = document.createElement("option");
+    option.value = setor.id;
+    option.textContent = setor.nome;
+    select.appendChild(option);
+  });
+}
+
+window.onload = function() {
+  carregarCargos();
+  carregarSetores();
+};
 
 function toggleDia(id) {
   const dia = document.getElementById(id);
@@ -117,7 +136,7 @@ async function cadastrarUsuario() {
     cpf: formatarCPF(document.getElementById("cpf").value),
 
     cargo_id: parseInt(document.getElementById("cargo").value),
-    setor: document.getElementById("setor").value,
+    setor_id: parseInt(document.getElementById("setor").value),
     tipo_perfil: document.getElementById("tipo_perfil").value,
     tipo_contrato: document.getElementById("tipo_contrato").value,
 

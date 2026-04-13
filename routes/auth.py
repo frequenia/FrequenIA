@@ -27,29 +27,29 @@ def cadastrar_usuario():
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
         cursor.execute("""
-            INSERT INTO usuarios (nome, email, telefone, cpf, cargo_id)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO usuarios (nome, email, telefone, cpf, cargo_id, setor_id)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             dados['nome'],
             dados['email'],
             dados['telefone'],
             dados['cpf'],
-            dados['cargo_id']
+            dados['cargo_id'],
+            dados['setor_id']
         ))
 
         usuario_id = cursor.fetchone()['id']
 
         cursor.execute("""
             INSERT INTO funcionarios (
-                usuario_id, setor, tipo_perfil,
+                usuario_id, tipo_perfil,
                 matricula, data_admissao, tipo_contrato,
                 carga_horaria, jornada_padrao
             )
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+            VALUES (%s,%s,%s,%s,%s,%s,%s)
         """, (
             usuario_id,
-            dados['setor'],
             dados['tipo_perfil'],
             dados['matricula'],
             dados['data_admissao'],
@@ -122,3 +122,16 @@ def listar_cargos():
     conn.close()
 
     return jsonify(cargos)
+
+@auth_bp.route('/listar_setores', methods=['GET'])
+def listar_setores():
+    conn = conectar_bd()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cursor.execute("SELECT id, nome FROM setores ORDER BY nome")
+    setores = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return jsonify(setores)

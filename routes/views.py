@@ -397,6 +397,7 @@ def hora_servidor():
 
 
 
+
 @views_bp.route("/listar_usuarios_select", methods=["GET"])
 def listar_usuarios_select():
     try:
