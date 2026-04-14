@@ -26,6 +26,7 @@ def cadastrar_usuario():
         conn = conectar_bd()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
+        # USUARIO
         cursor.execute("""
             INSERT INTO usuarios (nome, email, telefone, cpf, cargo_id, setor_id)
             VALUES (%s, %s, %s, %s, %s, %s)
@@ -41,6 +42,7 @@ def cadastrar_usuario():
 
         usuario_id = cursor.fetchone()['id']
 
+        # FUNCIONARIO
         cursor.execute("""
             INSERT INTO funcionarios (
                 usuario_id, tipo_perfil,
@@ -58,6 +60,33 @@ def cadastrar_usuario():
             dados['jornada']
         ))
 
+        # 🔥 HORARIOS (AGORA CORRETO)
+        horarios = dados.get('horarios', [])
+
+        if not horarios:
+            return jsonify({"status": "erro", "mensagem": "Nenhum horário informado"})
+
+        for h in horarios:
+            cursor.execute("""
+                INSERT INTO horarios (
+                    usuario_id,
+                    dia_semana,
+                    inicio_expediente,
+                    inicio_intervalo,
+                    termino_intervalo,
+                    termino_expediente
+                )
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                usuario_id,
+                h['dia_semana'],
+                h['inicio_expediente'],
+                h['inicio_intervalo'],
+                h['termino_intervalo'],
+                h['termino_expediente']
+            ))
+
+        # COMMIT
         conn.commit()
         cursor.close()
         conn.close()
@@ -72,8 +101,6 @@ def cadastrar_usuario():
             "status": "erro",
             "mensagem": str(e)
         })
-    
-
 
 @auth_bp.route('/cadastrar_empresa', methods=['POST'])
 def cadastrar_empresa():
@@ -123,6 +150,9 @@ def listar_cargos():
 
     return jsonify(cargos)
 
+# =========================
+# LISTAR SETORES DO BANCO
+# =========================
 @auth_bp.route('/listar_setores', methods=['GET'])
 def listar_setores():
     conn = conectar_bd()

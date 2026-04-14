@@ -1,3 +1,7 @@
+// ==============================================================================================================
+// FUNÇÕES RESPONSÁVEIS POR CARREGAR E EXIBIR DINAMICAMENTE CARGOS E SETORES NO FORMULÁRIO DE CADASTRO DE USUÁRIO
+//===============================================================================================================
+
 async function carregarCargos() {
   const select = document.getElementById("cargo");
 
@@ -34,6 +38,7 @@ window.onload = function() {
   carregarCargos();
   carregarSetores();
 };
+
 
 function toggleDia(id) {
   const dia = document.getElementById(id);
@@ -129,6 +134,33 @@ async function cadastrarUsuario() {
   // 🔥 FORMATAÇÃO AQUI
   const telefoneFormatado = `(${telefoneLimpo.substring(0, 2)}) ${telefoneLimpo.substring(2, 7)}-${telefoneLimpo.substring(7)}`;
 
+  // 🔹 pegar dias selecionados
+  const diasSelecionados = [];
+
+  document
+    .querySelectorAll("#jornadaPadrao input[type=checkbox]:checked")
+    .forEach((dia) => {
+      diasSelecionados.push(parseInt(dia.value));
+    });
+
+  // 🔹 validação
+  if (diasSelecionados.length === 0) {
+    alert("Selecione pelo menos um dia da semana!");
+    return;
+  }
+
+  // 🔹 pegar horários
+  const inicio_expediente = document.getElementById("inicio_expediente").value;
+  const inicio_intervalo = document.getElementById("inicio_intervalo").value;
+  const termino_intervalo = document.getElementById("termino_intervalo").value;
+  const termino_expediente = document.getElementById("termino_expediente").value;
+
+  // 🔹 validação de horário
+  if (!inicio_expediente || !termino_expediente) {
+    alert("Preencha os horários!");
+    return;
+  }
+
   const dados = {
     nome: document.getElementById("nome").value.trim().toUpperCase(),
     email: document.getElementById("email").value,
@@ -145,6 +177,14 @@ async function cadastrarUsuario() {
 
     matricula: "AUTO-" + Math.floor(Math.random() * 10000),
     jornada: document.getElementById("tipoJornada").value,
+
+    horarios: diasSelecionados.map((dia) => ({
+      dia_semana: dia,
+      inicio_expediente,
+      inicio_intervalo,
+      termino_intervalo,
+      termino_expediente,
+    })),
   };
 
   const res = await fetch("http://127.0.0.1:5000/cadastrar_usuario", {
