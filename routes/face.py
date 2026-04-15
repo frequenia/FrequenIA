@@ -114,16 +114,16 @@ def gerar_embedding(face_img):
     return embedding.tolist()
 
 
-def pode_registrar_presenca(cursor, nome, agora):
+def pode_registrar_presenca(cursor, usuario_id, agora):
     cursor.execute(
         """
         SELECT data_registro, horario_registro
-        FROM presenca
-        WHERE nome = %s
+        FROM ponto
+        WHERE usuario_id = %s
         ORDER BY data_registro DESC NULLS LAST, horario_registro DESC NULLS LAST
         LIMIT 1
     """,
-        (nome,),
+        (usuario_id,),
     )
 
     ultima = cursor.fetchone()
@@ -493,6 +493,22 @@ def reconhecer():
             distancias.setdefault(nome, []).append(distancia)
 
         nome_final = max(contagem, key=contagem.get)
+        cursor.execute("""
+        SELECT u.id
+        FROM usuarios u
+        INNER JOIN fotos f ON u.nome = f.nome
+        WHERE f.nome = %s
+        LIMIT 1
+        """, (nome_final,))
+
+        usuario = cursor.fetchone()
+
+        if not usuario:
+            cursor.close()
+            conn.close()
+            return jsonify({"erro": "Usuário não encontrado"}), 404
+
+        usuario_id = usuario[0]
         distancias_nome = distancias[nome_final]
         melhor_distancia_final = min(distancias_nome)
         media_distancia = sum(distancias_nome) / len(distancias_nome)
@@ -507,7 +523,7 @@ def reconhecer():
         if pode_registrar_presenca(cursor, nome_final, agora):
             cursor.execute(
                 """
-                INSERT INTO presenca (nome, data_registro, horario_registro)
+                INSERT INTO ponto (usuario_id, data_registro, horario_registro)
                 VALUES (%s, %s, %s)
                 """,
                 (nome_final, agora.date(), agora.time().replace(microsecond=0)),
