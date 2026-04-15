@@ -520,13 +520,13 @@ def reconhecer():
 
         agora = datetime.now()
 
-        if pode_registrar_presenca(cursor, nome_final, agora):
+        if pode_registrar_presenca(cursor, usuario_id, agora):
             cursor.execute(
                 """
                 INSERT INTO ponto (usuario_id, data_registro, horario_registro)
                 VALUES (%s, %s, %s)
                 """,
-                (nome_final, agora.date(), agora.time().replace(microsecond=0)),
+                (usuario_id, agora.date(), agora.time().replace(microsecond=0)),
             )
             conn.commit()
 
