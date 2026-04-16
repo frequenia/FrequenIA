@@ -158,6 +158,12 @@ def redefinicao_senha():
 def gerenciar_usuario():
     return render_template('gerenciarUsuario.html')
 
+@views_bp.route('/gerenciarEmpresa')
+@login_required
+@admin_required
+def gerenciar_empresa():
+    return render_template('gerenciarEmpresa.html')
+
 @views_bp.route("/configuracoes")
 @login_required
 def configuracoes():
@@ -260,6 +266,32 @@ def listar_usuarios():
         conn.close()
 
         return jsonify(usuarios)
+
+    except Exception as e:
+        print("ERRO:", e)
+        return jsonify([]), 500
+
+# =========================
+# LISTAGEM DE EMPRESAS
+# =========================
+@views_bp.route("/listarEmpresas")
+@login_required
+def listar_empresas():
+    try:
+        conn = conectar_bd()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        cursor.execute("""
+            SELECT cnpj, razao
+            FROM empresas_teste
+        """)
+
+        empresas_teste = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        return jsonify(empresas_teste)
 
     except Exception as e:
         print("ERRO:", e)

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciar Usuários — WorkSync</title>
+
+  <!-- Fonte Montserrat -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!--Dark-mode-->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+  
+  <!-- CSS Global (SEMPRE PRIMEIRO) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/worksync-global.css') }}">
+  <!-- CSS Específico -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/gerenciarUsuario.css') }}">
+</head>
+
+<body>
+
+  <div class="gerenciar-usuarios">
+
+    <!-- Card principal -->
+    <div class="card">
+
+      <!-- Barra de filtros -->
+      <div class="top-bar">
+        <input
+          type="text"
+          id="search"
+          class="search-input"
+          placeholder="Digite o nome ou CNPJ"
+        />
+
+        <button class="btn-search" onclick="filtrar()" type="button" title="Pesquisar">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </button>
+
+        <select id="statusFilter" onchange="filtrar()">
+          <option value="todos">Todos os Status</option>
+          <option value="ativo">Ativos</option>
+          <option value="inativo">Inativos</option>
+        </select>
+
+        <select id="orderFilter" onchange="filtrar()">
+          <option value="nome">Ordenar por Nome</option>
+          <option value="cpf">Ordenar por CNPJ</option>
+        </select>
+      </div>
+
+      <!-- Tabela de usuários -->
+      <table class="table">
+        <thead>
+          <tr>
+    <th class="col-nome">Nome</th>
+    <th class="col-cpf">CNPJ</th>
+    <th class="col-status">Status</th>
+    <th class="col-perfil">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tabela"></tbody>
+      </table>
+
+    </div><!-- /.card -->
+
+  </div><!-- /.gerenciar-usuarios -->
+
+  <script>
+    let dados = [];
+
+    async function carregarEmpresas() {
+      try {
+        const res = await fetch("/listarEmpresas");
+        dados = await res.json();
+        render(dados);
+      } catch (err) {
+        console.error("Erro ao carregar empresas:", err);
+      }
+    }
+
+    function render(lista) {
+      const tabela = document.getElementById("tabela");
+      tabela.innerHTML = "";
+
+      if (lista.length === 0) {
+        tabela.innerHTML = `
+          <tr>
+            <td colspan="4" style="text-align:center; color: var(--color-text-light); padding: 30px 14px;">
+              Nenhum usuário encontrado.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+lista.forEach(item => {
+  tabela.innerHTML += `
+    <tr>
+      <td class="col-nome">${item.razao || "-"}</td>
+      <td class="col-cpf">${item.cnpj}</td>
+      <td class="col-status">-</td>
+      <td class="col-perfil">
+        <a href="#" class="btn-acao">Perfil</a>
+        <a href="#" class="btn-acao">Horários</a>
+      </td>
+    </tr>
+  `;
+});
+    }
+
+    function filtrar() {
+      let lista = [...dados];
+
+      const texto  = document.getElementById("search").value.toLowerCase();
+      const status = document.getElementById("statusFilter").value;
+      const ordem  = document.getElementById("orderFilter").value;
+
+      if (texto) {
+        lista = lista.filter(item =>
+         item.razao.toLowerCase().includes(texto) ||
+         item.cnpj.includes(texto)
+        );
+      }
+
+      if (status !== "todos") {
+        lista = lista.filter(item => item.status === status);
+      }
+
+      if (ordem === "nome") {
+        lista.sort((a, b) => a.nome.localeCompare(b.nome));
+      } else {
+        lista.sort((a, b) => a.cpf.localeCompare(b.cpf));
+      }
+
+      render(lista);
+    }
+
+    // Carrega ao iniciar
+    carregarEmpresas();
+  </script>
+
+</body>
+
+</html>
