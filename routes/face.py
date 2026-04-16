@@ -29,7 +29,7 @@ DETECTOR_RECONHECIMENTO = "opencv"
 LIMITE_FOTOS = 5
 LIMIAR_RECONHECIMENTO = 0.84
 CONFIANCA_MINIMA = 0.30
-MARGEM_MINIMA = 0.04
+MARGEM_MINIMA = 0.1
 PASTA_TEMP = "temp_cadastros"
 INTERVALO_MINIMO_PRESENCA_SEGUNDOS = 60
 
@@ -77,7 +77,7 @@ def imagem_nitida(img, limite=40):
 
 def detectar_rosto_unico(img, detector, align=True):
     faces = DeepFace.extract_faces(
-        img_path=img, detector_backend=detector, enforce_detection=True, align=align
+        img_path=img, detector_backend=detector, enforce_detection=False, align=align
     )
 
     if len(faces) != 1:
