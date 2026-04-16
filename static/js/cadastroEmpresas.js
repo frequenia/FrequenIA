@@ -4,20 +4,24 @@ function addTelefone() {
     const div = document.createElement("div");
     div.classList.add("telefone-linha");
 
-    div.innerHTML = `
-        <select>
-            <option>Fixo</option>
-            <option>Celular</option>
-        </select>
+div.innerHTML = `
+    <select>
+        <option>Fixo</option>
+        <option>Celular</option>
+    </select>
 
-        <input type="text" placeholder="(xx) xxxxx-xxxx">
+    <input type="text" placeholder="(xx) xxxxx-xxxx">
 
-        <input type="text" placeholder="Setor ou responsável">
+    <input type="text" placeholder="Setor ou responsável">
 
-        <button type="button" class="btn btn-secondary btn-sm btn-remover">
-            Remover
-        </button>
-    `;
+    <button type="button" class="btn btn-secondary btn-sm btn-remover">
+        Remover
+    </button>
+
+    <button type="button" class="btn btn-primary btn-sm btn-add">
+        +
+    </button>
+`;
 
     container.appendChild(div);
 
@@ -30,6 +34,7 @@ function addTelefone() {
             alert("Deve haver pelo menos um telefone.");
         }
     });
+    div.querySelector(".btn-add").addEventListener("click", addTelefone);
 }
 
 function addEmail() {
@@ -38,13 +43,17 @@ function addEmail() {
     const div = document.createElement("div");
     div.classList.add("email-linha");
 
-    div.innerHTML = `
-        <input type="email" placeholder="Digite o e-mail">
+div.innerHTML = `
+    <input type="email" placeholder="Digite o e-mail">
 
-        <button type="button" class="btn btn-secondary btn-sm btn-remover-email">
-            Remover
-        </button>
-    `;
+    <button type="button" class="btn btn-secondary btn-sm btn-remover-email">
+        Remover
+    </button>
+
+    <button type="button" class="btn btn-primary btn-sm btn-add-email">
+        +
+    </button>
+`;
 
     container.appendChild(div);
 
@@ -55,6 +64,7 @@ function addEmail() {
             alert("Deve haver pelo menos um e-mail.");
         }
     });
+    div.querySelector(".btn-add-email").addEventListener("click", addEmail);
 }
 
 // inicial

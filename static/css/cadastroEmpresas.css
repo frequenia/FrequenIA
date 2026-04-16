@@ -1,6 +1,6 @@
 .container {
-    max-width: 1000px;
-    margin: 20px auto;
+    padding: var(--spacing-2xl);
+    margin: 0 auto;
 }
 
 .grid-2 {
@@ -21,9 +21,8 @@
 
 .telefone-linha {
     display: grid;
-    grid-template-columns: 120px 1fr 1fr 110px;
+    grid-template-columns: 120px 1fr 1fr 110px 50px;
     gap: var(--spacing-md);
-    margin-bottom: var(--spacing-md);
     align-items: center;
 }
 
@@ -47,11 +46,11 @@
 
 .email-linha {
     display: grid;
-    grid-template-columns: 1fr 110px;
+    grid-template-columns: 1fr 110px 50px;
     gap: var(--spacing-md);
-    margin-bottom: var(--spacing-sm);
     align-items: center;
 }
+
 
 select {
     height: auto !important;
@@ -67,6 +66,15 @@ select {
 input, select {
     display: flex;
     align-items: center;
+}
+
+/* BOTÃO + */
+.btn-add {
+    font-size: 22px;
+}
+
+.btn-add-email {
+    font-size: 22px;
 }
 
 /* ─── DARK MODE: CADASTRO EMPRESAS ───────────────────────── */
