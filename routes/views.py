@@ -457,6 +457,41 @@ def listar_usuarios_select():
         print("ERRO:", e)
         return jsonify([])
 
+
+# =========================
+# RETORNAR HORARIOS DO USUARIO LOGADO
+# =========================
+
+@views_bp.route('/jornada', methods=['GET'])
+def get_jornada():
+    if 'user_id' not in session:
+        return jsonify({'erro': 'Não autenticado'}), 401
+
+    user_id = session['user_id']
+
+    conn = conectar_bd()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cursor.execute("""
+        SELECT 
+            TO_CHAR(inicio_expediente, 'HH24:MI') AS entrada,
+            TO_CHAR(inicio_intervalo, 'HH24:MI') AS saida_intervalo,
+            TO_CHAR(termino_intervalo, 'HH24:MI') AS volta_intervalo,
+            TO_CHAR(termino_expediente, 'HH24:MI') AS saida
+        FROM horarios
+        WHERE usuario_id = %s
+    """, (user_id,))
+
+    jornada = cursor.fetchone()
+    conn.close()
+
+    if not jornada:
+        return jsonify({'erro': 'Jornada não encontrada'}), 404
+
+    return jsonify(jornada), 200
+
+
+
 # =========================
 # STATUS (MOCK)
 # =========================
