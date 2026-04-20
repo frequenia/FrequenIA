@@ -31,6 +31,7 @@
                 </div>
             </div>
         </div>
+
         <!-- BOTÕES -->
         <div class="button-container">
             <button id="btnRegistrar" class="btn-primary" type="button">Bater Ponto</button>
@@ -46,16 +47,112 @@
     <div class="modal-content">
         <div class="modal-header">
             <h2>Instruções para Reconhecimento</h2>
-            <button id="btnFecharModal" class="modal-close">&times;</button>
+            <button id="btnFecharModal" class="modal-close" type="button">&times;</button>
         </div>
 
         <div class="modal-body">
             <div class="instructions-list">
-                <div class="instruction-item"><div class="instruction-number">1</div><p>Rosto próximo à câmera</p></div>
-                <div class="instruction-item"><div class="instruction-number">2</div><p>Olhe para frente</p></div>
-                <div class="instruction-item"><div class="instruction-number">3</div><p>Boa iluminação</p></div>
-                <div class="instruction-item"><div class="instruction-number">4</div><p>Sem acessórios</p></div>
+                <div class="instruction-item">
+                    <div class="instruction-number">1</div>
+                    <p>Rosto próximo à câmera</p>
+                </div>
+                <div class="instruction-item">
+                    <div class="instruction-number">2</div>
+                    <p>Olhe para frente</p>
+                </div>
+                <div class="instruction-item">
+                    <div class="instruction-number">3</div>
+                    <p>Boa iluminação</p>
+                </div>
+                <div class="instruction-item">
+                    <div class="instruction-number">4</div>
+                    <p>Sem acessórios</p>
+                </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- POPUP SUCESSO -->
+<div id="popup-ponto" class="popup-overlay">
+    <div class="popup-card popup-sucesso">
+        <div class="popup-topo">
+            <div class="popup-icone-circulo">
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="9" stroke="#ffffff" stroke-width="2"></circle>
+                    <path d="M8.5 12.3L10.8 14.6L15.7 9.5" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+            </div>
+
+            <h3>Ponto Registrado!</h3>
+            <span>WORKSYNC</span>
+        </div>
+
+        <div class="popup-corpo">
+            <div class="popup-linha">
+                <div class="popup-icone-box">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="8" r="4" stroke="#239b73" stroke-width="2"></circle>
+                        <path d="M5 19c1.6-3 4-4.5 7-4.5s5.4 1.5 7 4.5" stroke="#239b73" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div class="popup-info">
+                    <p class="popup-label">FUNCIONÁRIO</p>
+                    <p class="popup-valor" id="popup-nome">—</p>
+                </div>
+            </div>
+
+            <div class="popup-divisor"></div>
+
+            <div class="popup-linha">
+                <div class="popup-icone-box">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="8" stroke="#239b73" stroke-width="2"></circle>
+                        <path d="M12 8v4l2.5 2.5" stroke="#239b73" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div class="popup-info">
+                    <p class="popup-label">HORÁRIO</p>
+                    <p class="popup-valor" id="popup-horario">—</p>
+                </div>
+            </div>
+
+            <button class="popup-btn" type="button" onclick="fecharPopupPonto()">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- POPUP ERRO -->
+<div id="popup-erro" class="popup-overlay">
+    <div class="popup-card popup-erro-card">
+        <div class="popup-topo popup-topo-erro">
+            <div class="popup-icone-circulo">
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="9" stroke="#ffffff" stroke-width="2"></circle>
+                    <path d="M9 9L15 15M15 9L9 15" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"></path>
+                </svg>
+            </div>
+
+            <h3>Reconhecimento não concluído</h3>
+            <span>WORKSYNC</span>
+        </div>
+
+        <div class="popup-corpo">
+            <div class="popup-linha">
+                <div class="popup-icone-box">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="8" stroke="#c35b36" stroke-width="2"></circle>
+                        <path d="M12 8v5" stroke="#c35b36" stroke-width="2" stroke-linecap="round"></path>
+                        <circle cx="12" cy="16.5" r="1" fill="#c35b36"></circle>
+                    </svg>
+                </div>
+                <div class="popup-info">
+                    <p class="popup-label">MOTIVO</p>
+                    <p class="popup-valor" id="popup-erro-mensagem">Erro ao reconhecer o rosto.</p>
+                </div>
+            </div>
+
+            <button class="popup-btn popup-btn-erro" type="button" onclick="fecharPopupErro()">Tentar novamente</button>
         </div>
     </div>
 </div>

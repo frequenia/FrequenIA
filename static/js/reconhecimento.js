@@ -29,7 +29,7 @@ function ligarCamera() {
     })
     .catch((erro) => {
         console.error("Erro câmera:", erro);
-        alert("Erro ao acessar a câmera.");
+        mostrarPopupErro("Não foi possível acessar a câmera.");
     });
 }
 
@@ -89,26 +89,26 @@ async function registrarPonto() {
         }
 
         if (dados.nome && dados.data && dados.horario) {
-            alert(
-                "Funcionário identificado: " + dados.nome +
-                "\nPonto registrado em: " + dados.data +
-                " às " + dados.horario
-            );
+            mostrarPopupPonto(dados.nome, dados.data + " às " + dados.horario);
 
             video.style.border = "4px solid green";
-            setTimeout(() => video.style.border = "none", 2000);
+            setTimeout(() => {
+                video.style.border = "none";
+            }, 2000);
 
             return true;
         } else {
             video.style.border = "4px solid red";
-            setTimeout(() => video.style.border = "none", 2000);
+            setTimeout(() => {
+                video.style.border = "none";
+            }, 2000);
 
             return false;
         }
 
     } catch (erro) {
         console.error("Erro:", erro);
-        alert("Erro no reconhecimento.");
+        mostrarPopupErro("Erro no reconhecimento.");
         return false;
     } finally {
         processando = false;
@@ -131,11 +131,11 @@ async function registrarComTentativas() {
         await new Promise(r => setTimeout(r, 500));
     }
 
-    alert("Rosto desconhecido!");
+    mostrarPopupErro("Nenhum funcionário identificado!");
 }
 
 // =========================
-// MODAL
+// MODAL INSTRUÇÕES
 // =========================
 if (btnInstrucoes && modal) {
     btnInstrucoes.addEventListener("click", () => {
@@ -154,6 +154,40 @@ window.addEventListener("click", (event) => {
         modal.classList.remove("active");
     }
 });
+
+// =========================
+// POPUP SUCESSO
+// =========================
+function mostrarPopupPonto(nome, horario) {
+    const nomeEl = document.getElementById("popup-nome");
+    const horarioEl = document.getElementById("popup-horario");
+    const popup = document.getElementById("popup-ponto");
+
+    if (nomeEl) nomeEl.textContent = nome;
+    if (horarioEl) horarioEl.textContent = horario;
+    if (popup) popup.classList.add("ativo");
+}
+
+function fecharPopupPonto() {
+    const popup = document.getElementById("popup-ponto");
+    if (popup) popup.classList.remove("ativo");
+}
+
+// =========================
+// POPUP ERRO
+// =========================
+function mostrarPopupErro(mensagem) {
+    const mensagemEl = document.getElementById("popup-erro-mensagem");
+    const popup = document.getElementById("popup-erro");
+
+    if (mensagemEl) mensagemEl.textContent = mensagem;
+    if (popup) popup.classList.add("ativo");
+}
+
+function fecharPopupErro() {
+    const popup = document.getElementById("popup-erro");
+    if (popup) popup.classList.remove("ativo");
+}
 
 // =========================
 // INIT
