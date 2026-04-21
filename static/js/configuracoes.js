@@ -28,8 +28,6 @@ document.addEventListener("DOMContentLoaded", function () {
       if (typeof window.aplicarTema === "function") {
         window.aplicarTema(tema);
       }
-
-      alert("Configurações salvas com sucesso.");
     });
   }
 

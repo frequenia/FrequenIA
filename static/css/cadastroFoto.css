@@ -566,14 +566,6 @@
   background: #0c4a70;
 }
 
-.popup-btn-erro {
-  background: #c35b36;
-}
-
-.popup-btn-erro:hover {
-  background: #a84a2a;
-}
-
 /* RESPONSIVO */
 @media (max-width: 480px) {
   .popup-card {
