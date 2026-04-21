@@ -379,15 +379,16 @@ def atualizar_usuario():
         user_id = dados.get("id")
         nome = dados.get("nome")
         email = dados.get("email")
+        cargo_id = dados.get("cargo_id")
 
         conn = conectar_bd()
         cursor = conn.cursor()
 
         cursor.execute("""
             UPDATE usuarios
-            SET nome = %s, email = %s
+            SET nome = %s, email = %s, cargo_id = %s
             WHERE id = %s
-        """, (nome, email, user_id))
+        """, (nome, email, cargo_id, user_id))
 
         conn.commit()
 
@@ -602,13 +603,15 @@ def editar_usuario():
             u.email,
             u.telefone,
             u.cpf,
-            f.cargo,
+            u.cargo_id,
+            c.nome AS cargo,
             f.setor,
             f.tipo_perfil,
             f.tipo_contrato,
             f.data_admissao
         FROM usuarios u
         LEFT JOIN funcionarios f ON u.id = f.usuario_id
+        LEFT JOIN cargos c ON u.cargo_id = c.id
         WHERE u.id = %s
     """, (user_id,))
 

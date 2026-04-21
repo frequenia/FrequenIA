@@ -61,16 +61,12 @@
 
                 <div class="grid">
 
-                    <div class="campo">
-                        <label>Cargo</label>
-                        <select id="cargo" class="campo-editavel" disabled>
-                            <option value="">Selecione</option>
-                            <option value="analista" {% if usuario.cargo == 'analista' %}selected{% endif %}>Analista</option>
-                            <option value="assistente" {% if usuario.cargo == 'assistente' %}selected{% endif %}>Assistente</option>
-                            <option value="Gerente" {% if usuario.cargo == 'Gerente' %}selected{% endif %}>Gerente</option>
-                            <option value="coordenador" {% if usuario.cargo == 'coordenador' %}selected{% endif %}>Coordenador</option>
-                        </select>
-                    </div>
+            <div class="campo">
+                <label>Cargo</label>
+                <select id="cargo" class="campo-editavel" disabled data-cargo="{{ usuario.cargo_id }}">
+                    <option value="">Selecione</option>
+                </select>
+            </div>
 
                     <div class="campo">
                         <label>Setor</label>

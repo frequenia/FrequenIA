@@ -73,7 +73,8 @@
 
         <div class="campo">
           <label>Tipo de Perfil</label>
-          <input type="text" id="tipo_perfil" disabled>
+          <input type="text" id="tipo_perfil" value="
+            {{ 'Administrador' if user.tipo_perfil == 'admin' else 'Colaborador' if user.tipo_perfil == 'funcionario' else user.tipo_perfil }}" disabled>
         </div>
 
         <div class="campo">
