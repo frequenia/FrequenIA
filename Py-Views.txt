@@ -1,0 +1,31 @@
+RENDERIZAÇÃO DAS PAGINAS
+Indica página que contem UNICAMENTE a renderização das mesmas.
+
+- FUNÇÃO PRINCIPAL - LOGIN
+Função que recebe o json enviado pelo cliente, faz a busca no banco de dados, 
+as respectivas comparações e, em seguida, retorna os tipos de erros; se for bem sucedido, salva os dados da sessão.
+
+- FUNÇÃO - CHAMADA DO MENU PRINCIPAL
+Função que busca o nome do usuário no banco de dados pelo ID da sessão e renderiza a página do menu passando o nome e o tipo de perfil.
+
+- FUNÇÃO - MEU PERFIL
+Função que busca no banco de dados os dados completos do usuário logado — incluindo 
+informações pessoais, cargo, setor e vínculo empregatício — e renderiza a página de perfil.
+
+- FUNÇÃO - LISTAGEM DE USUÁRIOS (GERENCIAMENTO)
+Função que busca todos os usuários cadastrados no banco de dados e retorna a 
+lista em formato JSON; em caso de erro, retorna uma lista vazia com status 500.
+
+- FUNÇÃO - LISTAGEM DE EMPRESAS (GERENCIAMENTO)
+Função que busca todos as empresas cadastradas no banco de dados e retorna a 
+lista em formato JSON; em caso de erro, retorna uma lista vazia com status 500.
+
+- FUNÇÃO - ALTERAÇÃO DE DADOS DO USUÁRIO
+Função que, dentro do menu "Gerenciamento", permite que um administrador altere dados dos usuários.
+
+- FUNÇÕES - ENVIO E VALIDAÇÃO DE TOKEN PARA RECUPERAÇÃO DE SENHA
+Auto explicativo.
+
+- FUNÇÃO - REDEFINIÇÃO DE SENHA
+Função que recebe e-mail, token e nova senha via JSON, valida se o usuário existe e se o token
+é válido, atualiza a senha no banco de dados, limpa o token de reset, encerra a sessão e retorna sucesso.

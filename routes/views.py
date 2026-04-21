@@ -15,16 +15,71 @@ views_bp = Blueprint("views", __name__)
 def home():
     return redirect(url_for("auth.login_page"))
 
-# =========================
-# PAGINA DE LOGIN
-# =========================
+# ==================================================================================================
+# RENDERIZAÇÃO - PÁGINAS DO SISTEMA
+# ==================================================================================================
 @views_bp.route("/login-page")
 def login_page():
     return render_template("login.html")
 
-# =========================
-# FUNÇÃO DE LOGIN
-# =========================
+@views_bp.route("/controleponto")
+def controle_ponto():
+    return render_template("controleponto.html")
+
+@views_bp.route("/inicio")
+def inicio():
+    return render_template("inicio.html")
+
+@views_bp.route("/cadastroUsuario")
+def cadastro_usuario():
+    return render_template("cadastroUsuario.html")
+
+@views_bp.route("/reconhecimentoFacial")
+def reconhecimento_facial():
+    return render_template("reconhecimentoFacial.html")
+
+@views_bp.route("/cadastrarFoto")
+@login_required
+def cadastrar_foto():
+    return render_template("cadastrarFoto.html")
+
+@views_bp.route("/redefinicaoSenha")
+def redefinicao_senha():
+    return render_template("redefinicaoSenha.html")
+
+@views_bp.route('/gerenciarUsuario')
+@login_required
+@admin_required
+def gerenciar_usuario():
+    return render_template('gerenciarUsuario.html')
+
+@views_bp.route('/gerenciarEmpresa')
+@login_required
+@admin_required
+def gerenciar_empresa():
+    return render_template('gerenciarEmpresa.html')
+
+@views_bp.route("/configuracoes")
+@login_required
+def configuracoes():
+    return render_template("configuracoes.html")
+
+@views_bp.route("/cadastroEmpresas")
+@login_required
+def cadastroEmpresas():
+    return render_template("cadastroEmpresas.html")
+
+@views_bp.route("/recuperacaoSenha")
+def recuperacao_senha():
+    return render_template("recuperacaoSenha.html")
+
+@views_bp.route("/inserirToken")
+def inserir_token():
+    return render_template("inserirToken.html")
+
+# ==================================================================================================
+# FUNÇÃO PRINCIPAL - LOGIN
+# ==================================================================================================
 @views_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -73,13 +128,10 @@ def login():
     'tipo': user['tipo_perfil']
 }), 200
 
-@views_bp.route("/recuperacaoSenha")
-def recuperacao_senha():
-    return render_template("recuperacaoSenha.html")
 
-# =========================
-# MENU
-# =========================
+# ==================================================================================================
+# FUNÇÃO - CHAMADA DO MENU PRINCIPAL
+# ==================================================================================================
 @views_bp.route("/menu")
 @login_required
 def menu():
@@ -97,19 +149,10 @@ def menu():
     tipo=session.get('tipo')
 )
 
-# =========================
-# TELAS DENTRO DO MENU
-# =========================
 
-@views_bp.route("/controleponto")
-def controle_ponto():
-    return render_template("controleponto.html")
-
-@views_bp.route("/inicio")
-def inicio():
-    return render_template("inicio.html")
-
-
+# ==================================================================================================
+# FUNÇÃO - MEU PERFIL
+# ==================================================================================================
 @views_bp.route("/perfil")
 @login_required
 def perfil():
@@ -137,44 +180,166 @@ def perfil():
 
     return render_template("perfil.html", user=user)
 
-@views_bp.route("/cadastroUsuario")
-def cadastro_usuario():
-    return render_template("cadastroUsuario.html")
 
-@views_bp.route("/reconhecimentoFacial")
-def reconhecimento_facial():
-    return render_template("reconhecimentoFacial.html")
-
-@views_bp.route("/cadastrarFoto")
+# ==================================================================================================
+# FUNÇÃO - LISTAGEM DE USUÁRIOS (GERENCIAMENTO)
+# ==================================================================================================
+@views_bp.route("/listarUsuarios")
 @login_required
-def cadastrar_foto():
-    return render_template("cadastrarFoto.html")
+def listar_usuarios():
+    try:
+        conn = conectar_bd()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-@views_bp.route("/redefinicaoSenha")
-def redefinicao_senha():
-    return render_template("redefinicaoSenha.html")
+        cursor.execute("""
+            SELECT id, nome, cpf, 'ativo' as status
+            FROM usuarios
+        """)
 
-@views_bp.route('/gerenciarUsuario')
+        usuarios = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        return jsonify(usuarios)
+
+    except Exception as e:
+        print("ERRO:", e)
+        return jsonify([]), 500
+
+
+# ==================================================================================================
+# FUNÇÃO - LISTAGEM DE EMPRESAS (GERENCIAMENTO)
+# ==================================================================================================
+@views_bp.route("/listarEmpresas")
 @login_required
-@admin_required
-def gerenciar_usuario():
-    return render_template('gerenciarUsuario.html')
+def listar_empresas():
+    try:
+        conn = conectar_bd()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-@views_bp.route('/gerenciarEmpresa')
-@login_required
-@admin_required
-def gerenciar_empresa():
-    return render_template('gerenciarEmpresa.html')
+        cursor.execute("""
+            SELECT cnpj, razao
+            FROM empresas_teste
+        """)
 
-@views_bp.route("/configuracoes")
-@login_required
-def configuracoes():
-    return render_template("configuracoes.html")
+        empresas_teste = cursor.fetchall()
 
-@views_bp.route("/cadastroEmpresas")
-@login_required
-def cadastroEmpresas():
-    return render_template("cadastroEmpresas.html")
+        cursor.close()
+        conn.close()
+
+        return jsonify(empresas_teste)
+
+    except Exception as e:
+        print("ERRO:", e)
+        return jsonify([]), 500
+
+
+# ==================================================================================================
+# FUNÇÃO - ALTERAÇÃO DE DADOS DO USUÁRIO
+# ==================================================================================================
+@views_bp.route("/atualizar_usuario", methods=["POST"])
+def atualizar_usuario():
+    try:
+        dados = request.get_json()
+
+        user_id = dados.get("id")
+        nome = dados.get("nome")
+        email = dados.get("email")
+
+        conn = conectar_bd()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE usuarios
+            SET nome = %s, email = %s
+            WHERE id = %s
+        """, (nome, email, user_id))
+
+        conn.commit()
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({"status": "ok"})
+
+    except Exception as e:
+        print("ERRO:", e)
+        return jsonify({"status": "erro"})
+
+
+# ==================================================================================================
+# FUNÇÕES - ENVIO E VALIDAÇÃO DE TOKEN PARA RECUPERAÇÃO DE SENHA
+# ==================================================================================================
+@views_bp.route('/enviar-token', methods=['POST'])
+def enviar_token():
+    data = request.get_json()
+    email = data['email']
+
+    user = buscar_usuario_por_email(email)
+
+    if not user:
+        return jsonify({'erro': 'Email não encontrado'}), 404
+
+    token = secrets.token_hex(3)
+
+    salvar_token(user['id'], token)
+
+    print("TOKEN GERADO:", token)
+
+    return jsonify({'ok': True}), 200
+
+
+@views_bp.route('/validar-token', methods=['POST'])
+def validar_token():
+    data = request.get_json()
+
+    email = data['email']
+    token = data['token']
+
+    user = buscar_usuario_por_email(email)
+
+    if not user:
+        return {'erro': 'Usuário não encontrado'}, 404
+
+    if user['token_reset'] != token:
+        return {'erro': 'Token inválido'}, 400
+
+    return {'ok': True}, 200
+
+
+# ==================================================================================================
+# FUNÇÃO - REDEFINIÇÃO DE SENHA
+# ==================================================================================================
+@views_bp.route('/resetar-senha', methods=['POST'])
+def resetar_senha():
+
+    data = request.get_json()
+
+    email = data.get('email')
+    token = data.get('token')
+    senha = data.get('senha')
+
+    user = buscar_usuario_por_email(email)
+
+    if not user:
+        return jsonify({'erro': 'Usuário não encontrado'}), 404
+
+    if user['token_reset'] != token:
+        return jsonify({'erro': 'Token inválido'}), 400
+
+    senha_hash = generate_password_hash(senha)
+
+    atualizar_senha(user['id'], senha_hash)
+
+    limpar_token(user['id'])
+
+    session.clear();
+
+    return jsonify({'ok': True}), 200
+
+############################################################### PAREI AQUI
+
 
 @views_bp.route("/editarUsuario")
 @login_required
@@ -247,171 +412,6 @@ def editar_horarios():
 
     return render_template("editarHorarios.html", usuario=usuario)
 
-# =========================
-# LISTAGEM DE USUÁRIOS
-# =========================
-@views_bp.route("/listarUsuarios")
-@login_required
-def listar_usuarios():
-    try:
-        conn = conectar_bd()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
-        cursor.execute("""
-            SELECT id, nome, cpf, 'ativo' as status
-            FROM usuarios
-        """)
-
-        usuarios = cursor.fetchall()
-
-        cursor.close()
-        conn.close()
-
-        return jsonify(usuarios)
-
-    except Exception as e:
-        print("ERRO:", e)
-        return jsonify([]), 500
-
-# =========================
-# LISTAGEM DE EMPRESAS
-# =========================
-@views_bp.route("/listarEmpresas")
-@login_required
-def listar_empresas():
-    try:
-        conn = conectar_bd()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
-        cursor.execute("""
-            SELECT cnpj, razao
-            FROM empresas_teste
-        """)
-
-        empresas_teste = cursor.fetchall()
-
-        cursor.close()
-        conn.close()
-
-        return jsonify(empresas_teste)
-
-    except Exception as e:
-        print("ERRO:", e)
-        return jsonify([]), 500
-
-# =========================
-# ALTERAÇÃO NO BANCO DE DADOS
-# =========================
-
-@views_bp.route("/atualizar_usuario", methods=["POST"])
-def atualizar_usuario():
-    try:
-        dados = request.get_json()
-
-        user_id = dados.get("id")
-        nome = dados.get("nome")
-        email = dados.get("email")
-
-        conn = conectar_bd()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            UPDATE usuarios
-            SET nome = %s, email = %s
-            WHERE id = %s
-        """, (nome, email, user_id))
-
-        conn.commit()
-
-        cursor.close()
-        conn.close()
-
-        return jsonify({"status": "ok"})
-
-    except Exception as e:
-        print("ERRO:", e)
-        return jsonify({"status": "erro"})
-
-
-# =========================
-# RECUPERAÇÃO DE SENHA
-# =========================
-
-@views_bp.route("/inserirToken")
-def inserir_token():
-    return render_template("inserirToken.html")
-
-
-@views_bp.route('/enviar-token', methods=['POST'])
-def enviar_token():
-    data = request.get_json()
-    email = data['email']
-
-    user = buscar_usuario_por_email(email)
-
-    if not user:
-        return jsonify({'erro': 'Email não encontrado'}), 404
-
-    token = secrets.token_hex(3)
-
-    salvar_token(user['id'], token)
-
-    print("TOKEN GERADO:", token)
-
-    return jsonify({'ok': True}), 200
-
-
-@views_bp.route('/validar-token', methods=['POST'])
-def validar_token():
-    data = request.get_json()
-
-    email = data['email']
-    token = data['token']
-
-    user = buscar_usuario_por_email(email)
-
-    if not user:
-        return {'erro': 'Usuário não encontrado'}, 404
-
-    if user['token_reset'] != token:
-        return {'erro': 'Token inválido'}, 400
-
-    return {'ok': True}, 200
-
-
-# =========================
-# ALTERAÇÃO DE SENHA
-# =========================
-
-@views_bp.route('/resetar-senha', methods=['POST'])
-def resetar_senha():
-    from flask import request, jsonify
-    from werkzeug.security import generate_password_hash
-    from db import buscar_usuario_por_email, atualizar_senha, limpar_token
-
-    data = request.get_json()
-
-    email = data.get('email')
-    token = data.get('token')
-    senha = data.get('senha')
-
-    user = buscar_usuario_por_email(email)
-
-    if not user:
-        return jsonify({'erro': 'Usuário não encontrado'}), 404
-
-    if user['token_reset'] != token:
-        return jsonify({'erro': 'Token inválido'}), 400
-
-    senha_hash = generate_password_hash(senha)
-
-    atualizar_senha(user['id'], senha_hash)
-
-    limpar_token(user['id'])
-
-    session.clear();
-
-    return jsonify({'ok': True}), 200
 
 # =========================
 # FUNÇÃO QUE RETORNA A HORA DO SERVIDOR
