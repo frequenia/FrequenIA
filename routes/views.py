@@ -8,6 +8,7 @@ from flask import (
     jsonify,
     session,
     request,
+    send_file,
 )
 from datetime import datetime, date
 from zoneinfo import ZoneInfo
@@ -23,8 +24,14 @@ from db import (
     limpar_token,
 )
 from routes.face import pasta_usuario
-import os
 from collections import defaultdict
+import os
+import csv
+import io
+
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from docx import Document
 
 views_bp = Blueprint("views", __name__)
 
@@ -168,6 +175,9 @@ def login():
 # ==================================================================================================
 @views_bp.route("/cadastrar_usuario", methods=["POST"])
 def cadastrar_usuario():
+    conn = None
+    cursor = None
+
     try:
         dados = request.get_json()
 
@@ -215,8 +225,6 @@ def cadastrar_usuario():
         horarios = dados.get("horarios", [])
 
         if not horarios:
-            cursor.close()
-            conn.close()
             return jsonify({"status": "erro", "mensagem": "Nenhum horário informado"})
 
         for h in horarios:
@@ -243,13 +251,19 @@ def cadastrar_usuario():
             )
 
         conn.commit()
-        cursor.close()
-        conn.close()
 
         return jsonify({"status": "ok", "mensagem": "Usuário cadastrado com sucesso"})
 
     except Exception as e:
+        if conn:
+            conn.rollback()
         return jsonify({"status": "erro", "mensagem": str(e)})
+
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 # ==================================================================================================
@@ -257,6 +271,9 @@ def cadastrar_usuario():
 # ==================================================================================================
 @views_bp.route("/cadastrar_empresa", methods=["POST"])
 def cadastrar_empresa():
+    conn = None
+    cursor = None
+
     try:
         dadosEmp = request.get_json()
 
@@ -272,13 +289,19 @@ def cadastrar_empresa():
         )
 
         conn.commit()
-        cursor.close()
-        conn.close()
 
         return jsonify({"status": "ok", "mensagem": "Empresa cadastrada com sucesso"})
 
     except Exception as e:
+        if conn:
+            conn.rollback()
         return jsonify({"status": "erro", "mensagem": str(e)})
+
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 # ==================================================================================================
@@ -287,12 +310,11 @@ def cadastrar_empresa():
 @views_bp.route("/menu")
 @login_required
 def menu():
-    print(session)
     conn = conectar_bd()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     cursor.execute("SELECT nome FROM usuarios WHERE id = %s", (session["user_id"],))
-    user = cursor.fetchone()
+    cursor.fetchone()
 
     cursor.close()
     conn.close()
@@ -639,18 +661,11 @@ def calcular_total(entrada, saida, saida_intervalo=None, volta_intervalo=None):
         return "--"
 
 
-@views_bp.route("/pontos", methods=["GET"])
-@login_required
-def listar_pontos():
+def montar_registros_ponto(user_id, data_inicio=None, data_fim=None, formato_data="iso"):
     conn = None
     cursor = None
 
     try:
-        user_id = session["user_id"]
-
-        data_inicio = request.args.get("inicio")
-        data_fim = request.args.get("fim")
-
         conn = conectar_bd()
         cursor = conn.cursor()
 
@@ -701,16 +716,13 @@ def listar_pontos():
 
             if len(horarios) == 1:
                 entrada = horarios[0]
-
             elif len(horarios) == 2:
                 entrada = horarios[0]
                 saida = horarios[1]
-
             elif len(horarios) == 3:
                 entrada = horarios[0]
                 saida_intervalo = horarios[1]
                 saida = horarios[2]
-
             elif len(horarios) >= 4:
                 entrada = horarios[0]
                 saida_intervalo = horarios[1]
@@ -719,9 +731,14 @@ def listar_pontos():
 
             nome_dia_en = data_registro.strftime("%A")
 
+            if formato_data == "br":
+                data_formatada = data_registro.strftime("%d/%m/%Y")
+            else:
+                data_formatada = data_registro.strftime("%Y-%m-%d")
+
             resultado.append(
                 {
-                    "data": data_registro.strftime("%Y-%m-%d"),
+                    "data": data_formatada,
                     "dia": mapa_dias.get(nome_dia_en, nome_dia_en),
                     "entrada": formatar_hora(entrada),
                     "saida_intervalo": formatar_hora(saida_intervalo),
@@ -736,16 +753,171 @@ def listar_pontos():
                 }
             )
 
-        return jsonify(resultado), 200
-
-    except Exception as e:
-        return jsonify({"erro": str(e)}), 500
+        return resultado
 
     finally:
         if cursor:
             cursor.close()
         if conn:
             conn.close()
+
+
+@views_bp.route("/pontos", methods=["GET"])
+@login_required
+def listar_pontos():
+    try:
+        user_id = session["user_id"]
+
+        data_inicio = request.args.get("inicio")
+        data_fim = request.args.get("fim")
+
+        resultado = montar_registros_ponto(
+            user_id=user_id,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            formato_data="iso",
+        )
+
+        return jsonify(resultado), 200
+
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
+
+@views_bp.route("/exportar-pontos", methods=["GET"])
+@login_required
+def exportar_pontos():
+    user_id = session["user_id"]
+
+    formato = request.args.get("formato", "").lower()
+    data_inicio = request.args.get("inicio")
+    data_fim = request.args.get("fim")
+
+    registros = montar_registros_ponto(
+        user_id=user_id,
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        formato_data="br",
+    )
+
+    if not registros:
+        return jsonify({"erro": "Nenhum registro encontrado para exportação."}), 404
+
+    if formato == "csv":
+        output = io.StringIO()
+        writer = csv.writer(output, delimiter=";")
+        writer.writerow(["Dia", "Data", "Entrada", "Saída Int.", "Volta Int.", "Saída", "Total"])
+
+        for item in registros:
+            writer.writerow(
+                [
+                    item["dia"],
+                    item["data"],
+                    item["entrada"],
+                    item["saida_intervalo"],
+                    item["volta_intervalo"],
+                    item["saida"],
+                    item["total"],
+                ]
+            )
+
+        mem = io.BytesIO()
+        mem.write(output.getvalue().encode("utf-8-sig"))
+        mem.seek(0)
+
+        return send_file(
+            mem,
+            as_attachment=True,
+            download_name="controle_ponto.csv",
+            mimetype="text/csv",
+        )
+
+    elif formato == "pdf":
+        mem = io.BytesIO()
+        pdf = canvas.Canvas(mem, pagesize=A4)
+        largura, altura = A4
+
+        y = altura - 40
+        pdf.setFont("Helvetica-Bold", 14)
+        pdf.drawString(40, y, "Relatório de Controle de Ponto")
+
+        y -= 30
+        pdf.setFont("Helvetica", 9)
+        pdf.drawString(40, y, "Dia")
+        pdf.drawString(95, y, "Data")
+        pdf.drawString(160, y, "Entrada")
+        pdf.drawString(220, y, "Saída Int.")
+        pdf.drawString(295, y, "Volta Int.")
+        pdf.drawString(370, y, "Saída")
+        pdf.drawString(430, y, "Total")
+
+        y -= 15
+        pdf.line(40, y, 550, y)
+
+        for item in registros:
+            y -= 18
+
+            if y < 50:
+                pdf.showPage()
+                y = altura - 40
+                pdf.setFont("Helvetica", 9)
+
+            pdf.drawString(40, y, str(item["dia"]))
+            pdf.drawString(95, y, str(item["data"]))
+            pdf.drawString(160, y, str(item["entrada"]))
+            pdf.drawString(220, y, str(item["saida_intervalo"]))
+            pdf.drawString(295, y, str(item["volta_intervalo"]))
+            pdf.drawString(370, y, str(item["saida"]))
+            pdf.drawString(430, y, str(item["total"]))
+
+        pdf.save()
+        mem.seek(0)
+
+        return send_file(
+            mem,
+            as_attachment=True,
+            download_name="controle_ponto.pdf",
+            mimetype="application/pdf",
+        )
+
+    elif formato in ["word", "doc"]:
+        doc = Document()
+        doc.add_heading("Relatório de Controle de Ponto", level=1)
+
+        table = doc.add_table(rows=1, cols=7)
+        table.style = "Table Grid"
+
+        hdr = table.rows[0].cells
+        hdr[0].text = "Dia"
+        hdr[1].text = "Data"
+        hdr[2].text = "Entrada"
+        hdr[3].text = "Saída Int."
+        hdr[4].text = "Volta Int."
+        hdr[5].text = "Saída"
+        hdr[6].text = "Total"
+
+        for item in registros:
+            row = table.add_row().cells
+            row[0].text = item["dia"]
+            row[1].text = item["data"]
+            row[2].text = item["entrada"]
+            row[3].text = item["saida_intervalo"]
+            row[4].text = item["volta_intervalo"]
+            row[5].text = item["saida"]
+            row[6].text = item["total"]
+
+        mem = io.BytesIO()
+        doc.save(mem)
+        mem.seek(0)
+
+        return send_file(
+            mem,
+            as_attachment=True,
+            download_name="controle_ponto.docx",
+            mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+
+    return jsonify({"erro": "Formato inválido."}), 400
 
 
 # ==================================================================================================
