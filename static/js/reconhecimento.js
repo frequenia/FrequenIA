@@ -24,8 +24,10 @@ function ligarCamera() {
         video.srcObject = stream;
         video.play();
 
-        const placeholder = document.querySelector(".camera-placeholder");
-        if (placeholder) placeholder.style.display = "none";
+const bg = document.querySelector(".camera-placeholder-bg");
+const status = document.querySelector(".camera-status");
+if (bg) bg.style.display = "none";
+if (status) status.style.display = "none";
     })
     .catch((erro) => {
         console.error("Erro câmera:", erro);
