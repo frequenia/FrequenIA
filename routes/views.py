@@ -120,12 +120,14 @@ def perfil():
         SELECT 
             u.nome, u.cpf, u.email, u.telefone,
             c.nome AS cargo_nome,
-            f.setor, f.tipo_perfil,
+            s.nome AS setor_nome,
+            f.tipo_perfil,
             f.data_admissao, f.tipo_contrato,
             f.matricula, f.carga_horaria, f.jornada_padrao
         FROM usuarios u
         LEFT JOIN funcionarios f ON u.id = f.usuario_id
         LEFT JOIN cargos c ON u.cargo_id = c.id
+        LEFT JOIN setores s ON u.setor_id = s.id
         WHERE u.id = %s
     """, (session['user_id'],))
 
@@ -427,9 +429,6 @@ def hora_servidor():
         "dia": dia_semana
     }
 
-
-
-
 @views_bp.route("/listar_usuarios_select", methods=["GET"])
 def listar_usuarios_select():
     try:
@@ -456,7 +455,6 @@ def listar_usuarios_select():
     except Exception as e:
         print("ERRO:", e)
         return jsonify([])
-
 
 # =========================
 # RETORNAR HORARIOS DO USUARIO LOGADO
@@ -489,8 +487,6 @@ def get_jornada():
         return jsonify({'erro': 'Jornada não encontrada'}), 404
 
     return jsonify(jornada), 200
-
-
 
 # =========================
 # STATUS (MOCK)

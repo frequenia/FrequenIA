@@ -68,7 +68,7 @@
 
         <div class="campo">
           <label>Setor</label>
-          <input type="text" id="setor" disabled>
+          <input type="text" id="setor" value="{{ user.setor_nome if user.setor_nome else 'Sem setor' }}" disabled>
         </div>
 
         <div class="campo">
