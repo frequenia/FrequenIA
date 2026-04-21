@@ -1,89 +1,121 @@
-from flask import Blueprint, app, render_template, redirect, url_for, Flask, jsonify, session, request
-from datetime import datetime
+from flask import (
+    Blueprint,
+    app,
+    render_template,
+    redirect,
+    url_for,
+    Flask,
+    jsonify,
+    session,
+    request,
+)
+from datetime import datetime, date
 from zoneinfo import ZoneInfo
 from utils.auth_decorator import login_required, admin_required
 import psycopg2.extras
 import secrets
 from werkzeug.security import generate_password_hash, check_password_hash
-from db import buscar_usuario_por_email, salvar_token, conectar_bd, atualizar_senha, limpar_token
+from db import (
+    buscar_usuario_por_email,
+    salvar_token,
+    conectar_bd,
+    atualizar_senha,
+    limpar_token,
+)
 from routes.face import pasta_usuario
 import os
+from collections import defaultdict
 
 views_bp = Blueprint("views", __name__)
+
 
 @views_bp.route("/")
 def home():
     return redirect(url_for("views.login_page"))
 
+
 # ==================================================================================================
 # RENDERIZAÇÃO - PÁGINAS DO SISTEMA
 # ==================================================================================================
 @views_bp.route("/controleponto")
+@login_required
 def controle_ponto():
     return render_template("controleponto.html")
+
 
 @views_bp.route("/inicio")
 def inicio():
     return render_template("inicio.html")
 
+
 @views_bp.route("/cadastroUsuario")
 def cadastro_usuario():
     return render_template("cadastroUsuario.html")
 
+
 @views_bp.route("/reconhecimentoFacial")
 def reconhecimento_facial():
     return render_template("reconhecimentoFacial.html")
+
 
 @views_bp.route("/cadastrarFoto")
 @login_required
 def cadastrar_foto():
     return render_template("cadastrarFoto.html")
 
+
 @views_bp.route("/redefinicaoSenha")
 def redefinicao_senha():
     return render_template("redefinicaoSenha.html")
 
-@views_bp.route('/gerenciarUsuario')
+
+@views_bp.route("/gerenciarUsuario")
 @login_required
 @admin_required
 def gerenciar_usuario():
-    return render_template('gerenciarUsuario.html')
+    return render_template("gerenciarUsuario.html")
 
-@views_bp.route('/gerenciarEmpresa')
+
+@views_bp.route("/gerenciarEmpresa")
 @login_required
 @admin_required
 def gerenciar_empresa():
-    return render_template('gerenciarEmpresa.html')
+    return render_template("gerenciarEmpresa.html")
+
 
 @views_bp.route("/configuracoes")
 @login_required
 def configuracoes():
     return render_template("configuracoes.html")
 
+
 @views_bp.route("/cadastroEmpresas")
 @login_required
 def cadastroEmpresas():
     return render_template("cadastroEmpresas.html")
 
+
 @views_bp.route("/recuperacaoSenha")
 def recuperacao_senha():
     return render_template("recuperacaoSenha.html")
+
 
 @views_bp.route("/inserirToken")
 def inserir_token():
     return render_template("inserirToken.html")
 
+
 # ==================================================================================================
 # FUNÇÃO PRINCIPAL - LOGIN
 # ==================================================================================================
-@views_bp.route('/login', methods=['POST'])
+@views_bp.route("/login", methods=["POST"])
 def login():
     data = request.get_json()
 
-    cpf = data.get('cpf')
-    senha = data.get('senha')
+    cpf = data.get("cpf")
+    senha = data.get("senha")
 
-    cpf = cpf.replace('.', '').replace('-', '').strip()
+    cpf = cpf.replace(".", "").replace("-", "").strip()
     senha = senha.strip()
 
     print("CPF recebido:", cpf)
@@ -91,44 +123,50 @@ def login():
     conn = conectar_bd()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    cursor.execute("""
-    SELECT u.id, u.nome, u.cpf, u.senha_hash, f.tipo_perfil
-    FROM usuarios u
-    INNER JOIN funcionarios f ON u.id = f.usuario_id
-    WHERE REPLACE(REPLACE(u.cpf, '.', ''), '-', '') = %s
-""", (cpf,))
+    cursor.execute(
+        """
+        SELECT u.id, u.nome, u.cpf, u.senha_hash, f.tipo_perfil
+        FROM usuarios u
+        INNER JOIN funcionarios f ON u.id = f.usuario_id
+        WHERE REPLACE(REPLACE(u.cpf, '.', ''), '-', '') = %s
+        """,
+        (cpf,),
+    )
 
     user = cursor.fetchone()
+    cursor.close()
     conn.close()
 
     print("Usuário encontrado:", user)
 
     if not user:
-        return jsonify({'erro': 'CPF não encontrado'}), 404
+        return jsonify({"erro": "CPF não encontrado"}), 404
 
-    if not user['senha_hash']:
-        return jsonify({'erro': 'Usuário ainda não definiu senha'}), 400
+    if not user["senha_hash"]:
+        return jsonify({"erro": "Usuário ainda não definiu senha"}), 400
 
-    resultado = check_password_hash(user['senha_hash'], senha)
+    resultado = check_password_hash(user["senha_hash"], senha)
 
     if not resultado:
-        return jsonify({'erro': 'Senha incorreta'}), 401
+        return jsonify({"erro": "Senha incorreta"}), 401
 
-    session['user_id'] = user['id']
-    session['nome'] = user['nome']
-    session['tipo'] = user['tipo_perfil']
+    session["user_id"] = user["id"]
+    session["nome"] = user["nome"]
+    session["tipo"] = user["tipo_perfil"]
 
-    return jsonify({
-    'ok': True,
-    'nome': user['nome'],
-    'tipo': user['tipo_perfil']
-}), 200
+    return jsonify(
+        {
+            "ok": True,
+            "nome": user["nome"],
+            "tipo": user["tipo_perfil"],
+        }
+    ), 200
 
 
 # ==================================================================================================
 # FUNÇÃO PRINCIPAL - CADASTRO DE USUÁRIOS
 # ==================================================================================================
-@views_bp.route('/cadastrar_usuario', methods=['POST'])
+@views_bp.route("/cadastrar_usuario", methods=["POST"])
 def cadastrar_usuario():
     try:
         dados = request.get_json()
@@ -136,45 +174,54 @@ def cadastrar_usuario():
         conn = conectar_bd()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO usuarios (nome, email, telefone, cpf, cargo_id, setor_id)
             VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id
-        """, (
-            dados['nome'],
-            dados['email'],
-            dados['telefone'],
-            dados['cpf'],
-            dados['cargo_id'],
-            dados['setor_id']
-        ))
+            """,
+            (
+                dados["nome"],
+                dados["email"],
+                dados["telefone"],
+                dados["cpf"],
+                dados["cargo_id"],
+                dados["setor_id"],
+            ),
+        )
 
-        usuario_id = cursor.fetchone()['id']
+        usuario_id = cursor.fetchone()["id"]
 
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO funcionarios (
                 usuario_id, tipo_perfil,
                 matricula, data_admissao, tipo_contrato,
                 carga_horaria, jornada_padrao
             )
             VALUES (%s,%s,%s,%s,%s,%s,%s)
-        """, (
-            usuario_id,
-            dados['tipo_perfil'],
-            dados['matricula'],
-            dados['data_admissao'],
-            dados['tipo_contrato'],
-            dados['carga_horaria'],
-            dados['jornada']
-        ))
+            """,
+            (
+                usuario_id,
+                dados["tipo_perfil"],
+                dados["matricula"],
+                dados["data_admissao"],
+                dados["tipo_contrato"],
+                dados["carga_horaria"],
+                dados["jornada"],
+            ),
+        )
 
-        horarios = dados.get('horarios', [])
+        horarios = dados.get("horarios", [])
 
         if not horarios:
+            cursor.close()
+            conn.close()
             return jsonify({"status": "erro", "mensagem": "Nenhum horário informado"})
 
         for h in horarios:
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO horarios (
                     usuario_id,
                     dia_semana,
@@ -184,35 +231,31 @@ def cadastrar_usuario():
                     termino_expediente
                 )
                 VALUES (%s, %s, %s, %s, %s, %s)
-            """, (
-                usuario_id,
-                h['dia_semana'],
-                h['inicio_expediente'],
-                h['inicio_intervalo'],
-                h['termino_intervalo'],
-                h['termino_expediente']
-            ))
+                """,
+                (
+                    usuario_id,
+                    h["dia_semana"],
+                    h["inicio_expediente"],
+                    h["inicio_intervalo"],
+                    h["termino_intervalo"],
+                    h["termino_expediente"],
+                ),
+            )
 
         conn.commit()
         cursor.close()
         conn.close()
 
-        return jsonify({
-            "status": "ok",
-            "mensagem": "Usuário cadastrado com sucesso"
-        })
+        return jsonify({"status": "ok", "mensagem": "Usuário cadastrado com sucesso"})
 
     except Exception as e:
-        return jsonify({
-            "status": "erro",
-            "mensagem": str(e)
-        })
+        return jsonify({"status": "erro", "mensagem": str(e)})
 
 
 # ==================================================================================================
 # FUNÇÃO PRINCIPAL - CADASTRO DE EMPRESAS
 # ==================================================================================================
-@views_bp.route('/cadastrar_empresa', methods=['POST'])
+@views_bp.route("/cadastrar_empresa", methods=["POST"])
 def cadastrar_empresa():
     try:
         dadosEmp = request.get_json()
@@ -220,28 +263,23 @@ def cadastrar_empresa():
         conn = conectar_bd()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO empresas_teste (cnpj, razao)
             VALUES (%s, %s)
-        """, (
-            dadosEmp['cnpj'],
-            dadosEmp['razao']
-        ))
+            """,
+            (dadosEmp["cnpj"], dadosEmp["razao"]),
+        )
 
         conn.commit()
         cursor.close()
         conn.close()
 
-        return jsonify({
-            "status": "ok",
-            "mensagem": "Empresa cadastrada com sucesso"
-        })
+        return jsonify({"status": "ok", "mensagem": "Empresa cadastrada com sucesso"})
 
     except Exception as e:
-        return jsonify({
-            "status": "erro",
-            "mensagem": str(e)
-        })
+        return jsonify({"status": "erro", "mensagem": str(e)})
+
 
 # ==================================================================================================
 # FUNÇÃO - CHAMADA DO MENU PRINCIPAL
@@ -253,15 +291,17 @@ def menu():
     conn = conectar_bd()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    cursor.execute("SELECT nome FROM usuarios WHERE id = %s", (session['user_id'],))
+    cursor.execute("SELECT nome FROM usuarios WHERE id = %s", (session["user_id"],))
     user = cursor.fetchone()
+
+    cursor.close()
     conn.close()
 
     return render_template(
-    "menu.html",
-    nome=session.get('nome'),
-    tipo=session.get('tipo')
-)
+        "menu.html",
+        nome=session.get("nome"),
+        tipo=session.get("tipo"),
+    )
 
 
 # ==================================================================================================
@@ -292,7 +332,8 @@ def perfil():
     conn = conectar_bd()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT 
             u.nome, u.cpf, u.email, u.telefone,
             c.nome AS cargo_nome,
@@ -305,10 +346,13 @@ def perfil():
         LEFT JOIN cargos c ON u.cargo_id = c.id
         LEFT JOIN setores s ON u.setor_id = s.id
         WHERE u.id = %s
-    """, (session['user_id'],))
+        """,
+        (session["user_id"],),
+    )
 
     user = cursor.fetchone()
 
+    cursor.close()
     conn.close()
 
     return render_template("perfil.html", user=user)
@@ -324,10 +368,12 @@ def listar_usuarios():
         conn = conectar_bd()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT id, nome, cpf, 'ativo' as status
             FROM usuarios
-        """)
+            """
+        )
 
         usuarios = cursor.fetchall()
 
@@ -351,10 +397,12 @@ def listar_empresas():
         conn = conectar_bd()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT cnpj, razao
             FROM empresas_teste
-        """)
+            """
+        )
 
         empresas_teste = cursor.fetchall()
 
@@ -384,11 +432,14 @@ def atualizar_usuario():
         conn = conectar_bd()
         cursor = conn.cursor()
 
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE usuarios
             SET nome = %s, email = %s, cargo_id = %s
             WHERE id = %s
-        """, (nome, email, cargo_id, user_id))
+            """,
+            (nome, email, cargo_id, user_id),
+        )
 
         conn.commit()
 
@@ -405,72 +456,70 @@ def atualizar_usuario():
 # ==================================================================================================
 # FUNÇÕES - ENVIO E VALIDAÇÃO DE TOKEN PARA RECUPERAÇÃO DE SENHA
 # ==================================================================================================
-@views_bp.route('/enviar-token', methods=['POST'])
+@views_bp.route("/enviar-token", methods=["POST"])
 def enviar_token():
     data = request.get_json()
-    email = data['email']
+    email = data["email"]
 
     user = buscar_usuario_por_email(email)
 
     if not user:
-        return jsonify({'erro': 'Email não encontrado'}), 404
+        return jsonify({"erro": "Email não encontrado"}), 404
 
     token = secrets.token_hex(3)
 
-    salvar_token(user['id'], token)
+    salvar_token(user["id"], token)
 
     print("TOKEN GERADO:", token)
 
-    return jsonify({'ok': True}), 200
+    return jsonify({"ok": True}), 200
 
 
-@views_bp.route('/validar-token', methods=['POST'])
+@views_bp.route("/validar-token", methods=["POST"])
 def validar_token():
     data = request.get_json()
 
-    email = data['email']
-    token = data['token']
+    email = data["email"]
+    token = data["token"]
 
     user = buscar_usuario_por_email(email)
 
     if not user:
-        return {'erro': 'Usuário não encontrado'}, 404
+        return {"erro": "Usuário não encontrado"}, 404
 
-    if user['token_reset'] != token:
-        return {'erro': 'Token inválido'}, 400
+    if user["token_reset"] != token:
+        return {"erro": "Token inválido"}, 400
 
-    return {'ok': True}, 200
+    return {"ok": True}, 200
 
 
 # ==================================================================================================
 # FUNÇÃO - REDEFINIÇÃO DE SENHA
 # ==================================================================================================
-@views_bp.route('/resetar-senha', methods=['POST'])
+@views_bp.route("/resetar-senha", methods=["POST"])
 def resetar_senha():
-
     data = request.get_json()
 
-    email = data.get('email')
-    token = data.get('token')
-    senha = data.get('senha')
+    email = data.get("email")
+    token = data.get("token")
+    senha = data.get("senha")
 
     user = buscar_usuario_por_email(email)
 
     if not user:
-        return jsonify({'erro': 'Usuário não encontrado'}), 404
+        return jsonify({"erro": "Usuário não encontrado"}), 404
 
-    if user['token_reset'] != token:
-        return jsonify({'erro': 'Token inválido'}), 400
+    if user["token_reset"] != token:
+        return jsonify({"erro": "Token inválido"}), 400
 
     senha_hash = generate_password_hash(senha)
 
-    atualizar_senha(user['id'], senha_hash)
+    atualizar_senha(user["id"], senha_hash)
+    limpar_token(user["id"])
 
-    limpar_token(user['id'])
+    session.clear()
 
-    session.clear();
-
-    return jsonify({'ok': True}), 200
+    return jsonify({"ok": True}), 200
 
 
 # ==================================================================================================
@@ -482,13 +531,15 @@ def listar_usuarios_select():
         conn = conectar_bd()
         cursor = conn.cursor()
 
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT u.id, u.nome
             FROM usuarios u
             WHERE NOT EXISTS (
                 SELECT 1 FROM fotos f WHERE f.nome = u.nome
             )
-        """)
+            """
+        )
 
         usuarios = cursor.fetchall()
 
@@ -517,24 +568,23 @@ def hora_servidor():
     return {
         "data": agora.strftime("%d/%m/%Y"),
         "hora": agora.strftime("%H:%M:%S"),
-        "dia": dia_semana
+        "dia": dia_semana,
     }
 
 
 # ==================================================================================================
 # FUNÇÃO - PUXAR HORÁRIOS-PADRÃO DO USUÁRIO
 # ==================================================================================================
-@views_bp.route('/jornada', methods=['GET'])
+@views_bp.route("/jornada", methods=["GET"])
+@login_required
 def get_jornada():
-    if 'user_id' not in session:
-        return jsonify({'erro': 'Não autenticado'}), 401
-
-    user_id = session['user_id']
+    user_id = session["user_id"]
 
     conn = conectar_bd()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT 
             TO_CHAR(inicio_expediente, 'HH24:MI') AS entrada,
             TO_CHAR(inicio_intervalo, 'HH24:MI') AS saida_intervalo,
@@ -542,21 +592,166 @@ def get_jornada():
             TO_CHAR(termino_expediente, 'HH24:MI') AS saida
         FROM horarios
         WHERE usuario_id = %s
-    """, (user_id,))
+        """,
+        (user_id,),
+    )
 
     jornada = cursor.fetchone()
+
+    cursor.close()
     conn.close()
 
     if not jornada:
-        return jsonify({'erro': 'Jornada não encontrada'}), 404
+        return jsonify({"erro": "Jornada não encontrada"}), 404
 
     return jsonify(jornada), 200
+
+
+def formatar_hora(hora):
+    return hora.strftime("%H:%M") if hora else "--:--"
+
+
+def calcular_total(entrada, saida, saida_intervalo=None, volta_intervalo=None):
+    try:
+        if not entrada or not saida:
+            return "--"
+
+        dt_entrada = datetime.combine(date.today(), entrada)
+        dt_saida = datetime.combine(date.today(), saida)
+
+        total = dt_saida - dt_entrada
+
+        if saida_intervalo and volta_intervalo:
+            dt_saida_intervalo = datetime.combine(date.today(), saida_intervalo)
+            dt_volta_intervalo = datetime.combine(date.today(), volta_intervalo)
+            total -= (dt_volta_intervalo - dt_saida_intervalo)
+
+        total_segundos = int(total.total_seconds())
+
+        if total_segundos < 0:
+            return "--"
+
+        horas_total = total_segundos // 3600
+        minutos_total = (total_segundos % 3600) // 60
+
+        return f"{horas_total}h{minutos_total:02d}"
+    except Exception:
+        return "--"
+
+
+@views_bp.route("/pontos", methods=["GET"])
+@login_required
+def listar_pontos():
+    conn = None
+    cursor = None
+
+    try:
+        user_id = session["user_id"]
+
+        data_inicio = request.args.get("inicio")
+        data_fim = request.args.get("fim")
+
+        conn = conectar_bd()
+        cursor = conn.cursor()
+
+        query = """
+            SELECT data_registro, horario_registro
+            FROM ponto
+            WHERE usuario_id = %s
+        """
+        params = [user_id]
+
+        if data_inicio:
+            query += " AND data_registro >= %s"
+            params.append(data_inicio)
+
+        if data_fim:
+            query += " AND data_registro <= %s"
+            params.append(data_fim)
+
+        query += " ORDER BY data_registro ASC, horario_registro ASC"
+
+        cursor.execute(query, tuple(params))
+        registros = cursor.fetchall()
+
+        dias = defaultdict(list)
+
+        for data_registro, horario_registro in registros:
+            dias[data_registro].append(horario_registro)
+
+        mapa_dias = {
+            "Monday": "Segunda",
+            "Tuesday": "Terça",
+            "Wednesday": "Quarta",
+            "Thursday": "Quinta",
+            "Friday": "Sexta",
+            "Saturday": "Sábado",
+            "Sunday": "Domingo",
+        }
+
+        resultado = []
+
+        for data_registro in sorted(dias.keys()):
+            horarios = dias[data_registro]
+
+            entrada = None
+            saida_intervalo = None
+            volta_intervalo = None
+            saida = None
+
+            if len(horarios) == 1:
+                entrada = horarios[0]
+
+            elif len(horarios) == 2:
+                entrada = horarios[0]
+                saida = horarios[1]
+
+            elif len(horarios) == 3:
+                entrada = horarios[0]
+                saida_intervalo = horarios[1]
+                saida = horarios[2]
+
+            elif len(horarios) >= 4:
+                entrada = horarios[0]
+                saida_intervalo = horarios[1]
+                volta_intervalo = horarios[2]
+                saida = horarios[3]
+
+            nome_dia_en = data_registro.strftime("%A")
+
+            resultado.append(
+                {
+                    "data": data_registro.strftime("%Y-%m-%d"),
+                    "dia": mapa_dias.get(nome_dia_en, nome_dia_en),
+                    "entrada": formatar_hora(entrada),
+                    "saida_intervalo": formatar_hora(saida_intervalo),
+                    "volta_intervalo": formatar_hora(volta_intervalo),
+                    "saida": formatar_hora(saida),
+                    "total": calcular_total(
+                        entrada,
+                        saida,
+                        saida_intervalo,
+                        volta_intervalo,
+                    ),
+                }
+            )
+
+        return jsonify(resultado), 200
+
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 # ==================================================================================================
 # FUNÇÃO - LISTAGEM DE SETORES DO BANCO DE DADOS
 # ==================================================================================================
-@views_bp.route('/listar_setores', methods=['GET'])
+@views_bp.route("/listar_setores", methods=["GET"])
 def listar_setores():
     conn = conectar_bd()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -573,7 +768,7 @@ def listar_setores():
 # ==================================================================================================
 # FUNÇÃO - LISTAGEM DE CARGOS DO BANCO DE DADOS
 # ==================================================================================================
-@views_bp.route('/listar_cargos', methods=['GET'])
+@views_bp.route("/listar_cargos", methods=["GET"])
 def listar_cargos():
     conn = conectar_bd()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -586,7 +781,6 @@ def listar_cargos():
 
     return jsonify(cargos)
 
-########################################################## AQUI
 
 @views_bp.route("/editarUsuario")
 @login_required
@@ -596,7 +790,8 @@ def editar_usuario():
     conn = conectar_bd()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT 
             u.id,
             u.nome,
@@ -613,7 +808,9 @@ def editar_usuario():
         LEFT JOIN funcionarios f ON u.id = f.usuario_id
         LEFT JOIN cargos c ON u.cargo_id = c.id
         WHERE u.id = %s
-    """, (user_id,))
+        """,
+        (user_id,),
+    )
 
     usuario = cursor.fetchone()
 
@@ -634,7 +831,8 @@ def editar_horarios():
     conn = conectar_bd()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT 
             u.id,
             u.nome,
@@ -649,7 +847,9 @@ def editar_horarios():
         FROM usuarios u
         LEFT JOIN funcionarios f ON u.id = f.usuario_id
         WHERE u.id = %s
-    """, (user_id,))
+        """,
+        (user_id,),
+    )
 
     usuario = cursor.fetchone()
 
@@ -667,6 +867,7 @@ def editar_horarios():
 # =========================
 contador = 0
 
+
 @views_bp.route("/status")
 def status():
     global contador
@@ -676,9 +877,8 @@ def status():
 
     contador += 1
 
-    return {
-        "status": estado
-    }
+    return {"status": estado}
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     app.run(debug=True)

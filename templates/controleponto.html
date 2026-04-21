@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,219 +13,219 @@
 
   <!-- CSS Global -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/worksync-global.css') }}">
+
   <!-- Flatpickr CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
   <!-- CSS Específico -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/controleponto.css') }}">
 
-  <!--Dark-mode-->
+  <!-- Dark mode / menu -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
 </head>
 
 <body>
 
-<div class="controle-page">
+  <div class="controle-page">
 
-  <!-- TOPO (JORNADA + FILTRO) -->
-  <div class="topo">
+    <!-- TOPO (JORNADA + FILTRO) -->
+    <div class="topo">
 
-    <!-- JORNADA -->
-    <section class="card jornada">
-      <div class="jornada-linha">
+      <!-- JORNADA -->
+      <section class="card jornada">
+        <div class="jornada-linha">
 
-        <div class="resumo-item">
-          <span class="jornada-label">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            Entrada
-          </span>
-          <p class="jornada-hora" id="hora-entrada">--:--</p>
+          <div class="resumo-item">
+            <span class="jornada-label">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              Entrada
+            </span>
+            <p class="jornada-hora" id="hora-entrada">--:--</p>
+          </div>
+
+          <div class="jornada-divider"></div>
+
+          <div class="resumo-item">
+            <span class="jornada-label">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
+                <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
+                <line x1="6" y1="1" x2="6" y2="4" />
+                <line x1="10" y1="1" x2="10" y2="4" />
+                <line x1="14" y1="1" x2="14" y2="4" />
+              </svg>
+              Saída intervalo
+            </span>
+            <p class="jornada-hora" id="hora-saida-intervalo">--:--</p>
+          </div>
+
+          <div class="jornada-divider"></div>
+
+          <div class="resumo-item">
+            <span class="jornada-label">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="17 1 21 5 17 9" />
+                <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                <polyline points="7 23 3 19 7 15" />
+                <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+              </svg>
+              Volta intervalo
+            </span>
+            <p class="jornada-hora" id="hora-volta-intervalo">--:--</p>
+          </div>
+
+          <div class="jornada-divider"></div>
+
+          <div class="resumo-item">
+            <span class="jornada-label">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              Saída
+            </span>
+            <p class="jornada-hora" id="hora-saida">--:--</p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- FILTRO -->
+      <section class="card filtro">
+        <div class="filtro-linha">
+          <div class="input-group">
+            <label for="dataInicio">De</label>
+            <input type="text" id="dataInicio" class="data" placeholder="dd/mm/aaaa">
+          </div>
+
+          <div class="input-group">
+            <label for="dataFim">Até</label>
+            <input type="text" id="dataFim" class="data" placeholder="dd/mm/aaaa">
+          </div>
+
+          <button class="btn-primary" id="btnPesquisar" type="button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            Pesquisar
+          </button>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- TABELA -->
+    <section class="card tabela-container">
+
+      <div class="tabela-header">
+
+        <div class="legenda">
+          <span class="legenda-item"><span class="dot ok-dot"></span> No horário</span>
+          <span class="legenda-item"><span class="dot alerta-dot"></span> Tolerância</span>
+          <span class="legenda-item"><span class="dot erro-dot"></span> Atraso</span>
         </div>
 
-        <div class="jornada-divider"></div>
+        <!-- EXPORT SECTION -->
+        <div class="export-section">
+          <div class="export-dropdown-wrapper">
+            <select id="exportFormat" class="export-select">
+              <option value="">Exportar como...</option>
+              <option value="csv">CSV</option>
+              <option value="pdf">PDF</option>
+              <option value="word">Word</option>
+              <option value="doc">DOC</option>
+            </select>
+          </div>
 
-        <div class="resumo-item">
-          <span class="jornada-label">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
-            Saída intervalo
-          </span>
-          <p class="jornada-hora" id="hora-saida-intervalo">--:--</p>
-        </div>
-
-        <div class="jornada-divider"></div>
-
-        <div class="resumo-item">
-          <span class="jornada-label">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-            Volta intervalo
-          </span>
-          <p class="jornada-hora" id="hora-volta-intervalo">--:--</p>
-        </div>
-
-        <div class="jornada-divider"></div>
-
-        <div class="resumo-item">
-          <span class="jornada-label">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            Saída
-          </span>
-          <p class="jornada-hora" id="hora-saida">--:--</p>
+          <button class="btn-primary btn-export" type="button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Exportar
+          </button>
         </div>
 
       </div>
-    </section>
 
-    <!-- FILTRO -->
-    <section class="card filtro">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Dia</th>
+            <th>Entrada</th>
+            <th>Saída Int.</th>
+            <th>Volta Int.</th>
+            <th>Saída</th>
+            <th>Total</th>
+          </tr>
+        </thead>
 
-      <div class="filtro-linha">
-        <div class="input-group">
-          <label for="dataInicio">De</label>
-          <input type="text" id="dataInicio" class="data" placeholder="dd/mm/aaaa">
-        </div>
-        <div class="input-group">
-          <label for="dataFim">Até</label>
-          <input type="text" id="dataFim" class="data" placeholder="dd/mm/aaaa">
-        </div>
-        <button class="btn-primary">
-          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          Pesquisar
-        </button>
-      </div>
+        <tbody id="tabela-pontos-body">
+          <tr>
+            <td colspan="6" style="text-align: center;">Carregando registros...</td>
+          </tr>
+        </tbody>
+      </table>
+
     </section>
 
   </div>
 
-  <!-- TABELA -->
-  <section class="card tabela-container">
+  <script>
+    async function carregarJornada() {
+      try {
+        const resp = await fetch('/jornada');
 
-    <div class="tabela-header">
+        if (!resp.ok) {
+          console.error('Erro ao buscar jornada:', resp.status);
+          return;
+        }
 
-      <div class="legenda">
-        <span class="legenda-item"><span class="dot ok-dot"></span> No horário</span>
-        <span class="legenda-item"><span class="dot alerta-dot"></span> Tolerância</span>
-        <span class="legenda-item"><span class="dot erro-dot"></span> Atraso</span>
-      </div>
+        const dados = await resp.json();
 
-      <!-- EXPORT SECTION -->
-      <div class="export-section">
-        <div class="export-dropdown-wrapper">
-          <select id="exportFormat" class="export-select">
-            <option value="">Exportar como...</option>
-            <option value="csv">CSV</option>
-            <option value="pdf">PDF</option>
-            <option value="word">Word</option>
-            <option value="doc">DOC</option>
-          </select>
-        </div>
-        <button class="btn-primary btn-export">
-          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Exportar
-        </button>
-      </div>
+        document.getElementById('hora-entrada').textContent = dados.entrada ?? '--:--';
+        document.getElementById('hora-saida-intervalo').textContent = dados.saida_intervalo ?? '--:--';
+        document.getElementById('hora-volta-intervalo').textContent = dados.volta_intervalo ?? '--:--';
+        document.getElementById('hora-saida').textContent = dados.saida ?? '--:--';
 
-    </div>
-
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Dia</th>
-          <th>Entrada</th>
-          <th>Saída Int.</th>
-          <th>Volta Int.</th>
-          <th>Saída</th>
-          <th>Total</th>
-        </tr>
-      </thead>
-
-      <tbody>
-        <tr class="hoje">
-          <td><span class="dia-label">Segunda</span><span class="hoje-badge">Hoje</span></td>
-          <td><div class="hora ok">08:00</div></td>
-          <td><div class="hora ok">11:30</div></td>
-          <td><div class="hora alerta">13:06</div></td>
-          <td><div class="hora ok">17:02</div></td>
-          <td><span class="total-horas">8h02</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="dia-label">Terça</span></td>
-          <td><div class="hora erro">08:12</div></td>
-          <td><div class="hora ok">11:34</div></td>
-          <td><div class="hora ok">13:00</div></td>
-          <td><div class="hora ok">17:01</div></td>
-          <td><span class="total-horas">8h49</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="dia-label">Quarta</span></td>
-          <td><div class="hora ok">08:00</div></td>
-          <td><div class="hora ok">11:30</div></td>
-          <td><div class="hora alerta">13:06</div></td>
-          <td><div class="hora ok">17:02</div></td>
-          <td><span class="total-horas">8h02</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="dia-label">Quinta</span></td>
-          <td><div class="hora erro">08:12</div></td>
-          <td><div class="hora ok">11:34</div></td>
-          <td><div class="hora ok">13:00</div></td>
-          <td><div class="hora ok">17:01</div></td>
-          <td><span class="total-horas">8h49</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="dia-label">Sexta</span></td>
-          <td><div class="hora ok">08:00</div></td>
-          <td><div class="hora ok">11:30</div></td>
-          <td><div class="hora alerta">13:06</div></td>
-          <td><div class="hora ok">17:02</div></td>
-          <td><span class="total-horas">8h02</span></td>
-        </tr>
-
-      </tbody>
-    </table>
-
-  </section>
-
-</div>
-
-<script>
-  async function carregarJornada() {
-    try {
-      const resp = await fetch('http://127.0.0.1:5000/jornada');
-
-      if (!resp.ok) {
-        console.error('Erro ao buscar jornada:', resp.status);
-        return;
+      } catch (err) {
+        console.error('Falha na requisição de jornada:', err);
       }
-
-      const dados = await resp.json();
-
-      document.getElementById('hora-entrada').textContent = dados.entrada ?? '--:--';
-      document.getElementById('hora-saida-intervalo').textContent = dados.saida_intervalo ?? '--:--';
-      document.getElementById('hora-volta-intervalo').textContent = dados.volta_intervalo ?? '--:--';
-      document.getElementById('hora-saida').textContent = dados.saida ?? '--:--';
-
-    } catch (err) {
-      console.error('Falha na requisição de jornada:', err);
     }
-  }
 
-  carregarJornada();
-</script>
+    carregarJornada();
+  </script>
 
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://npmcdn.com/flatpickr/dist/l10n/pt.js"></script>
-<script>
-  const fpConfig = {
-    dateFormat: "d/m/Y",
-    locale: "pt",
-    disableMobile: true
-  };
-  flatpickr("#dataInicio", fpConfig);
-  flatpickr("#dataFim", fpConfig);
-</script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://npmcdn.com/flatpickr/dist/l10n/pt.js"></script>
+
+  <script>
+    const fpConfig = {
+      dateFormat: "d/m/Y",
+      locale: "pt",
+      disableMobile: true
+    };
+
+    flatpickr("#dataInicio", fpConfig);
+    flatpickr("#dataFim", fpConfig);
+  </script>
+
+  <!-- JS separado da tela -->
+  <script src="{{ url_for('static', filename='js/controleponto.js') }}"></script>
+
 </body>
+
 </html>
