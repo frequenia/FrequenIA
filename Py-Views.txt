@@ -29,3 +29,18 @@ Auto explicativo.
 - FUNÇÃO - REDEFINIÇÃO DE SENHA
 Função que recebe e-mail, token e nova senha via JSON, valida se o usuário existe e se o token
 é válido, atualiza a senha no banco de dados, limpa o token de reset, encerra a sessão e retorna sucesso.
+
+- FUNÇÃO - LISTAGEM DE USUÁRIOS NO CADASTRO DE FOTOS (APENAS USUÁRIOS SEM FOTO)
+Função que busca no banco de dados todos os usuários que ainda não possuem foto cadastrada e retorna a lista com ID e nome em formato JSON.
+
+- FUNÇÃO - RETORNO DO HORÁRIO DO SERVIDOR
+Função que retorna o horário do servidor com base em uma localização.
+
+- FUNÇÃO - PUXAR HORÁRIOS-PADRÃO DO USUÁRIO
+
+FUNÇÃO - LISTAGEM DE SETORES DO BANCO DE DADOS
+FUNÇÃO - LISTAGEM DE CARGOS DO BANCO DE DADOS
+FUNÇÃO PRINCIPAL - CADASTRO DE USUÁRIOS
+FUNÇÃO - CADASTRO DE EMPRESAS
+FUNÇÃO - LOGOUT
+FUNÇÃO - RENDERIZAÇÃO DO MENU JÁ AUTENTICADO
