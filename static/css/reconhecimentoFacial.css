@@ -457,7 +457,7 @@
 
 /* SUCESSO */
 .popup-sucesso {
-  border: 2px solid #1fa37c;
+  border: 3px solid #1fa37c;
   box-shadow:
     0 0 0 3px rgba(31, 163, 124, 0.15),
     0 20px 45px rgba(0, 0, 0, 0.35);
@@ -465,7 +465,7 @@
 
 /* ERRO */
 .popup-erro-card {
-  border: 2px solid #c96a45;
+  border: 3px solid #c96a45;
   box-shadow:
     0 0 0 3px rgba(201, 106, 69, 0.15),
     0 20px 45px rgba(0, 0, 0, 0.35);
@@ -520,8 +520,6 @@
   width: 40px;
   height: 40px;
   min-width: 40px;
-  border-radius: 10px;
-  background: #e0efe9;
   display: flex;
   align-items: center;
   justify-content: center;
