@@ -1,30 +1,40 @@
-const video = document.getElementById('video');
+console.log("JS CARREGADO");
+
+// ELEMENTOS
+const video = document.getElementById("video");
+const btnCapturar = document.getElementById("btnCapturar");
+const btnInstrucoes = document.getElementById("btnInstrucoes");
+const btnFecharModal = document.getElementById("btnFecharModal");
+const modal = document.getElementById("modal-instrucoes");
 const contador = document.getElementById("contador");
 const barra = document.getElementById("barra");
-const btnCapturar = document.getElementById("btnCapturar");
-const modal = document.getElementById('modal-instrucoes');
 
 let fotosCapturadas = 0;
 const maxFotos = 5;
-
+let processando = false;
 let cadastroIniciado = false;
 let nomeGlobal = "";
 
-
+// =========================
+// CARREGAR USUÁRIOS
+// =========================
 async function carregarUsuarios() {
-  const res = await fetch("/listar_usuarios_select");
-  const usuarios = await res.json();
+    try {
+        const res = await fetch("/listar_usuarios_select");
+        const usuarios = await res.json();
 
-    const select = document.getElementById("nome");
-    const nome = select.options[select.selectedIndex].text;
+        const select = document.getElementById("nome");
 
-  usuarios.forEach((u) => {
-    const option = document.createElement("option");
-    option.value = u.id;
-    option.textContent = u.nome;
-
-    select.appendChild(option);
-  });
+        usuarios.forEach((u) => {
+            const option = document.createElement("option");
+            option.value = u.id;
+            option.textContent = u.nome;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error("Erro ao carregar usuários:", error);
+        mostrarPopupErro("Erro ao carregar lista de usuários.");
+    }
 }
 
 carregarUsuarios();
@@ -42,18 +52,16 @@ function ligarCamera() {
     })
         .then(stream => {
             video.srcObject = stream;
+            video.play();
 
-            video.onloadedmetadata = () => {
-                video.play();
-                console.log("Câmera pronta!");
-
-                const placeholder = document.querySelector(".camera-placeholder");
-                if (placeholder) placeholder.style.display = "none";
-            };
+            const bg = document.querySelector(".camera-placeholder-bg");
+            const status = document.querySelector(".camera-status");
+            if (bg) bg.style.display = "none";
+            if (status) status.style.display = "none";
         })
         .catch(error => {
-            alert("Erro ao acessar a câmera!");
-            console.error(error);
+            console.error("Erro câmera:", error);
+            mostrarPopupErro("Não foi possível acessar a câmera.");
         });
 }
 
@@ -63,40 +71,45 @@ window.addEventListener("load", ligarCamera);
 // CAPTURA IMAGEM
 // =========================
 function capturarImagem() {
-    if (video.videoWidth === 0 || video.videoHeight === 0) {
-        alert("A câmera ainda não carregou!");
-        return null;
-    }
+    if (!video || video.videoWidth === 0) return null;
 
     const canvas = document.createElement("canvas");
-    const largura = 320;
-    const altura = 240;
-
-    canvas.width = largura;
-    canvas.height = altura;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
 
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, largura, altura);
+    ctx.drawImage(video, 0, 0);
 
-    return canvas.toDataURL("image/jpeg", 0.85);
+    return canvas.toDataURL("image/jpeg", 0.95);
 }
 
 // =========================
 // CADASTRO
 // =========================
 async function cadastrar() {
+    if (processando) return;
+    processando = true;
+
     const select = document.getElementById("nome");
     const nome = select.options[select.selectedIndex].text;
-    if (!nome) {
-        alert("Digite seu nome!");
+
+    if (!nome || nome === "Selecione um usuário") {
+        mostrarPopupErro("Selecione um usuário!");
+        processando = false;
         return;
     }
 
-    if (fotosCapturadas >= maxFotos) return;
-    if (btnCapturar.disabled) return;
+    if (fotosCapturadas >= maxFotos) {
+        processando = false;
+        return;
+    }
 
     const imagemBase64 = capturarImagem();
-    if (!imagemBase64) return;
+    if (!imagemBase64) {
+        mostrarPopupErro("Erro ao capturar imagem.");
+        processando = false;
+        return;
+    }
 
     btnCapturar.disabled = true;
     btnCapturar.innerText = "Salvando...";
@@ -135,7 +148,7 @@ async function cadastrar() {
         }
 
         fotosCapturadas++;
-        contador.innerText = `Foto ${fotosCapturadas} de 5`;
+        contador.innerText = `Foto ${fotosCapturadas} de ${maxFotos}`;
 
         const progresso = (fotosCapturadas / maxFotos) * 100;
         barra.style.width = progresso + "%";
@@ -171,31 +184,27 @@ async function cadastrar() {
                 throw new Error(mensagemErro);
             }
 
-            let mensagem = dataFinal.mensagem || "Cadastro concluído!";
-
-            if (dataFinal.erros && dataFinal.erros.length > 0) {
-                mensagem += "\n\nObservações:\n" + dataFinal.erros.join("\n");
-            }
+            mostrarPopupSucesso(nomeGlobal, fotosCapturadas);
 
             setTimeout(() => {
-                alert(mensagem);
-
                 fotosCapturadas = 0;
                 cadastroIniciado = false;
                 nomeGlobal = "";
                 contador.innerText = "Foto 0 de 5";
                 barra.style.width = "0%";
+                select.selectedIndex = 0;
 
                 window.location.reload();
-            }, 300);
+            }, 2000);
         }
 
     } catch (error) {
         console.error(error);
-        alert(error.message);
+        mostrarPopupErro(error.message);
     } finally {
         btnCapturar.disabled = false;
         btnCapturar.innerText = "Capturar Foto";
+        processando = false;
     }
 }
 
@@ -210,8 +219,82 @@ function fecharInstrucoes() {
     modal.classList.remove('active');
 }
 
+btnInstrucoes.addEventListener('click', abrirInstrucoes);
+btnFecharModal.addEventListener('click', fecharInstrucoes);
+
 window.onclick = function (event) {
-    if (event.target == modal) {
+    if (event.target === modal) {
         fecharInstrucoes();
     }
 }
+
+// =========================
+// POPUPS
+// =========================
+function mostrarPopupSucesso(nome, fotos) {
+    document.getElementById("popup-nome").textContent = nome;
+    document.getElementById("popup-fotos").textContent = `${fotos} de ${maxFotos}`;
+    document.getElementById("popup-ponto").classList.add("ativo");
+}
+
+function fecharPopupSucesso() {
+    document.getElementById("popup-ponto").classList.remove("ativo");
+}
+
+function mostrarPopupErro(mensagem) {
+    document.getElementById("popup-erro-mensagem").textContent = mensagem;
+    document.getElementById("popup-erro").classList.add("ativo");
+}
+
+function fecharPopupErro() {
+    document.getElementById("popup-erro").classList.remove("ativo");
+}
+
+// Fechar popup ao clicar fora
+document.getElementById("popup-ponto").addEventListener('click', function(event) {
+    if (event.target === this) {
+        fecharPopupSucesso();
+    }
+});
+
+document.getElementById("popup-erro").addEventListener('click', function(event) {
+    if (event.target === this) {
+        fecharPopupErro();
+    }
+});
+
+/// Event Listeners dos Botoes
+if (btnCapturar) {
+    btnCapturar.addEventListener('click', cadastrar);
+}
+
+if (btnInstrucoes) {
+    btnInstrucoes.addEventListener('click', abrirInstrucoes);
+}
+
+const btnVoltar = document.getElementById('btnVoltar');
+if (btnVoltar) {
+    btnVoltar.addEventListener('click', function() {
+        history.back();
+    });
+}
+
+const btnFecharSucesso = document.getElementById('btnFecharSucesso');
+if (btnFecharSucesso) {
+    btnFecharSucesso.addEventListener('click', fecharPopupSucesso);
+}
+
+const btnFecharErro = document.getElementById('btnFecharErro');
+if (btnFecharErro) {
+    btnFecharErro.addEventListener('click', fecharPopupErro);
+}
+
+// Debug
+console.log('Botoes carregados:', {
+    btnCapturar,
+    btnInstrucoes,
+    btnVoltar,
+    btnFecharSucesso,
+    btnFecharErro,
+    modal
+});

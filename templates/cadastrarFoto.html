@@ -4,14 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cadastro de Biometria Facial - WorkSync</title>
+    <title>Cadastro de Biometria - WorkSync</title>
 
-    <!-- CSS Global (SEMPRE PRIMEIRO) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/worksync-global.css') }}">
-    <!-- CSS Específico -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/cadastroFoto.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
 
-    <!-- Fonte -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -20,13 +18,11 @@
 <body>
 
 <div class="facial-page">
-
-    <!-- Main Content -->
     <div class="facial-content">
 
-        <!-- Camera Card -->
+        <!-- CAMERA CARD -->
         <div class="card camera-card">
-            <!-- Input de Nome -->
+            <!-- Select de Usuário -->
             <select id="nome">
                 <option value="" disabled selected>Selecione um usuário</option>
             </select>
@@ -34,7 +30,9 @@
             <!-- Camera Container -->
             <div class="camera-container">
                 <video id="video" class="camera-video" autoplay playsinline></video>
+
                 <div class="camera-placeholder">
+                    <div class="camera-placeholder-bg"></div>
                     <div class="camera-frame-guide"></div>
                     <p class="camera-status">Câmera desativada</p>
                 </div>
@@ -49,23 +47,24 @@
             </div>
         </div>
 
-        <!-- Buttons (Fora do Card) -->
+        <!-- BOTÕES -->
         <div class="button-container">
-            <button class="btn-primary" id="btnCapturar" onclick="cadastrar()">Capturar Foto</button>
-            <button class="btn-secondary" onclick="abrirInstrucoes()">Instruções</button>
+            <button id="btnCapturar" class="btn-primary" type="button">Capturar Foto</button>
+            <button id="btnInstrucoes" class="btn-secondary" type="button">Instruções</button>
+            <button id="btnVoltar" class="btn-secondary" type="button">Voltar</button>
         </div>
 
     </div>
-
 </div>
 
-<!-- Modal de Instruções -->
+<!-- MODAL DE INSTRUÇÕES -->
 <div id="modal-instrucoes" class="modal">
     <div class="modal-content">
         <div class="modal-header">
             <h2>Instruções para Cadastro</h2>
-            <button class="modal-close" onclick="fecharInstrucoes()">&times;</button>
+            <button id="btnFecharModal" class="modal-close" type="button">&times;</button>
         </div>
+
         <div class="modal-body">
             <div class="instructions-list">
                 <div class="instruction-item">
@@ -93,7 +92,91 @@
     </div>
 </div>
 
-<script src="{{ url_for('static', filename='js/cadastrarFoto.js') }}"></script>
+<!-- POPUP SUCESSO -->
+<div id="popup-ponto" class="popup-overlay">
+    <div class="popup-card popup-sucesso">
+        <div class="popup-topo">
+            <div class="popup-icone-circulo">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="9" stroke="#ffffff" stroke-width="2"></circle>
+                    <path d="M8.5 12.3L10.8 14.6L15.7 9.5" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+            </div>
+
+            <h3>Cadastro Concluído!</h3>
+            <span>WORKSYNC</span>
+        </div>
+
+        <div class="popup-corpo">
+            <div class="popup-linha">
+                <div class="popup-icone-box">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="8" r="4" stroke="#239b73" stroke-width="2"></circle>
+                        <path d="M5 19c1.6-3 4-4.5 7-4.5s5.4 1.5 7 4.5" stroke="#239b73" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div class="popup-info">
+                    <p class="popup-label">FUNCIONÁRIO</p>
+                    <p class="popup-valor" id="popup-nome">—</p>
+                </div>
+            </div>
+
+            <div class="popup-divisor"></div>
+
+            <div class="popup-linha">
+                <div class="popup-icone-box">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="8" stroke="#239b73" stroke-width="2"></circle>
+                        <path d="M12 8v4l2.5 2.5" stroke="#239b73" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div class="popup-info">
+                    <p class="popup-label">FOTOS CAPTURADAS</p>
+                    <p class="popup-valor" id="popup-fotos">5 de 5</p>
+                </div>
+            </div>
+
+            <button id="btnFecharSucesso" class="popup-btn" type="button">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- POPUP ERRO -->
+<div id="popup-erro" class="popup-overlay">
+    <div class="popup-card popup-erro-card">
+        <div class="popup-topo popup-topo-erro">
+            <div class="popup-icone-circulo">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="9" stroke="#ffffff" stroke-width="2"></circle>
+                    <path d="M9 9L15 15M15 9L9 15" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"></path>
+                </svg>
+            </div>
+
+            <h3>Erro no Cadastro</h3>
+            <span>WORKSYNC</span>
+        </div>
+
+        <div class="popup-corpo">
+            <div class="popup-linha">
+                <div class="popup-icone-box">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="8" stroke="#c35b36" stroke-width="2"></circle>
+                        <path d="M12 8v5" stroke="#c35b36" stroke-width="2" stroke-linecap="round"></path>
+                        <circle cx="12" cy="16.5" r="1" fill="#c35b36"></circle>
+                    </svg>
+                </div>
+                <div class="popup-info">
+                    <p class="popup-label">MOTIVO</p>
+                    <p class="popup-valor" id="popup-erro-mensagem">Erro ao processar cadastro.</p>
+                </div>
+            </div>
+
+            <button id="btnFecharErro" class="popup-btn popup-btn-erro" type="button">Tentar Novamente</button>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/cadastroFoto.js') }}"></script>
 
 </body>
 

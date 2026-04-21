@@ -1,83 +1,80 @@
 /* ==================================================
    Cadastro de Biometria Facial - Página Específica
-   Segue exatamente o layout de reconhecimentoFacial.css
+   Padronizado com reconhecimentoFacial.css
    ================================================== */
 
 .facial-page {
-  padding: 20px;
+  padding: 30px;
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
-  box-sizing: border-box;
 }
 
 /* Content Container */
 .facial-content {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  width: 100%;
-  max-width: 1000px;
-  margin: 0 auto;
+  gap: 24px;
   flex: 1;
-  height: 100%;
-  box-sizing: border-box;
+  justify-content: space-between;
 }
 
-/* Camera Card - Com fundo branco e sombra */
+/* Camera Card */
 .camera-card {
   background: var(--color-white);
-  padding: 20px;
-  border-radius: 12px;
+  padding: 24px;
+  border-radius: 10px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 100%;
+  width: 70%;
+  margin: 0 auto;
+  flex: 1;
   min-height: 0;
-  box-sizing: border-box;
 }
 
-/* Input de Nome */
-.camera-card input[type="text"] {
+/* Select de Usuário */
+.camera-card select {
   width: 100%;
   max-width: 500px;
-  margin-bottom: 12px;
-  padding: 12px 16px;
-  border: 1.5px solid var(--color-border);
-  border-radius: 8px;
-  font-size: 16px;
-  background: var(--color-white);
+  margin-bottom: 16px;
+  padding: 9px 12px;
+  font-size: 18px;
   font-family: var(--font-family-base);
+  height: 40px;
+  border: 1.5px solid #dde1e7;
+  border-radius: 7px;
+  color: #222;
+  background: var(--color-input-bg);
+  transition: border-color 0.2s;
+  outline: none;
   flex-shrink: 0;
 }
 
-.camera-card input[type="text"]:focus {
-  outline: none;
+.camera-card select:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(15, 92, 140, 0.1);
+  background: var(--color-white);
 }
 
 .camera-container {
   position: relative;
   width: 100%;
-  max-width: 1000px;
-  border-radius: 12px;
-  overflow: hidden;
-  background: #000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  margin-bottom: 12px;
   flex: 1;
   min-height: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #000;
+  margin-bottom: 16px;
 }
 
 .camera-video {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: block;
 }
 
 .camera-placeholder {
@@ -90,17 +87,27 @@
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  background: rgba(0, 0, 0, 0.85);
   pointer-events: none;
   gap: 24px;
 }
 
+/* Fundo escuro separado */
+.camera-placeholder-bg {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+}
+
+/* Guide centralizado */
 .camera-frame-guide {
-  width: 360px;
-  height: 360px;
+  position: relative;
+  z-index: 10;
+  width: min(40%, 55vh);
+  aspect-ratio: 1;
+  max-width: 360px;
+  min-width: 120px;
   border: 3px solid rgba(15, 92, 140, 0.5);
   border-radius: 16px;
-  position: relative;
   animation: pulse-border 2s ease-in-out infinite;
 }
 
@@ -108,21 +115,21 @@
 .camera-frame-guide::after {
   content: "";
   position: absolute;
-  width: 40px;
-  height: 40px;
+  width: 15%;
+  height: 15%;
   border: 3px solid var(--color-primary);
 }
 
 .camera-frame-guide::before {
-  top: -10px;
-  left: -10px;
+  top: -3px;
+  left: -3px;
   border-right: none;
   border-bottom: none;
 }
 
 .camera-frame-guide::after {
-  bottom: -10px;
-  right: -10px;
+  bottom: -3px;
+  right: -3px;
   border-left: none;
   border-top: none;
 }
@@ -143,6 +150,8 @@
   text-align: center;
   margin: 0;
   animation: fade-pulse 2s ease-in-out infinite;
+  position: relative;
+  z-index: 10;
 }
 
 @keyframes fade-pulse {
@@ -184,14 +193,12 @@
   transition: width 0.4s ease, background 0.4s ease;
 }
 
-/* Button Container - Fora do card */
+/* Button Container */
 .button-container {
   display: flex;
   gap: 16px;
   justify-content: center;
   flex-wrap: wrap;
-  width: 100%;
-  flex-shrink: 0;
 }
 
 .button-container .btn-primary,
@@ -259,7 +266,7 @@
 }
 
 .modal-header h2 {
-  font-size: var(--font-size-2xl);
+  font-size: var(--font-size-h2);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-dark);
   margin: 0;
@@ -331,74 +338,37 @@
 }
 
 /* Responsive Design */
-@media (max-width: 900px) {
+@media (max-width: 768px) {
   .facial-page {
-    padding: 16px;
-  }
-
-  .camera-card {
     padding: 20px;
   }
 
-  .camera-container {
-    max-width: 100%;
-    min-height: 350px;
-  }
-
-  .camera-frame-guide {
-    width: 280px;
-    height: 280px;
-  }
-
-  .camera-frame-guide::before,
-  .camera-frame-guide::after {
-    width: 32px;
-    height: 32px;
-  }
-
-  .button-container {
-    gap: 12px;
-  }
-
-  .button-container .btn-primary,
-  .button-container .btn-secondary {
-    min-width: 140px;
-  }
-}
-
-@media (max-width: 600px) {
-  .facial-page {
-    padding: 12px;
-  }
-
   .camera-card {
+    width: 95%;
     padding: 16px;
   }
 
-  .camera-card input[type="text"] {
-    max-width: 100%;
-    margin-bottom: 16px;
+  .camera-frame-guide {
+    width: min(50%, 60vh);
+  }
+}
+
+@media (max-width: 480px) {
+  .facial-page {
+    padding: 16px;
   }
 
-  .camera-container {
-    max-width: 100%;
-    min-height: 280px;
-    margin-bottom: 16px;
+  .camera-card {
+    width: 100%;
+    padding: 12px;
+  }
+
+  .camera-card select {
+    margin-bottom: 12px;
   }
 
   .camera-frame-guide {
-    width: 220px;
-    height: 220px;
-  }
-
-  .camera-frame-guide::before,
-  .camera-frame-guide::after {
-    width: 28px;
-    height: 28px;
-  }
-
-  .barra {
-    max-width: 100%;
+    width: min(65%, 55vh);
   }
 
   .button-container {
@@ -441,6 +411,187 @@
   }
 
   .instruction-item p {
+    font-size: 15px;
+  }
+}
+
+/* ==========================================
+   POPUPS 
+   ========================================== */
+
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+.popup-overlay.ativo {
+  display: flex;
+}
+
+/* CARD BASE */
+.popup-card {
+  width: 100%;
+  max-width: 430px;
+  background: #ffffff;
+  border-radius: 28px;
+  overflow: hidden;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
+  border: 2px solid transparent;
+}
+
+/* SUCESSO */
+.popup-sucesso {
+  border: 3px solid #1fa37c;
+  box-shadow:
+    0 0 0 3px rgba(31, 163, 124, 0.15),
+    0 20px 45px rgba(0, 0, 0, 0.35);
+}
+
+/* ERRO */
+.popup-erro-card {
+  border: 3px solid #c96a45;
+  box-shadow:
+    0 0 0 3px rgba(201, 106, 69, 0.15),
+    0 20px 45px rgba(0, 0, 0, 0.35);
+}
+
+/* TOPO (AZUL PADRÃO) */
+.popup-topo {
+  background: linear-gradient(135deg, #0f5c8c 0%, #0c4a70 100%);
+  padding: 36px 28px 26px;
+  text-align: center;
+}
+
+.popup-icone-circulo {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.popup-topo h3 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.popup-topo span {
+  display: block;
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  letter-spacing: 0.8px;
+  font-weight: 500;
+}
+
+/* CORPO */
+.popup-corpo {
+  padding: 28px 30px 30px;
+}
+
+.popup-linha {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.popup-icone-box {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.popup-info {
+  flex: 1;
+}
+
+/* LABEL (texto pequeno) */
+.popup-label {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.5); 
+  font-weight: 500;
+  letter-spacing: 0.6px;
+}
+
+/* VALOR (texto principal) */
+.popup-valor {
+  margin: 0;
+  font-size: 16px;
+  color: #222222;
+  font-weight: 700;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+/* DIVISOR */
+.popup-divisor {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.08);
+  margin: 16px 0 14px;
+}
+
+/* BOTÃO */
+.popup-btn {
+  width: 100%;
+  margin-top: 26px;
+  height: 50px;
+  border-radius: 14px;
+  border: none;
+  background: #0f5c8c;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.popup-btn:hover {
+  background: #0c4a70;
+}
+
+.popup-btn-erro {
+  background: #c35b36;
+}
+
+.popup-btn-erro:hover {
+  background: #a84a2a;
+}
+
+/* RESPONSIVO */
+@media (max-width: 480px) {
+  .popup-card {
+    max-width: 100%;
+    border-radius: 22px;
+  }
+
+  .popup-topo {
+    padding: 30px 20px 22px;
+  }
+
+  .popup-corpo {
+    padding: 22px 20px 24px;
+  }
+
+  .popup-topo h3 {
+    font-size: 20px;
+  }
+
+  .popup-valor {
     font-size: 15px;
   }
 }
