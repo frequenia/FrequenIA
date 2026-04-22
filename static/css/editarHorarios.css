@@ -176,3 +176,30 @@ input[readonly] {
     cursor: default;
 }
 
+.dias-semana input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #ccc;
+    border-radius: 3px;
+    cursor: default;
+}
+
+.dias-semana input[type="checkbox"]:checked {
+    background-color: #2c3e8c;
+    /* sua cor */
+    border-color: #2c3e8c;
+}
+
+.dias-semana input[type="checkbox"]:checked::after {
+    content: '';
+    display: block;
+    width: 4px;
+    height: 8px;
+    border: 2px solid white;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg);
+    margin: 1px auto;
+}

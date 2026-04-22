@@ -449,6 +449,7 @@ def atualizar_usuario():
         user_id = dados.get("id")
         nome = dados.get("nome")
         email = dados.get("email")
+        telefone = dados.get("telefone")
         cargo_id = dados.get("cargo_id")
 
         conn = conectar_bd()
@@ -457,10 +458,10 @@ def atualizar_usuario():
         cursor.execute(
             """
             UPDATE usuarios
-            SET nome = %s, email = %s, cargo_id = %s
+            SET nome = %s, email = %s, telefone = %s, cargo_id = %s
             WHERE id = %s
             """,
-            (nome, email, cargo_id, user_id),
+            (nome, email, telefone, cargo_id, user_id),
         )
 
         conn.commit()
@@ -1003,35 +1004,32 @@ def editar_horarios():
     conn = conectar_bd()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    cursor.execute(
-        """
-        SELECT 
-            u.id,
-            u.nome,
-            u.email,
-            u.telefone,
-            u.cpf,
-            f.cargo,
-            f.setor,
-            f.tipo_perfil,
-            f.tipo_contrato,
-            f.data_admissao
-        FROM usuarios u
-        LEFT JOIN funcionarios f ON u.id = f.usuario_id
-        WHERE u.id = %s
-        """,
-        (user_id,),
-    )
-
+    # Busca apenas o nome para exibir na tela
+    cursor.execute("SELECT id, nome FROM usuarios WHERE id = %s", (user_id,))
     usuario = cursor.fetchone()
+
+    if not usuario:
+        cursor.close()
+        conn.close()
+        return "Usuário não encontrado", 404
+
+    # Busca os horários do usuário
+    cursor.execute("""
+    SELECT dia_semana, inicio_expediente, inicio_intervalo,
+           termino_intervalo, termino_expediente
+    FROM horarios
+    WHERE usuario_id = %s
+    ORDER BY dia_semana
+""", (user_id,))
+
+    horarios = cursor.fetchall()
+    horario = horarios[0] if horarios else None
+    dias = [h['dia_semana'] for h in horarios]
 
     cursor.close()
     conn.close()
 
-    if not usuario:
-        return "Usuário não encontrado", 404
-
-    return render_template("editarHorarios.html", usuario=usuario)
+    return render_template("editarHorarios.html", usuario=usuario, horario=horario, dias=dias)
 
 
 # =========================

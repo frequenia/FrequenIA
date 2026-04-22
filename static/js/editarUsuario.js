@@ -55,6 +55,7 @@ async function salvarAlteracoes() {
       id: id,
       nome: nome,
       email: email,
+      telefone: document.getElementById("telefone").value,
       cargo_id: document.getElementById("cargo").value,
     }),
   });
