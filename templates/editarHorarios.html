@@ -28,14 +28,14 @@
                 <!-- Tipo de jornada -->
                 <div class="campo">
                     <label>Tipo de jornada</label>
-                    <select id="tipoJornada" onchange="alternarJornada()">
-                        <option value="padrao">Jornada padronizada</option>
-                        <option value="manual">Edição manual</option>
+                    <select id="tipoJornada" onchange="alternarJornada()" disabled>
+                        <option value="padrao" {% if tipo_jornada=='padrao' %}selected{% endif %}>Jornada padronizada</option>
+                        <option value="manual" {% if tipo_jornada=='manual' %}selected{% endif %}>Edição manual</option>
                     </select>
                 </div>
 
                 <!-- JORNADA PADRONIZADA -->
-                <div id="jornadaPadrao">
+                <div id="jornadaPadrao" {% if tipo_jornada=='manual' %}style="display:none" {% endif %}>
 
                     <div class="dias-semana">
                         <label><input type="checkbox" disabled {% if 0 in dias %}checked{% endif %}> Domingo</label>
@@ -72,178 +72,125 @@
 
                 </div>
 
-                <div id="jornadaManual" style="display:none;">
-
-                    <!-- Seleção de dias -->
-                    <div class="dias-semana">
-                        <label><input type="checkbox" onchange="toggleDia('domingo')"> Domingo</label>
-                        <label><input type="checkbox" onchange="toggleDia('segunda')"> Segunda</label>
-                        <label><input type="checkbox" onchange="toggleDia('terca')"> Terça</label>
-                        <label><input type="checkbox" onchange="toggleDia('quarta')"> Quarta</label>
-                        <label><input type="checkbox" onchange="toggleDia('quinta')"> Quinta</label>
-                        <label><input type="checkbox" onchange="toggleDia('sexta')"> Sexta</label>
-                        <label><input type="checkbox" onchange="toggleDia('sabado')"> Sábado</label>
-                    </div>
+                <div id="jornadaManual" {% if tipo_jornada=='padrao' %}style="display:none" {% endif %}>
+                
+                <div class="dias-semana">
+                    <label><input type="checkbox" onchange="toggleDia('domingo')" {% if 0 in dias %}checked{% endif %}> Domingo</label>
+                    <label><input type="checkbox" onchange="toggleDia('segunda')" {% if 1 in dias %}checked{% endif %}> Segunda</label>
+                    <label><input type="checkbox" onchange="toggleDia('terca')" {% if 2 in dias %}checked{% endif %}> Terça</label>
+                    <label><input type="checkbox" onchange="toggleDia('quarta')" {% if 3 in dias %}checked{% endif %}> Quarta</label>
+                    <label><input type="checkbox" onchange="toggleDia('quinta')" {% if 4 in dias %}checked{% endif %}> Quinta</label>
+                    <label><input type="checkbox" onchange="toggleDia('sexta')" {% if 5 in dias %}checked{% endif %}> Sexta</label>
+                    <label><input type="checkbox" onchange="toggleDia('sabado')" {% if 6 in dias %}checked{% endif %}> Sábado</label>
+                </div>
                     <hr>
-
-                    <!-- Dias (mesmo layout do padrão) -->
-
-                    <div id="domingo" class="dia-manual" style="display:none;">
+                
+                    <div id="domingo" class="dia-manual" {% if 0 not in dias %}style="display:none" {% endif %}>
                         <h4>Domingo</h4>
                         <div class="horario-padrao">
-                            <div class="campo">
-                                <label>Início - Expediente</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Início - Intervalo</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Término - Intervalo</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Término - Expediente</label>
-                                <input type="time">
-                            </div>
-                        </div>
-                        <br>
+                            <div class="campo"><label>Início - Expediente</label><input type="time" id="domingo_inicio_expediente"
+                                    value="{{ horarios_por_dia[0].inicio_expediente if 0 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Início - Intervalo</label><input type="time" id="domingo_inicio_intervalo"
+                                    value="{{ horarios_por_dia[0].inicio_intervalo if 0 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Término - Intervalo</label><input type="time" id="domingo_termino_intervalo"
+                                    value="{{ horarios_por_dia[0].termino_intervalo if 0 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Término - Expediente</label><input type="time" id="domingo_termino_expediente"
+                                    value="{{ horarios_por_dia[0].termino_expediente if 0 in horarios_por_dia else '' }}"></div>
+                        </div><br>
                         <hr>
                     </div>
-                    <div id="segunda" class="dia-manual" style="display:none;">
+                    
+                    <div id="segunda" class="dia-manual" {% if 1 not in dias %}style="display:none" {% endif %}>
                         <h4>Segunda</h4>
                         <div class="horario-padrao">
-                            <div class="campo">
-                                <label>Início - Expediente</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Início - Intervalo</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Término - Intervalo</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Término - Expediente</label>
-                                <input type="time">
-                            </div>
-                        </div> <br>
+                            <div class="campo"><label>Início - Expediente</label><input type="time" id="segunda_inicio_expediente"
+                                    value="{{ horarios_por_dia[1].inicio_expediente if 1 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Início - Intervalo</label><input type="time" id="segunda_inicio_intervalo"
+                                    value="{{ horarios_por_dia[1].inicio_intervalo if 1 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Término - Intervalo</label><input type="time" id="segunda_termino_intervalo"
+                                    value="{{ horarios_por_dia[1].termino_intervalo if 1 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Término - Expediente</label><input type="time" id="segunda_termino_expediente"
+                                    value="{{ horarios_por_dia[1].termino_expediente if 1 in horarios_por_dia else '' }}"></div>
+                        </div><br>
                         <hr>
                     </div>
-                    <div id="terca" class="dia-manual" style="display:none;">
+                    
+                    <div id="terca" class="dia-manual" {% if 2 not in dias %}style="display:none" {% endif %}>
                         <h4>Terça</h4>
                         <div class="horario-padrao">
-                            <div class="campo">
-                                <label>Início - Expediente</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Início - Intervalo</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Término - Intervalo</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Término - Expediente</label>
-                                <input type="time">
-                            </div>
-                        </div> <br>
+                            <div class="campo"><label>Início - Expediente</label><input type="time" id="terca_inicio_expediente"
+                                    value="{{ horarios_por_dia[2].inicio_expediente if 2 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Início - Intervalo</label><input type="time" id="terca_inicio_intervalo"
+                                    value="{{ horarios_por_dia[2].inicio_intervalo if 2 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Término - Intervalo</label><input type="time" id="terca_termino_intervalo"
+                                    value="{{ horarios_por_dia[2].termino_intervalo if 2 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Término - Expediente</label><input type="time" id="terca_termino_expediente"
+                                    value="{{ horarios_por_dia[2].termino_expediente if 2 in horarios_por_dia else '' }}"></div>
+                        </div><br>
                         <hr>
                     </div>
-                    <div id="quarta" class="dia-manual" style="display:none;">
+                    
+                    <div id="quarta" class="dia-manual" {% if 3 not in dias %}style="display:none" {% endif %}>
                         <h4>Quarta</h4>
                         <div class="horario-padrao">
-                            <div class="campo">
-                                <label>Início - Expediente</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Início - Intervalo</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Término - Intervalo</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Término - Expediente</label>
-                                <input type="time">
-                            </div>
-                        </div> <br>
+                            <div class="campo"><label>Início - Expediente</label><input type="time" id="quarta_inicio_expediente"
+                                    value="{{ horarios_por_dia[3].inicio_expediente if 3 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Início - Intervalo</label><input type="time" id="quarta_inicio_intervalo"
+                                    value="{{ horarios_por_dia[3].inicio_intervalo if 3 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Término - Intervalo</label><input type="time" id="quarta_termino_intervalo"
+                                    value="{{ horarios_por_dia[3].termino_intervalo if 3 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Término - Expediente</label><input type="time" id="quarta_termino_expediente"
+                                    value="{{ horarios_por_dia[3].termino_expediente if 3 in horarios_por_dia else '' }}"></div>
+                        </div><br>
                         <hr>
                     </div>
-
-                    <div id="quinta" class="dia-manual" style="display:none;">
+                    
+                    <div id="quinta" class="dia-manual" {% if 4 not in dias %}style="display:none" {% endif %}>
                         <h4>Quinta</h4>
                         <div class="horario-padrao">
-                            <div class="campo">
-                                <label>Início - Expediente</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Início - Intervalo</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Término - Intervalo</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Término - Expediente</label>
-                                <input type="time">
-                            </div>
-                        </div> <br>
+                            <div class="campo"><label>Início - Expediente</label><input type="time" id="quinta_inicio_expediente"
+                                    value="{{ horarios_por_dia[4].inicio_expediente if 4 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Início - Intervalo</label><input type="time" id="quinta_inicio_intervalo"
+                                    value="{{ horarios_por_dia[4].inicio_intervalo if 4 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Término - Intervalo</label><input type="time" id="quinta_termino_intervalo"
+                                    value="{{ horarios_por_dia[4].termino_intervalo if 4 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Término - Expediente</label><input type="time" id="quinta_termino_expediente"
+                                    value="{{ horarios_por_dia[4].termino_expediente if 4 in horarios_por_dia else '' }}"></div>
+                        </div><br>
                         <hr>
                     </div>
-                    <div id="sexta" class="dia-manual" style="display:none;">
+                    
+                    <div id="sexta" class="dia-manual" {% if 5 not in dias %}style="display:none" {% endif %}>
                         <h4>Sexta</h4>
                         <div class="horario-padrao">
-                            <div class="campo">
-                                <label>Início - Expediente</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Início - Intervalo</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Término - Intervalo</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Término - Expediente</label>
-                                <input type="time">
-                            </div>
-                        </div> <br>
+                            <div class="campo"><label>Início - Expediente</label><input type="time" id="sexta_inicio_expediente"
+                                    value="{{ horarios_por_dia[5].inicio_expediente if 5 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Início - Intervalo</label><input type="time" id="sexta_inicio_intervalo"
+                                    value="{{ horarios_por_dia[5].inicio_intervalo if 5 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Término - Intervalo</label><input type="time" id="sexta_termino_intervalo"
+                                    value="{{ horarios_por_dia[5].termino_intervalo if 5 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Término - Expediente</label><input type="time" id="sexta_termino_expediente"
+                                    value="{{ horarios_por_dia[5].termino_expediente if 5 in horarios_por_dia else '' }}"></div>
+                        </div><br>
                         <hr>
                     </div>
-                    <div id="sabado" class="dia-manual" style="display:none;">
+                    
+                    <div id="sabado" class="dia-manual" {% if 6 not in dias %}style="display:none" {% endif %}>
                         <h4>Sábado</h4>
                         <div class="horario-padrao">
-                            <div class="campo">
-                                <label>Início - Expediente</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Início - Intervalo</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Término - Intervalo</label>
-                                <input type="time">
-                            </div>
-                            <div class="campo">
-                                <label>Término - Expediente</label>
-                                <input type="time">
-                            </div>
-                        </div> <br>
+                            <div class="campo"><label>Início - Expediente</label><input type="time" id="sabado_inicio_expediente"
+                                    value="{{ horarios_por_dia[6].inicio_expediente if 6 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Início - Intervalo</label><input type="time" id="sabado_inicio_intervalo"
+                                    value="{{ horarios_por_dia[6].inicio_intervalo if 6 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Término - Intervalo</label><input type="time" id="sabado_termino_intervalo"
+                                    value="{{ horarios_por_dia[6].termino_intervalo if 6 in horarios_por_dia else '' }}"></div>
+                            <div class="campo"><label>Término - Expediente</label><input type="time" id="sabado_termino_expediente"
+                                    value="{{ horarios_por_dia[6].termino_expediente if 6 in horarios_por_dia else '' }}"></div>
+                        </div><br>
                         <hr>
                     </div>
+                
+                </div>
 
 
                 </div>
@@ -256,55 +203,84 @@
     </form>
 
     <script>
+        const mapeamentoDias = {
+            "domingo": 0, "segunda": 1, "terca": 2, "quarta": 3,
+            "quinta": 4, "sexta": 5, "sabado": 6
+        };
+
+        function toggleDia(nome) {
+            const div = document.getElementById(nome);
+            if (div) div.style.display = div.style.display === "none" ? "block" : "none";
+        }
+
+        function alternarJornada() {
+            const tipo = document.getElementById("tipoJornada").value;
+            document.getElementById("jornadaPadrao").style.display = tipo === "padrao" ? "block" : "none";
+            document.getElementById("jornadaManual").style.display = tipo === "manual" ? "block" : "none";
+        }
+
         function alterarDados() {
-            window.alert("clicou");
             document.querySelectorAll(".campo-editavel").forEach(el => {
-                if (el.tagName === "INPUT") {
-                    el.readOnly = false;
-                } else {
-                    el.disabled = false;
-                }
+                if (el.tagName === "INPUT") el.readOnly = false;
+                else el.disabled = false;
             });
             document.getElementById("btnSalvar").style.display = "inline-block";
         }
 
         function bloquearCampos() {
             document.querySelectorAll(".campo-editavel").forEach(el => {
-
-                if (el.tagName === "INPUT") {
-                    el.readOnly = true;
-                }
-
-                if (el.tagName === "SELECT") {
-                    el.disabled = true;
-                }
+                if (el.tagName === "INPUT") el.readOnly = true;
+                if (el.tagName === "SELECT") el.disabled = true;
             });
         }
 
         async function salvarAlteracoes() {
-
-            const nome = document.getElementById("nome").value;
-
             const params = new URLSearchParams(window.location.search);
             const id = params.get("id");
+            const tipoJornada = document.getElementById("tipoJornada").value;
 
-            console.log("Enviando:", nome, id);
+            let horarios = [];
 
-            const res = await fetch("/atualizar_usuario", {
+            if (tipoJornada === "padrao") {
+                // pega os dias marcados
+                const diasMarcados = [];
+                document.querySelectorAll("#jornadaPadrao .dias-semana input:checked").forEach(cb => {
+                    diasMarcados.push(parseInt(cb.dataset.dia));
+                });
+
+                horarios = diasMarcados.map(dia => ({
+                    dia_semana: dia,
+                    inicio_expediente: document.getElementById("inicio_expediente").value,
+                    inicio_intervalo: document.getElementById("inicio_intervalo").value,
+                    termino_intervalo: document.getElementById("termino_intervalo").value,
+                    termino_expediente: document.getElementById("termino_expediente").value,
+                }));
+
+            } else {
+                Object.entries(mapeamentoDias).forEach(([nome, numero]) => {
+                    const div = document.getElementById(nome);
+                    if (div && div.style.display !== "none") {
+                        horarios.push({
+                            dia_semana: numero,
+                            inicio_expediente: document.getElementById(`${nome}_inicio_expediente`).value,
+                            inicio_intervalo: document.getElementById(`${nome}_inicio_intervalo`).value,
+                            termino_intervalo: document.getElementById(`${nome}_termino_intervalo`).value,
+                            termino_expediente: document.getElementById(`${nome}_termino_expediente`).value,
+                        });
+                    }
+                });
+            }
+
+            const res = await fetch("/atualizar_horarios", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    id: id,
-                    nome: nome
-                })
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, horarios })
             });
 
             const data = await res.json();
 
             if (data.status === "ok") {
-                alert("Nome atualizado com sucesso!");
+                alert("Horários atualizados com sucesso!");
                 bloquearCampos();
                 document.getElementById("btnSalvar").style.display = "none";
                 window.location.href = "/gerenciarUsuario";

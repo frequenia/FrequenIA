@@ -490,6 +490,59 @@ def atualizar_usuario():
 
 
 # ==================================================================================================
+# FUNÇÃO - ALTERAÇÃO DE HORÁRIOS DO USUÁRIO
+# ==================================================================================================
+@views_bp.route("/atualizar_horarios", methods=["POST"])
+def atualizar_horarios():
+    try:
+        dados = request.get_json()
+
+        user_id = dados.get("id")
+        horarios = dados.get("horarios", [])
+
+        if not horarios:
+            return jsonify({"status": "erro", "mensagem": "Nenhum horário informado"})
+
+        conn = conectar_bd()
+        cursor = conn.cursor()
+
+        # Remove apenas os dias que serão substituídos
+        dias_enviados = [h["dia_semana"] for h in horarios]
+        cursor.execute(
+            "DELETE FROM horarios WHERE usuario_id = %s AND dia_semana = ANY(%s)",
+            (user_id, dias_enviados)
+        )
+
+        # Insere os novos horários
+        for h in horarios:
+            cursor.execute("""
+                INSERT INTO horarios (
+                    usuario_id, dia_semana,
+                    inicio_expediente, inicio_intervalo,
+                    termino_intervalo, termino_expediente
+                )
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                user_id,
+                h["dia_semana"],
+                h["inicio_expediente"],
+                h["inicio_intervalo"],
+                h["termino_intervalo"],
+                h["termino_expediente"],
+            ))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({"status": "ok"})
+
+    except Exception as e:
+        print("ERRO:", e)
+        return jsonify({"status": "erro", "mensagem": str(e)})
+
+
+# ==================================================================================================
 # FUNÇÕES - ENVIO E VALIDAÇÃO DE TOKEN PARA RECUPERAÇÃO DE SENHA
 # ==================================================================================================
 @views_bp.route("/enviar-token", methods=["POST"])
@@ -1020,7 +1073,6 @@ def editar_horarios():
     conn = conectar_bd()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    # Busca apenas o nome para exibir na tela
     cursor.execute("SELECT id, nome FROM usuarios WHERE id = %s", (user_id,))
     usuario = cursor.fetchone()
 
@@ -1029,23 +1081,39 @@ def editar_horarios():
         conn.close()
         return "Usuário não encontrado", 404
 
-    # Busca os horários do usuário
     cursor.execute("""
-    SELECT dia_semana, inicio_expediente, inicio_intervalo,
-           termino_intervalo, termino_expediente
-    FROM horarios
-    WHERE usuario_id = %s
-    ORDER BY dia_semana
-""", (user_id,))
+        SELECT dia_semana, inicio_expediente, inicio_intervalo,
+               termino_intervalo, termino_expediente
+        FROM horarios
+        WHERE usuario_id = %s
+        ORDER BY dia_semana
+    """, (user_id,))
 
     horarios = cursor.fetchall()
     horario = horarios[0] if horarios else None
     dias = [h['dia_semana'] for h in horarios]
 
+    # monta dicionário com horários por dia para jornada manual
+    horarios_por_dia = {h['dia_semana']: h for h in horarios}
+
+    # detecta automaticamente o tipo de jornada
+    # se todos os dias têm o mesmo horário, é padrão; senão, é manual
+    horarios_unicos = set(
+        (h['inicio_expediente'], h['termino_expediente']) for h in horarios
+    )
+    tipo_jornada = "padrao" if len(horarios_unicos) <= 1 else "manual"
+
     cursor.close()
     conn.close()
 
-    return render_template("editarHorarios.html", usuario=usuario, horario=horario, dias=dias)
+    return render_template(
+        "editarHorarios.html",
+        usuario=usuario,
+        horario=horario,
+        dias=dias,
+        horarios_por_dia=horarios_por_dia,
+        tipo_jornada=tipo_jornada
+    )
 
 
 # =========================
