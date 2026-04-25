@@ -93,7 +93,6 @@ async function cadastrarUsuario() {
 
   for (let id of camposObrigatorios) {
     const valor = document.getElementById(id).value.trim();
-
     if (!valor) {
       alert(`O campo ${id} é obrigatório!`);
       document.getElementById(id).focus();
@@ -103,7 +102,6 @@ async function cadastrarUsuario() {
 
   // validação do nome
   const nomeInput = document.getElementById("nome").value.trim();
-
   if (!/^[A-Za-zÀ-ÿ\s]+$/.test(nomeInput)) {
     alert("O nome deve conter apenas letras!");
     document.getElementById("nome").focus();
@@ -112,7 +110,6 @@ async function cadastrarUsuario() {
 
   // validação do email
   const email = document.getElementById("email").value.trim();
-
   if (!email.includes("@") || email.startsWith("@")) {
     alert("O email deve conter '@' e não pode começar com ele!");
     document.getElementById("email").focus();
@@ -120,45 +117,88 @@ async function cadastrarUsuario() {
   }
 
   // validação do telefone
-
   const telefoneLimpo = document
     .getElementById("telefone")
     .value.replace(/\D/g, "");
-
   if (telefoneLimpo.length !== 11) {
     alert("O telefone deve conter 11 dígitos (DDD + número)!");
     document.getElementById("telefone").focus();
     return;
   }
-
-  // 🔥 FORMATAÇÃO AQUI
   const telefoneFormatado = `(${telefoneLimpo.substring(0, 2)}) ${telefoneLimpo.substring(2, 7)}-${telefoneLimpo.substring(7)}`;
 
-  // 🔹 pegar dias selecionados
-  const diasSelecionados = [];
+  // monta horários conforme tipo de jornada
+  const mapeamentoDias = {
+    domingo: 0,
+    segunda: 1,
+    terca: 2,
+    quarta: 3,
+    quinta: 4,
+    sexta: 5,
+    sabado: 6,
+  };
 
-  document
-    .querySelectorAll("#jornadaPadrao input[type=checkbox]:checked")
-    .forEach((dia) => {
-      diasSelecionados.push(parseInt(dia.value));
+  let horarios = [];
+  const tipoJornada = document.getElementById("tipoJornada").value;
+
+  if (tipoJornada === "padrao") {
+    const diasSelecionados = [];
+    document
+      .querySelectorAll("#jornadaPadrao input[type=checkbox]:checked")
+      .forEach((dia) => {
+        diasSelecionados.push(parseInt(dia.value));
+      });
+
+    if (diasSelecionados.length === 0) {
+      alert("Selecione pelo menos um dia da semana!");
+      return;
+    }
+
+    const inicio_expediente =
+      document.getElementById("inicio_expediente").value;
+    const inicio_intervalo = document.getElementById("inicio_intervalo").value;
+    const termino_intervalo =
+      document.getElementById("termino_intervalo").value;
+    const termino_expediente =
+      document.getElementById("termino_expediente").value;
+
+    if (!inicio_expediente || !termino_expediente) {
+      alert("Preencha os horários!");
+      return;
+    }
+
+    horarios = diasSelecionados.map((dia) => ({
+      dia_semana: dia,
+      inicio_expediente,
+      inicio_intervalo,
+      termino_intervalo,
+      termino_expediente,
+    }));
+  } else {
+    Object.entries(mapeamentoDias).forEach(([nome, numero]) => {
+      const div = document.getElementById(nome);
+      if (div && div.style.display !== "none") {
+        horarios.push({
+          dia_semana: numero,
+          inicio_expediente: document.getElementById(
+            `${nome}_inicio_expediente`,
+          ).value,
+          inicio_intervalo: document.getElementById(`${nome}_inicio_intervalo`)
+            .value,
+          termino_intervalo: document.getElementById(
+            `${nome}_termino_intervalo`,
+          ).value,
+          termino_expediente: document.getElementById(
+            `${nome}_termino_expediente`,
+          ).value,
+        });
+      }
     });
 
-  // 🔹 validação
-  if (diasSelecionados.length === 0) {
-    alert("Selecione pelo menos um dia da semana!");
-    return;
-  }
-
-  // 🔹 pegar horários
-  const inicio_expediente = document.getElementById("inicio_expediente").value;
-  const inicio_intervalo = document.getElementById("inicio_intervalo").value;
-  const termino_intervalo = document.getElementById("termino_intervalo").value;
-  const termino_expediente = document.getElementById("termino_expediente").value;
-
-  // 🔹 validação de horário
-  if (!inicio_expediente || !termino_expediente) {
-    alert("Preencha os horários!");
-    return;
+    if (horarios.length === 0) {
+      alert("Selecione pelo menos um dia na jornada manual!");
+      return;
+    }
   }
 
   const dados = {
@@ -166,25 +206,15 @@ async function cadastrarUsuario() {
     email: document.getElementById("email").value,
     telefone: telefoneFormatado,
     cpf: formatarCPF(document.getElementById("cpf").value),
-
     cargo_id: parseInt(document.getElementById("cargo").value),
     setor_id: parseInt(document.getElementById("setor").value),
     tipo_perfil: document.getElementById("tipo_perfil").value,
     tipo_contrato: document.getElementById("tipo_contrato").value,
-
     data_admissao: document.getElementById("data_admissao").value,
     carga_horaria: document.getElementById("carga_horaria").value,
-
     matricula: "AUTO-" + Math.floor(Math.random() * 10000),
-    jornada: document.getElementById("tipoJornada").value,
-
-    horarios: diasSelecionados.map((dia) => ({
-      dia_semana: dia,
-      inicio_expediente,
-      inicio_intervalo,
-      termino_intervalo,
-      termino_expediente,
-    })),
+    jornada: tipoJornada,
+    horarios: horarios,
   };
 
   const res = await fetch("http://127.0.0.1:5000/cadastrar_usuario", {
