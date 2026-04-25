@@ -495,7 +495,7 @@ def enviar_token():
 
     print("TOKEN GERADO:", token)
 
-    return jsonify({"ok": True}), 200
+    return jsonify({"ok": True, "token": token}), 200
 
 
 @views_bp.route("/validar-token", methods=["POST"])

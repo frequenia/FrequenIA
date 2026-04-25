@@ -94,7 +94,6 @@ function login(event) {
   })
     .then((response) => response.json())
     .then((data) => {
-
       if (data.ok) {
         window.location.href = "/menu";
       } else {
@@ -107,27 +106,6 @@ function login(event) {
 }
 // Inicializar EmailJS
 emailjs.init("j2V8vMJBNoT3bmpRt");
-
-function enviarEmail() {
-  const email = document.getElementById("email").value;
-
-  if (email.trim() === "") {
-    alert("Digite um email válido.");
-    return;
-  }
-
-  emailjs
-    .send("worksync_services", "template_0weu91p", {
-      to_email: email,
-    })
-    .then(function () {
-      alert("Email enviado com sucesso!");
-    })
-    .catch(function (error) {
-      alert("Erro ao enviar email.");
-      console.log(error);
-    });
-}
 
 function toggleSenha(el) {
   const box = el.closest(".password-box");
@@ -159,6 +137,12 @@ async function enviarCodigo() {
 
   if (response.ok) {
     sessionStorage.setItem("email", email);
+
+    // Envia o token por email
+    await emailjs.send("worksync_services", "template_0weu91p", {
+      to_email: email,
+      token: data.token,
+    });
 
     window.location.href = "/inserirToken";
   } else {
