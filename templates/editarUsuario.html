@@ -68,16 +68,12 @@
                 </select>
             </div>
 
-                    <div class="campo">
-                        <label>Setor</label>
-                        <select id="setor" disabled>
-                            <option value="">Selecione</option>
-                            <option value="rh" {% if usuario.setor == 'rh' %}selected{% endif %}>RH</option>
-                            <option value="financeiro" {% if usuario.setor == 'financeiro' %}selected{% endif %}>Financeiro</option>
-                            <option value="ti" {% if usuario.setor == 'ti' %}selected{% endif %}>TI</option>
-                            <option value="comercial" {% if usuario.setor == 'comercial' %}selected{% endif %}>Comercial</option>
-                        </select>
-                    </div>
+            <div class="campo">
+                <label>Setor</label>
+                <select id="setor" class="campo-editavel" disabled data-setor="{{ usuario.setor_id }}">
+                    <option value="">Selecione</option>
+                </select>
+            </div>
 
                     <div class="campo">
                         <label>Tipo de perfil</label>
@@ -90,25 +86,19 @@
 
                     <div class="campo">
                         <label>Tipo de contrato</label>
-                        <select id="tipo_contrato" disabled>
-                            <option value="" >Selecione</option>
-                            <option value="clt" 
-                            {% if usuario.tipo_contrato == 'clt' %}selected{% endif %}>CLT</option>
-                            <option value="pj" {% if usuario.tipo_contrato == 'pj' %}selected{% endif %}>PJ</option>
-                            <option value="estagiario" {% if usuario.tipo_contrato == 'estagiario' %}selected{% endif %}>Estágio</option>
-                            <option value="temporario" {% if usuario.tipo_contrato == 'temporario' %}selected{% endif %}>Temporário</option>
+                        <select id="tipo_contrato" class="campo-editavel" disabled data-contrato="{{ usuario.tipo_contrato }}">
+                            <option value="">Selecione</option>
                         </select>
                     </div>
 
                     <div class="campo">
                         <label>Data de admissão</label>
-                        <input type="date" id="data_admissao" 
-                        value="{{ usuario.data_admissao}}" readonly>
+                        <input type="date" id="data_admissao" class="campo-editavel" value="{{ usuario.data_admissao }}" readonly>
                     </div>
 
                     <div class="campo">
                         <label>Carga horária semanal</label>
-                        <input type="text" id="carga_horaria">
+                        <input type="text" id="carga_horaria" class="campo-editavel" value="{{ usuario.carga_horaria }}" readonly>
                     </div>
 
                 </div>

@@ -451,6 +451,10 @@ def atualizar_usuario():
         email = dados.get("email")
         telefone = dados.get("telefone")
         cargo_id = dados.get("cargo_id")
+        setor_id = dados.get("setor_id")
+        tipo_contrato = dados.get("tipo_contrato")
+        data_admissao = dados.get("data_admissao")
+        carga_horaria = dados.get("carga_horaria")
 
         conn = conectar_bd()
         cursor = conn.cursor()
@@ -458,10 +462,19 @@ def atualizar_usuario():
         cursor.execute(
             """
             UPDATE usuarios
-            SET nome = %s, email = %s, telefone = %s, cargo_id = %s
+            SET nome = %s, email = %s, telefone = %s, cargo_id = %s, setor_id = %s
             WHERE id = %s
             """,
-            (nome, email, telefone, cargo_id, user_id),
+            (nome, email, telefone, cargo_id, setor_id, user_id),
+        )
+
+        cursor.execute(
+            """
+            UPDATE funcionarios
+            SET tipo_contrato = %s, data_admissao = %s, carga_horaria = %s
+            WHERE usuario_id = %s
+            """,
+            (tipo_contrato, data_admissao, carga_horaria, user_id),
         )
 
         conn.commit()
@@ -972,14 +985,17 @@ def editar_usuario():
             u.telefone,
             u.cpf,
             u.cargo_id,
+            u.setor_id,
             c.nome AS cargo,
-            f.setor,
+            s.nome AS setor,
             f.tipo_perfil,
             f.tipo_contrato,
-            f.data_admissao
+            f.data_admissao,
+            f.carga_horaria
         FROM usuarios u
         LEFT JOIN funcionarios f ON u.id = f.usuario_id
         LEFT JOIN cargos c ON u.cargo_id = c.id
+        LEFT JOIN setores s ON u.setor_id = s.id
         WHERE u.id = %s
         """,
         (user_id,),

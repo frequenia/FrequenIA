@@ -26,7 +26,9 @@
       <span>WORK</span><span>SYNC</span>
     </span>
 
+    <!---
     <div id="status" class="status-container"></div>
+    -->
 
     <div class="topbar-right">
       <!-- PROFILE LINK -->
@@ -53,14 +55,18 @@
     <aside class="sidebar">
       <ul>
         <li><a href="/controleponto" target="conteudo">Controle de Pontos</a></li>
-        <li><a href="/inicio" >Reg. ponto</a></li>
+        <li><a href="/inicio" >Registro de ponto</a></li>
       {% if tipo == 'admin' %}
         <li class="divider"></li>
-        <li><a href="/gerenciarUsuario" id="gerenciamentous" target="conteudo">Gerenciar (Usuários)</a></li>
+        <li><a href="/gerenciarUsuario" id="gerenciamentous" target="conteudo">Gerenciar usuários</a></li>
+        <!---
         <li><a href="/gerenciarEmpresa" id="gerenciamentoemp" target="conteudo">Gerenciar (Empresas)</a></li>
+        -->
         <li><a href="/cadastroUsuario" target="conteudo">Cadastro</a></li>
+        <!---
         <li><a href="/cadastroEmpresas" target="conteudo">Cadastro (Empresas)</a></li>
-        <li><a href="/cadastrarFoto" target="conteudo">Cad. foto</a></li>
+        -->
+        <li><a href="/cadastrarFoto" target="conteudo">Cadastro facial</a></li>
         <li><a href="/configuracoes" target="conteudo">Configurações</a></li>
       {% endif %}
       </ul>
