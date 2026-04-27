@@ -1,9 +1,50 @@
-function criarCelulaHora(valor) {
+const TOLERANCIA_MINUTOS = 5;
+let jornadaPadrao = null;
+
+function horaParaMinutos(hora) {
+    if (!hora || hora === "--:--") return null;
+
+    const [h, m] = hora.split(":").map(Number);
+    return h * 60 + m;
+}
+
+function classificarHorario(tipo, valor) {
+    if (!valor || valor === "--:--" || !jornadaPadrao) {
+        return "";
+    }
+
+    const real = horaParaMinutos(valor);
+    const esperado = horaParaMinutos(jornadaPadrao[tipo]);
+
+    if (real === null || esperado === null) {
+        return "";
+    }
+
+    // Entrada e volta intervalo: se passou do horário, é atraso
+    if (tipo === "entrada" || tipo === "volta_intervalo") {
+        if (real <= esperado) return "ok";
+        if (real <= esperado + TOLERANCIA_MINUTOS) return "alerta";
+        return "erro";
+    }
+
+    // Saída intervalo e saída final: sair antes do previsto é problema
+    if (tipo === "saida_intervalo" || tipo === "saida") {
+        if (real >= esperado) return "ok";
+        if (real >= esperado - TOLERANCIA_MINUTOS) return "alerta";
+        return "erro";
+    }
+
+    return "ok";
+}
+
+function criarCelulaHora(valor, tipo) {
     if (!valor || valor === "--:--") {
         return `<div class="hora">--:--</div>`;
     }
 
-    return `<div class="hora ok">${valor}</div>`;
+    const classe = classificarHorario(tipo, valor);
+
+    return `<div class="hora ${classe}">${valor}</div>`;
 }
 
 function formatarDataBR(dataIso) {
@@ -15,6 +56,27 @@ function converterDataParaIso(dataBr) {
     if (!dataBr) return "";
     const [dia, mes, ano] = dataBr.split("/");
     return `${ano}-${mes}-${dia}`;
+}
+
+async function carregarJornadaPadrao() {
+    try {
+        const resp = await fetch("/jornada");
+
+        if (!resp.ok) {
+            console.error("Erro ao buscar jornada:", resp.status);
+            return;
+        }
+
+        jornadaPadrao = await resp.json();
+
+        document.getElementById("hora-entrada").textContent = jornadaPadrao.entrada ?? "--:--";
+        document.getElementById("hora-saida-intervalo").textContent = jornadaPadrao.saida_intervalo ?? "--:--";
+        document.getElementById("hora-volta-intervalo").textContent = jornadaPadrao.volta_intervalo ?? "--:--";
+        document.getElementById("hora-saida").textContent = jornadaPadrao.saida ?? "--:--";
+
+    } catch (erro) {
+        console.error("Falha ao carregar jornada:", erro);
+    }
 }
 
 async function carregarTabelaPontos() {
@@ -35,6 +97,7 @@ async function carregarTabelaPontos() {
         }
 
         let url = "/pontos";
+
         if (params.toString()) {
             url += `?${params.toString()}`;
         }
@@ -70,10 +133,10 @@ async function carregarTabelaPontos() {
                         <small>${formatarDataBR(item.data)}</small>
                     </td>
 
-                    <td>${criarCelulaHora(item.entrada)}</td>
-                    <td>${criarCelulaHora(item.saida_intervalo)}</td>
-                    <td>${criarCelulaHora(item.volta_intervalo)}</td>
-                    <td>${criarCelulaHora(item.saida)}</td>
+                    <td>${criarCelulaHora(item.entrada, "entrada")}</td>
+                    <td>${criarCelulaHora(item.saida_intervalo, "saida_intervalo")}</td>
+                    <td>${criarCelulaHora(item.volta_intervalo, "volta_intervalo")}</td>
+                    <td>${criarCelulaHora(item.saida, "saida")}</td>
 
                     <td><span class="total-horas">${item.total}</span></td>
                 </tr>
@@ -115,8 +178,9 @@ function exportarPontos() {
     window.location.href = `/exportar-pontos?${params.toString()}`;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-    carregarTabelaPontos();
+document.addEventListener("DOMContentLoaded", async () => {
+    await carregarJornadaPadrao();
+    await carregarTabelaPontos();
 
     const btnPesquisar = document.getElementById("btnPesquisar");
     if (btnPesquisar) {
