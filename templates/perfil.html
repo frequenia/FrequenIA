@@ -10,11 +10,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- CSS Global (SEMPRE PRIMEIRO) -->
+  <!-- CSS Global (SEMPRE PRIMEIRO) -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/worksync-global.css') }}">
   <!-- CSS Específico -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/perfil.css') }}">
-  
+
   <!--Dark-mode-->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
@@ -61,9 +61,9 @@
       <h3>Dados do Trabalhador</h3>
 
       <div class="grid">
-        <div class="campo">
+        <div class="campo campo-cargo">
           <label>Cargo</label>
-         <input type="text" id="cargo" value="{{ user.cargo_nome if user.cargo_nome else 'Sem cargo' }}" disabled>
+          <input type="text" id="cargo" value="{{ user.cargo_nome if user.cargo_nome else 'Sem cargo' }}" disabled>
         </div>
 
         <div class="campo">
@@ -73,13 +73,9 @@
 
         <div class="campo">
           <label>Tipo de Perfil</label>
-          <input type="text" id="tipo_perfil" value="
-            {{ 'Administrador' if user.tipo_perfil == 'admin' else 'Colaborador' if user.tipo_perfil == 'funcionario' else user.tipo_perfil }}" disabled>
-        </div>
-
-        <div class="campo">
-          <label>Matrícula / ID</label>
-          <input type="text" id="matricula" disabled>
+          <input type="text" id="tipo_perfil"
+            value="{{ 'Administrador' if user.tipo_perfil == 'admin' else 'Colaborador' if user.tipo_perfil == 'funcionario' else user.tipo_perfil }}"
+            disabled>
         </div>
 
         <div class="campo">

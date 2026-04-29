@@ -63,6 +63,13 @@
   gap: var(--spacing-lg);
 }
 
+.campo-cargo {
+  grid-column: 1 / -1;
+}
+
+.campo-jornada {
+  grid-column: 2;
+}
 .campo {
   display: flex;
   flex-direction: column;
