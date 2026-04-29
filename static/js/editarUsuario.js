@@ -114,3 +114,28 @@ async function salvarAlteracoes() {
     alert("Erro ao atualizar");
   }
 }
+
+async function deletarUsuario() {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("id");
+
+  const confirmar = confirm(
+    "Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.",
+  );
+  if (!confirmar) return;
+
+  const res = await fetch("/deletar_usuario", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: id }),
+  });
+
+  const data = await res.json();
+
+  if (data.status === "ok") {
+    alert("Usuário excluído com sucesso!");
+    window.location.href = "/gerenciarUsuario";
+  } else {
+    alert("Erro ao excluir usuário: " + data.mensagem);
+  }
+}

@@ -80,7 +80,6 @@ async function redefinirSenhaFinal() {
   const senha = document.getElementById("novaSenha").value;
   const confirmar = document.getElementById("confirmarSenha").value;
 
-  // 🔥 BLOQUEIA AQUI
   if (!senhaValida()) {
     alert("Senha não atende aos requisitos!");
     return;

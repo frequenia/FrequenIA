@@ -1,5 +1,3 @@
-console.log("JS CARREGADO");
-
 // ELEMENTOS
 const video = document.getElementById("video");
 const btnRegistrar = document.getElementById("btnRegistrar");

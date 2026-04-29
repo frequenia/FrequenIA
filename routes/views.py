@@ -1093,11 +1093,8 @@ def editar_horarios():
     horario = horarios[0] if horarios else None
     dias = [h['dia_semana'] for h in horarios]
 
-    # monta dicionário com horários por dia para jornada manual
     horarios_por_dia = {h['dia_semana']: h for h in horarios}
 
-    # detecta automaticamente o tipo de jornada
-    # se todos os dias têm o mesmo horário, é padrão; senão, é manual
     horarios_unicos = set(
         (h['inicio_expediente'], h['termino_expediente']) for h in horarios
     )
@@ -1114,6 +1111,35 @@ def editar_horarios():
         horarios_por_dia=horarios_por_dia,
         tipo_jornada=tipo_jornada
     )
+
+
+
+@views_bp.route("/deletar_usuario", methods=["POST"])
+def deletar_usuario():
+    try:
+        dados = request.get_json()
+        user_id = dados.get("id")
+
+        if int(user_id) == int(session.get("user_id")):
+            return jsonify({"status": "erro", "mensagem": "Você não pode excluir seu próprio perfil!"}), 403
+
+        conn = conectar_bd()
+        cursor = conn.cursor()
+
+        cursor.execute("DELETE FROM ponto WHERE usuario_id = %s", (user_id,))
+        cursor.execute("DELETE FROM horarios WHERE usuario_id = %s", (user_id,))
+        cursor.execute("DELETE FROM funcionarios WHERE usuario_id = %s", (user_id,))
+        cursor.execute("DELETE FROM usuarios WHERE id = %s", (user_id,))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({"status": "ok"})
+
+    except Exception as e:
+        print("ERRO:", e)
+        return jsonify({"status": "erro", "mensagem": str(e)})
 
 
 # =========================
