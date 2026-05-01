@@ -46,12 +46,12 @@
 
             <div class="campo">
               <label>Telefone</label>
-              <input type="text" id="telefone" placeholder="(XX) XXXXX-XXXX">
+              <input type="text" id="telefone" placeholder="(XX) XXXXX-XXXX" maxlength="15" oninput="mascaraTelefone(this)">
             </div>
 
             <div class="campo">
               <label>CPF</label>
-              <input type="text" id="cpf" placeholder="XXX.XXX.XXX-XX">
+              <input type="text" id="cpf" placeholder="XXX.XXX.XXX-XX" maxlength="14" oninput="mascaraCPF(this)">
             </div>
           </div>
         </div>

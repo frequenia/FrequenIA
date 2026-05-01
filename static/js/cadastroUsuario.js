@@ -77,6 +77,68 @@ function formatarCPF(cpf) {
   return cpf;
 }
 
+function mascaraCPF(campo) {
+  let cpf = campo.value.replace(/\D/g, "");
+  if (cpf.length > 11) {
+    cpf = cpf.substring(0, 11);
+  }
+  cpf = cpf.replace(/(\d{3})(\d)/, "$1.$2");
+  cpf = cpf.replace(/(\d{3})(\d)/, "$1.$2");
+  cpf = cpf.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  campo.value = cpf;
+}
+
+function mascaraTelefone(campo) {
+  let telefone = campo.value.replace(/\D/g, "");
+
+  // limita a 11 dígitos
+  if (telefone.length > 11) {
+    telefone = telefone.substring(0, 11);
+  }
+
+  // aplica máscara
+  if (telefone.length > 0) {
+    telefone = telefone.replace(/^(\d{2})(\d)/, "($1) $2");
+  }
+
+  if (telefone.length > 10) {
+    telefone = telefone.replace(/(\d{5})(\d{4})$/, "$1-$2");
+  } else {
+    telefone = telefone.replace(/(\d{4})(\d{4})$/, "$1-$2");
+  }
+
+  campo.value = telefone;
+}
+
+function verificarCPF(cpfInput) {
+  let soma = 0;
+
+  cpfInput = cpfInput.replace(/\D/g, "");
+  let CPF = cpfInput.split("").map(Number);
+
+  if (CPF.length !== 11) return false;
+
+  if (/^(\d)\1+$/.test(cpfInput)) return false;
+
+  for (let i = 0; i <= 8; i++) {
+    soma += CPF[i] * (10 - i);
+  }
+
+  let digito1 = soma % 11;
+  digito1 = digito1 < 2 ? 0 : 11 - digito1;
+
+  soma = 0;
+
+  for (let i = 0; i <= 9; i++) {
+    soma += CPF[i] * (11 - i);
+  }
+
+  let digito2 = soma % 11;
+  digito2 = digito2 < 2 ? 0 : 11 - digito2;
+
+  return digito1 == CPF[9] && digito2 == CPF[10];
+}
+
 async function cadastrarUsuario() {
   const camposObrigatorios = [
     "nome",
@@ -117,14 +179,21 @@ async function cadastrarUsuario() {
   }
 
   // validação do telefone
-  const telefoneLimpo = document
-    .getElementById("telefone")
-    .value.replace(/\D/g, "");
+  const telefoneLimpo = document.getElementById("telefone").value.replace(/\D/g, "");
   if (telefoneLimpo.length !== 11) {
     alert("O telefone deve conter 11 dígitos (DDD + número)!");
     document.getElementById("telefone").focus();
     return;
   }
+
+  const cpfInput = document.getElementById("cpf").value;
+
+  if (!verificarCPF(cpfInput)) {
+    alert("CPF inválido!");
+    document.getElementById("cpf").focus();
+    return;
+  }
+
   const telefoneFormatado = `(${telefoneLimpo.substring(0, 2)}) ${telefoneLimpo.substring(2, 7)}-${telefoneLimpo.substring(7)}`;
 
   // monta horários conforme tipo de jornada

@@ -207,6 +207,32 @@ def cadastrar_usuario():
         conn = conectar_bd()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
+        cpf = dados["cpf"]
+
+        cursor.execute(
+            "SELECT id FROM usuarios WHERE cpf = %s",
+            (cpf,)
+        )
+
+        if cursor.fetchone():
+            return jsonify({
+            "status": "erro",
+            "mensagem": "CPF já cadastrado!"
+    })
+
+        email = dados["email"]
+
+        cursor.execute(
+            "SELECT id FROM usuarios WHERE email = %s",
+            (email,)
+        )
+
+        if cursor.fetchone():
+            return jsonify({
+            "status": "erro",
+            "mensagem": "Email já cadastrado!"
+        })
+
         cursor.execute(
             """
             INSERT INTO usuarios (nome, email, telefone, cpf, cargo_id, setor_id)
