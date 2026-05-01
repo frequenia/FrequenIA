@@ -82,9 +82,14 @@
 
 .filtro-linha {
   display: grid;
-  grid-template-columns: 1.6fr 1fr 1fr auto;
+  grid-template-columns: 1fr 1fr 1fr auto;
   gap: 16px;
   align-items: end;
+}
+
+/* Funcionário ocupa linha inteira */
+.filtro-linha .input-group:first-child {
+  grid-column: 1 / -1;
 }
 
 /* alinhamento vertical bonito */
