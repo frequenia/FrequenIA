@@ -55,25 +55,29 @@ function converterDataParaIso(dataBr) {
     return `${ano}-${mes}-${dia}`;
 }
 
-async function carregarJornadaPadrao() {
-    try {
-        const resp = await fetch("/jornada");
+async function carregarJornadaPadrao(userId = null) {
+  try {
+    const url = userId ? `/jornada?user_id=${userId}` : "/jornada";
+    const resp = await fetch(url);
 
-        if (!resp.ok) {
-            console.error("Erro ao buscar jornada:", resp.status);
-            return;
-        }
-
-        jornadaPadrao = await resp.json();
-
-        document.getElementById("hora-entrada").textContent = jornadaPadrao.entrada ?? "--:--";
-        document.getElementById("hora-saida-intervalo").textContent = jornadaPadrao.saida_intervalo ?? "--:--";
-        document.getElementById("hora-volta-intervalo").textContent = jornadaPadrao.volta_intervalo ?? "--:--";
-        document.getElementById("hora-saida").textContent = jornadaPadrao.saida ?? "--:--";
-
-    } catch (erro) {
-        console.error("Falha ao carregar jornada:", erro);
+    if (!resp.ok) {
+      console.error("Erro ao buscar jornada:", resp.status);
+      return;
     }
+
+    jornadaPadrao = await resp.json();
+
+    document.getElementById("hora-entrada").textContent =
+      jornadaPadrao.entrada ?? "--:--";
+    document.getElementById("hora-saida-intervalo").textContent =
+      jornadaPadrao.saida_intervalo ?? "--:--";
+    document.getElementById("hora-volta-intervalo").textContent =
+      jornadaPadrao.volta_intervalo ?? "--:--";
+    document.getElementById("hora-saida").textContent =
+      jornadaPadrao.saida ?? "--:--";
+  } catch (erro) {
+    console.error("Falha ao carregar jornada:", erro);
+  }
 }
 
 async function carregarTabelaPontos() {
@@ -186,16 +190,20 @@ function exportarPontos() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-    await carregarJornadaPadrao();
-    await carregarTabelaPontos();
+  await carregarJornadaPadrao();
+  await carregarTabelaPontos();
 
-    const btnPesquisar = document.getElementById("btnPesquisar");
-    if (btnPesquisar) {
-        btnPesquisar.addEventListener("click", carregarTabelaPontos);
-    }
+  const btnPesquisar = document.getElementById("btnPesquisar");
+  if (btnPesquisar) {
+    btnPesquisar.addEventListener("click", async () => {
+      const userId = document.getElementById("filtroUsuario")?.value || null;
+      await carregarJornadaPadrao(userId);
+      await carregarTabelaPontos();
+    });
+  }
 
-    const btnExportar = document.querySelector(".btn-export");
-    if (btnExportar) {
-        btnExportar.addEventListener("click", exportarPontos);
-    }
+  const btnExportar = document.querySelector(".btn-export");
+  if (btnExportar) {
+    btnExportar.addEventListener("click", exportarPontos);
+  }
 });

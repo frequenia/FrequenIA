@@ -684,7 +684,11 @@ def hora_servidor():
 @views_bp.route("/jornada", methods=["GET"])
 @login_required
 def get_jornada():
-    user_id = session["user_id"]
+    # Admin pode buscar qualquer usuário, funcionário só vê o próprio
+    if session.get("tipo") == "admin":
+        user_id = request.args.get("user_id", session["user_id"])
+    else:
+        user_id = session["user_id"]
 
     conn = conectar_bd()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)

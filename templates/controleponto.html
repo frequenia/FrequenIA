@@ -202,28 +202,29 @@
   </div>
 
   <script>
-    async function carregarJornada() {
-      try {
-        const resp = await fetch('/jornada');
+    async function carregarJornada(userId = null) {
+        try {
+          const url = userId ? `/jornada?user_id=${userId}` : '/jornada';
+          const resp = await fetch(url);
 
-        if (!resp.ok) {
-          console.error('Erro ao buscar jornada:', resp.status);
-          return;
+          if (!resp.ok) {
+            console.error('Erro ao buscar jornada:', resp.status);
+            return;
+          }
+
+          const dados = await resp.json();
+
+          document.getElementById('hora-entrada').textContent = dados.entrada ?? '--:--';
+          document.getElementById('hora-saida-intervalo').textContent = dados.saida_intervalo ?? '--:--';
+          document.getElementById('hora-volta-intervalo').textContent = dados.volta_intervalo ?? '--:--';
+          document.getElementById('hora-saida').textContent = dados.saida ?? '--:--';
+
+        } catch (err) {
+          console.error('Falha na requisição de jornada:', err);
         }
-
-        const dados = await resp.json();
-
-        document.getElementById('hora-entrada').textContent = dados.entrada ?? '--:--';
-        document.getElementById('hora-saida-intervalo').textContent = dados.saida_intervalo ?? '--:--';
-        document.getElementById('hora-volta-intervalo').textContent = dados.volta_intervalo ?? '--:--';
-        document.getElementById('hora-saida').textContent = dados.saida ?? '--:--';
-
-      } catch (err) {
-        console.error('Falha na requisição de jornada:', err);
       }
-    }
 
-    carregarJornada();
+      carregarJornada();
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>

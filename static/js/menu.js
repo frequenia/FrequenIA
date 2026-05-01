@@ -24,40 +24,6 @@ async function atualizarRelogio() {
 setInterval(atualizarRelogio, 500);
 atualizarRelogio();
 
-// ─── STATUS BADGE ───
-async function atualizarStatus() {
-  const resposta = await fetch("/status");
-  const dados = await resposta.json();
-
-  const statusEl = document.getElementById("status");
-  let statusText = "";
-  let badgeClass = "";
-  let icon = "";
-
-  if (dados.status === "expediente") {
-    statusText = "Em expediente";
-    badgeClass = "status-badge-expediente";
-    icon = "\u2713"; // ✓
-  } else if (dados.status === "intervalo") {
-    statusText = "Em intervalo";
-    badgeClass = "status-badge-intervalo";
-    icon = "\u23F8"; // ⏸
-  } else {
-    statusText = "Fora do expediente";
-    badgeClass = "status-badge-fora";
-    icon = "\u2717"; // ✗
-  }
-
-  statusEl.innerHTML = `
-    <div class="status-badge ${badgeClass}">
-      <span class="status-icon">${icon}</span>
-      <span>${statusText}</span>
-    </div>
-  `;
-}
-
-setInterval(atualizarStatus, 5000);
-atualizarStatus();
 
 // ─── PROFILE LINK ───
 function atualizarPerfil() {

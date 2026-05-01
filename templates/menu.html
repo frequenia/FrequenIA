@@ -54,7 +54,15 @@
     <!-- SIDEBAR (Menu Lateral) -->
     <aside class="sidebar">
       <ul>
-        <li><a href="/controleponto" target="conteudo">Controle de Pontos</a></li>
+        <li>
+          <a href="/controleponto" target="conteudo">
+            {% if tipo == 'admin' %}
+            Controle de Pontos
+            {% else %}
+            Meu Ponto
+            {% endif %}
+          </a>
+        </li>
         <li><a href="/inicio" >Registro de ponto</a></li>
         <li><a href="/configuracoes" target="conteudo">Configurações</a></li>
       {% if tipo == 'admin' %}
