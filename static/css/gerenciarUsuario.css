@@ -194,3 +194,27 @@ td {
   .col-perfil { width: auto; }
 }
 
+.status {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  letter-spacing: 0.03em;
+  text-align: center;
+  min-width: 90px;
+}
+
+/* ATIVO */
+.status.ativo {
+  background: #22c55e;
+  color: white;
+}
+
+/* INATIVO */
+.status.inativo {
+  background: #ef4444;
+  color: white;
+}

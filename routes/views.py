@@ -149,7 +149,7 @@ def login():
 
     cursor.execute(
         """
-        SELECT u.id, u.nome, u.cpf, u.senha_hash, f.tipo_perfil
+        SELECT u.id, u.nome, u.cpf, u.senha_hash, u.status, f.tipo_perfil
         FROM usuarios u
         INNER JOIN funcionarios f ON u.id = f.usuario_id
         WHERE REPLACE(REPLACE(u.cpf, '.', ''), '-', '') = %s
@@ -165,6 +165,9 @@ def login():
 
     if not user:
         return jsonify({"erro": "CPF não encontrado"}), 404
+
+    if user["status"] == "inativo":
+        return jsonify({"erro": "Usuário inativo. Contate um administrador."}), 403
 
     if not user["senha_hash"]:
         return jsonify({"erro": "Usuário ainda não definiu senha"}), 400
@@ -411,7 +414,7 @@ def listar_usuarios():
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
         cursor.execute("""
-            SELECT id, nome, cpf, 'ativo' as status
+            SELECT id, nome, cpf, status
             FROM usuarios
             """)
 
@@ -1069,6 +1072,7 @@ def editar_usuario():
             u.cpf,
             u.cargo_id,
             u.setor_id,
+            u.status,
             c.nome AS cargo,
             s.nome AS setor,
             f.tipo_perfil,
@@ -1181,6 +1185,50 @@ def deletar_usuario():
         print("ERRO:", e)
         return jsonify({"status": "erro", "mensagem": str(e)})
 
+
+
+
+
+
+@views_bp.route("/atualizar_status_usuario", methods=["POST"])
+def atualizar_status_usuario():
+    try:
+        dados = request.get_json()
+
+        user_id = dados.get("id")
+
+        conn = conectar_bd()
+        cursor = conn.cursor()
+
+        # pega status atual
+        cursor.execute(
+            "SELECT status FROM usuarios WHERE id = %s",
+            (user_id,)
+        )
+        atual = cursor.fetchone()[0]
+
+        # alterna
+        novo_status = "inativo" if atual == "ativo" else "ativo"
+
+        # atualiza
+        cursor.execute(
+            "UPDATE usuarios SET status = %s WHERE id = %s",
+            (novo_status, user_id),
+        )
+
+        conn.commit()
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            "status": "ok",
+            "novo_status": novo_status
+        })
+
+    except Exception as e:
+        print("ERRO:", e)
+        return jsonify({"status": "erro"})
 
 # =========================
 # STATUS (MOCK)

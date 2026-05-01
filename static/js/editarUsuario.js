@@ -3,10 +3,10 @@ async function carregarCargos() {
   const cargos = await res.json();
 
   const select = document.getElementById("cargo");
-    const cargoAtual = select.dataset.cargo; // pega o cargo atual do usuário
-    
-    console.log("Cargo atual:", cargoAtual); // <- adiciona isso
-    console.log("Cargos:", cargos);
+  const cargoAtual = select.dataset.cargo; // pega o cargo atual do usuário
+
+  console.log("Cargo atual:", cargoAtual); // <- adiciona isso
+  console.log("Cargos:", cargos);
 
   cargos.forEach((cargo) => {
     const option = document.createElement("option");
@@ -56,7 +56,6 @@ async function carregarTipoContrato() {
 carregarCargos();
 carregarSetores();
 carregarTipoContrato();
-
 
 function alterarDados() {
   document.querySelectorAll(".campo-editavel").forEach((el) => {
@@ -139,3 +138,52 @@ async function deletarUsuario() {
     alert("Erro ao excluir usuário: " + data.mensagem);
   }
 }
+
+function definirTextoBotao(status) {
+  const btn = document.getElementById("btnStatus");
+  if (!btn) return;
+
+  if (status === "ativo") {
+    btn.textContent = "Inativar Usuário";
+  } else {
+    btn.textContent = "Ativar Usuário";
+  }
+}
+
+async function AtualizarStatus() {
+  const confirmacao = confirm("Deseja alterar o status deste usuário?");
+  if (!confirmacao) return;
+
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("id");
+
+  try {
+    const res = await fetch("/atualizar_status_usuario", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id: id }),
+    });
+
+    const data = await res.json();
+
+    if (data.status === "ok") {
+      alert("Status atualizado com sucesso!");
+      window.location.href = "/gerenciarUsuario";
+    } else {
+      alert("Erro ao atualizar status");
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Erro na requisição");
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("btnStatus");
+  if (!btn) return;
+
+  const status = btn.dataset.status;
+  definirTextoBotao(status);
+});

@@ -106,7 +106,11 @@ lista.forEach(item => {
     <tr>
       <td class="col-nome">${item.nome}</td>
       <td class="col-cpf">${item.cpf}</td>
-      <td class="col-status">${item.status}</td>
+      <td class="col-status">
+  <span class="status ${item.status}">
+    ${item.status}
+  </span>
+</td>
       <td class="col-perfil">
         <a href="/editarUsuario?id=${item.id}" class="btn-acao">Perfil</a>
         <a href="/editarHorarios?id=${item.id}" class="btn-acao">Horários</a>
