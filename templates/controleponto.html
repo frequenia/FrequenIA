@@ -102,16 +102,33 @@
       <!-- FILTRO -->
       <section class="card filtro">
         <div class="filtro-linha">
+
+          <!-- ADMIN -->
+          {% if session.get('tipo') == 'admin' %}
+          <div class="input-group">
+            <label for="usuario">Funcionário</label>
+            <select id="filtroUsuario" class="data">
+              <option value="">Todos</option>
+              {% for user in usuarios %}
+              <option value="{{ user.id }}">{{ user.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+
+          <!-- DE -->
           <div class="input-group">
             <label for="dataInicio">De</label>
             <input type="text" id="dataInicio" class="data" placeholder="dd/mm/aaaa">
           </div>
 
+          <!-- ATÉ -->
           <div class="input-group">
             <label for="dataFim">Até</label>
             <input type="text" id="dataFim" class="data" placeholder="dd/mm/aaaa">
           </div>
 
+          <!-- BOTÃO -->
           <button class="btn-primary" id="btnPesquisar" type="button">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -120,9 +137,9 @@
             </svg>
             Pesquisar
           </button>
+
         </div>
       </section>
-
     </div>
 
     <!-- TABELA -->

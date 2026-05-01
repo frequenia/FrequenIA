@@ -20,14 +20,12 @@ function classificarHorario(tipo, valor) {
         return "";
     }
 
-    // Entrada e volta intervalo: se passou do horário, é atraso
     if (tipo === "entrada" || tipo === "volta_intervalo") {
         if (real <= esperado) return "ok";
         if (real <= esperado + TOLERANCIA_MINUTOS) return "alerta";
         return "erro";
     }
 
-    // Saída intervalo e saída final: sair antes do previsto é problema
     if (tipo === "saida_intervalo" || tipo === "saida") {
         if (real >= esperado) return "ok";
         if (real >= esperado - TOLERANCIA_MINUTOS) return "alerta";
@@ -43,7 +41,6 @@ function criarCelulaHora(valor, tipo) {
     }
 
     const classe = classificarHorario(tipo, valor);
-
     return `<div class="hora ${classe}">${valor}</div>`;
 }
 
@@ -85,6 +82,7 @@ async function carregarTabelaPontos() {
     try {
         const dataInicio = document.getElementById("dataInicio").value;
         const dataFim = document.getElementById("dataFim").value;
+        const usuarioId = document.getElementById("filtroUsuario")?.value || "";
 
         const params = new URLSearchParams();
 
@@ -94,6 +92,10 @@ async function carregarTabelaPontos() {
 
         if (dataFim) {
             params.append("fim", converterDataParaIso(dataFim));
+        }
+
+        if (usuarioId) {
+            params.append("usuario_id", usuarioId);
         }
 
         let url = "/pontos";
@@ -158,6 +160,7 @@ function exportarPontos() {
     const formato = document.getElementById("exportFormat").value;
     const dataInicio = document.getElementById("dataInicio").value;
     const dataFim = document.getElementById("dataFim").value;
+    const usuarioId = document.getElementById("filtroUsuario")?.value || "";
 
     if (!formato) {
         alert("Selecione um formato para exportação.");
@@ -173,6 +176,10 @@ function exportarPontos() {
 
     if (dataFim) {
         params.append("fim", converterDataParaIso(dataFim));
+    }
+
+    if (usuarioId) {
+        params.append("usuario_id", usuarioId);
     }
 
     window.location.href = `/exportar-pontos?${params.toString()}`;

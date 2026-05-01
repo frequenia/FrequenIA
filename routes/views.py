@@ -47,7 +47,24 @@ def home():
 @views_bp.route("/controleponto")
 @login_required
 def controle_ponto():
-    return render_template("controleponto.html")
+    usuarios = []
+
+    if session.get("tipo") == "admin":
+        conn = conectar_bd()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        cursor.execute("""
+            SELECT id, nome
+            FROM usuarios
+            ORDER BY nome
+        """)
+
+        usuarios = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+    return render_template("controleponto.html", usuarios=usuarios)
 
 
 @views_bp.route("/inicio")
@@ -161,13 +178,16 @@ def login():
     session["nome"] = user["nome"]
     session["tipo"] = user["tipo_perfil"]
 
-    return jsonify(
-        {
-            "ok": True,
-            "nome": user["nome"],
-            "tipo": user["tipo_perfil"],
-        }
-    ), 200
+    return (
+        jsonify(
+            {
+                "ok": True,
+                "nome": user["nome"],
+                "tipo": user["tipo_perfil"],
+            }
+        ),
+        200,
+    )
 
 
 # ==================================================================================================
@@ -390,12 +410,10 @@ def listar_usuarios():
         conn = conectar_bd()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT id, nome, cpf, 'ativo' as status
             FROM usuarios
-            """
-        )
+            """)
 
         usuarios = cursor.fetchall()
 
@@ -419,12 +437,10 @@ def listar_empresas():
         conn = conectar_bd()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT cnpj, razao
             FROM empresas_teste
-            """
-        )
+            """)
 
         empresas_teste = cursor.fetchall()
 
@@ -510,26 +526,29 @@ def atualizar_horarios():
         dias_enviados = [h["dia_semana"] for h in horarios]
         cursor.execute(
             "DELETE FROM horarios WHERE usuario_id = %s AND dia_semana = ANY(%s)",
-            (user_id, dias_enviados)
+            (user_id, dias_enviados),
         )
 
         # Insere os novos horários
         for h in horarios:
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO horarios (
                     usuario_id, dia_semana,
                     inicio_expediente, inicio_intervalo,
                     termino_intervalo, termino_expediente
                 )
                 VALUES (%s, %s, %s, %s, %s, %s)
-            """, (
-                user_id,
-                h["dia_semana"],
-                h["inicio_expediente"],
-                h["inicio_intervalo"],
-                h["termino_intervalo"],
-                h["termino_expediente"],
-            ))
+            """,
+                (
+                    user_id,
+                    h["dia_semana"],
+                    h["inicio_expediente"],
+                    h["inicio_intervalo"],
+                    h["termino_intervalo"],
+                    h["termino_expediente"],
+                ),
+            )
 
         conn.commit()
         cursor.close()
@@ -620,15 +639,13 @@ def listar_usuarios_select():
         conn = conectar_bd()
         cursor = conn.cursor()
 
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT u.id, u.nome
             FROM usuarios u
             WHERE NOT EXISTS (
                 SELECT 1 FROM fotos f WHERE f.nome = u.nome
             )
-            """
-        )
+            """)
 
         usuarios = cursor.fetchall()
 
@@ -713,7 +730,7 @@ def calcular_total(entrada, saida, saida_intervalo=None, volta_intervalo=None):
         if saida_intervalo and volta_intervalo:
             dt_saida_intervalo = datetime.combine(date.today(), saida_intervalo)
             dt_volta_intervalo = datetime.combine(date.today(), volta_intervalo)
-            total -= (dt_volta_intervalo - dt_saida_intervalo)
+            total -= dt_volta_intervalo - dt_saida_intervalo
 
         total_segundos = int(total.total_seconds())
 
@@ -728,7 +745,9 @@ def calcular_total(entrada, saida, saida_intervalo=None, volta_intervalo=None):
         return "--"
 
 
-def montar_registros_ponto(user_id, data_inicio=None, data_fim=None, formato_data="iso"):
+def montar_registros_ponto(
+    user_id, data_inicio=None, data_fim=None, formato_data="iso"
+):
     conn = None
     cursor = None
 
@@ -833,10 +852,15 @@ def montar_registros_ponto(user_id, data_inicio=None, data_fim=None, formato_dat
 @login_required
 def listar_pontos():
     try:
-        user_id = session["user_id"]
-
+        usuario_id = request.args.get("usuario_id")
         data_inicio = request.args.get("inicio")
         data_fim = request.args.get("fim")
+
+        # se for administrador e escolheu alguém, usa o usuário escolhido
+        if session.get("tipo") == "admin" and usuario_id:
+            user_id = usuario_id
+        else:
+            user_id = session["user_id"]
 
         resultado = montar_registros_ponto(
             user_id=user_id,
@@ -873,7 +897,9 @@ def exportar_pontos():
     if formato == "csv":
         output = io.StringIO()
         writer = csv.writer(output, delimiter=";")
-        writer.writerow(["Dia", "Data", "Entrada", "Saída Int.", "Volta Int.", "Saída", "Total"])
+        writer.writerow(
+            ["Dia", "Data", "Entrada", "Saída Int.", "Volta Int.", "Saída", "Total"]
+        )
 
         for item in registros:
             writer.writerow(
@@ -1081,22 +1107,25 @@ def editar_horarios():
         conn.close()
         return "Usuário não encontrado", 404
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT dia_semana, inicio_expediente, inicio_intervalo,
                termino_intervalo, termino_expediente
         FROM horarios
         WHERE usuario_id = %s
         ORDER BY dia_semana
-    """, (user_id,))
+    """,
+        (user_id,),
+    )
 
     horarios = cursor.fetchall()
     horario = horarios[0] if horarios else None
-    dias = [h['dia_semana'] for h in horarios]
+    dias = [h["dia_semana"] for h in horarios]
 
-    horarios_por_dia = {h['dia_semana']: h for h in horarios}
+    horarios_por_dia = {h["dia_semana"]: h for h in horarios}
 
     horarios_unicos = set(
-        (h['inicio_expediente'], h['termino_expediente']) for h in horarios
+        (h["inicio_expediente"], h["termino_expediente"]) for h in horarios
     )
     tipo_jornada = "padrao" if len(horarios_unicos) <= 1 else "manual"
 
@@ -1109,9 +1138,8 @@ def editar_horarios():
         horario=horario,
         dias=dias,
         horarios_por_dia=horarios_por_dia,
-        tipo_jornada=tipo_jornada
+        tipo_jornada=tipo_jornada,
     )
-
 
 
 @views_bp.route("/deletar_usuario", methods=["POST"])
@@ -1121,7 +1149,15 @@ def deletar_usuario():
         user_id = dados.get("id")
 
         if int(user_id) == int(session.get("user_id")):
-            return jsonify({"status": "erro", "mensagem": "Você não pode excluir seu próprio perfil!"}), 403
+            return (
+                jsonify(
+                    {
+                        "status": "erro",
+                        "mensagem": "Você não pode excluir seu próprio perfil!",
+                    }
+                ),
+                403,
+            )
 
         conn = conectar_bd()
         cursor = conn.cursor()
