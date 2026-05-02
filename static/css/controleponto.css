@@ -1,204 +1,207 @@
-/* ─────────────────────────────────────────────────────────────────
-   CONTROLE DE PONTO - CSS ESPECÍFICO (MELHORADO)
-   
-   NOTA: Resets, body, cards, inputs, botões e labels estão no 
-   worksync-global.css. Aqui apenas customizações específicas desta página.
-   ───────────────────────────────────────────────────────────────── */
+/*
+────────────────────────────────────────────────────────────────────────
+CONTROLE DE PONTO - CSS ESPECÍFICO (CORRIGIDO)
+──────────────────────────────────────────────────────────────────────── */
 
 .controle-page {
-  padding: var(--spacing-2xl);
+    padding: var(--spacing-2xl);
 }
 
-/* ─── TOPO ──────────────────────────────────────────── */
-.topo {
-  display: flex;
-  gap: var(--spacing-lg);
-  margin-bottom: var(--spacing-lg);
-  align-items: stretch;
+.topo-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
-/* jornada maior */
+/* ─── JORNADA ────────────────────────────────────────────────── */
 .jornada {
-  flex: 1.4;
-  min-width: 600px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Centraliza verticalmente o conteúdo do card */
+    min-height: 120px; /* Garante uma altura mínima para o card */
+    padding-top: 15px; /* Ajuste para diminuir o espaço de baixo em relação ao de cima */
+    padding-bottom: 10px;
 }
 
-/* filtro */
-.filtro {
-  flex: 1;
-  min-width: 520px;
-}
-
-/* ─── JORNADA ───────────────────────────────────────── */
 .jornada-linha {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-lg);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    width: 100%;
 }
 
 .resumo-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: var(--spacing-sm);
-  min-height: 80px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
 }
 
 .jornada-label {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-light);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 5px;
+    font-size: 13px;
+    color: var(--color-text-light);
 }
 
 .jornada-label svg {
-  color: var(--color-primary);
+    color: var(--color-primary);
 }
 
 .jornada-hora {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-primary);
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-primary);
+    margin: 0;
 }
 
 .jornada-divider {
-  width: 1px;
-  height: 60px;
-  background: var(--color-border);
+    width: 1px;
+    height: 40px;
+    background: var(--color-border);
 }
 
-/* ─── FILTRO ────────────────────────────────────────── */
+/* ─── FILTRO ────────────────────────────────────────────────── */
 .filtro {
-  flex: 1;
-  min-width: 520px;
+    width: 100%;
 }
 
 .filtro-linha {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr auto;
-  gap: 16px;
-  align-items: end;
+    display: flex;
+    align-items: flex-end; /* Alinha o botão com as caixas */
+    gap: 16px;
+    flex-wrap: nowrap;
+    width: 100%;
 }
 
-/* Funcionário ocupa linha inteira */
-.filtro-linha .input-group:first-child {
-  grid-column: 1 / -1;
-}
-
-/* alinhamento vertical bonito */
 .filtro .input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
-/* labels mais elegantes */
+.group-usuario { 
+    flex: 2; 
+}
+
+.group-data { 
+    flex: 1; 
+}
+
 .filtro label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-light);
-  letter-spacing: 0.04em;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-light);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
-/* inputs padronizados */
 #filtroUsuario,
 #dataInicio,
 #dataFim {
-  width: 100%;
-  height: 42px;
-  padding: 0 12px;
-  border-radius: 8px;
+    width: 100%;
+    height: 44px;
+    padding: 0 12px;
+    border-radius: 8px;
+    border: 1.5px solid var(--color-border);
+    background: var(--color-input-bg);
 }
 
-/* botão alinhado com inputs */
 .filtro .btn-primary {
-  height: 42px;
-  padding: 0 20px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 10px;
-  font-weight: 600;
+    height: 44px;
+    padding: 0 25px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 8px;
+    font-weight: 600;
+    flex-shrink: 0;
 }
-/* ─── TABELA ────────────────────────────────────────── */
+
+/* ─── TABELA ────────────────────────────────────────────────── */
 .tabela-container {
-  overflow-x: auto;
+    overflow-x: auto;
 }
 
 .tabela-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: var(--spacing-lg);
-  flex-wrap: wrap;
-  gap: var(--spacing-lg);
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-lg);
+    flex-wrap: wrap;
+    gap: var(--spacing-lg);
 }
 
-/* ─── LEGENDA ───────────────────────────────────────── */
+/* ─── LEGENDA ────────────────────────────────────────────────── */
 .legenda {
-  display: flex;
-  gap: var(--spacing-lg);
+    display: flex;
+    gap: 20px;
+    align-items: center;
 }
 
 .legenda-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  font-size: var(--font-size-s);
-  color: var(--color-text-medium);
+    display: flex;
+    align-items: center;
+    gap: 10px;     
+    font-size: 18px; 
+    font-weight: 500; 
 }
 
+
 .dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
 }
 
 .ok-dot { background: var(--color-success); }
 .alerta-dot { background: var(--color-warning); }
 .erro-dot { background: var(--color-danger); }
 
-/* ─── EXPORT ───────────────────────────────────────── */
+/* ─── EXPORT ────────────────────────────────────────────────── */
 .export-section {
-  display: flex;
-  gap: var(--spacing-md);
-  align-items: center;
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: center;
 }
 
 .export-dropdown-wrapper {
-  min-width: 180px;
+    min-width: 180px;
 }
 
 .export-select {
-  width: 100%;
-  height: 44px;
-  border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-md);
+    width: 100%;
+    height: 44px;
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 0 var(--spacing-md);
 }
 
-/* ─── TABELA DETALHES ───────────────────────────────── */
+/* ─── TABELA DETALHES ────────────────────────────────────────── */
 .dia-label {
-  font-weight: var(--font-weight-medium);
+    font-weight: var(--font-weight-medium);
 }
 
 .hora {
-  position: relative;
-  padding-left: var(--spacing-lg);
+    position: relative;
+    padding-left: var(--spacing-lg);
+    display: flex;
+    align-items: center;
+    height: 24px; /* Altura fixa para alinhar com o número */
 }
 
 .hora::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  width: 3px;
-  height: 16px;
+    content: "";
+    position: absolute;
+    left: 0;
+    width: 4px; /* Ajustado para ser visível e proporcional */
+    height: 16px; /* Ajustado para alinhar com a altura do texto/número */
+    border-radius: 2px;
 }
 
 .hora.ok::before { background: var(--color-success); }
@@ -206,25 +209,21 @@
 .hora.erro::before { background: var(--color-danger); }
 
 .total-horas {
-  font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-semibold);
 }
 
-/* ─── RESPONSIVO ────────────────────────────────────── */
-@media (max-width: 1100px) {
-  .topo {
-    flex-direction: column;
-  }
-
-  .jornada,
-  .filtro {
-    width: 100%;
-  }
-
-  .filtro-linha {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .filtro .btn-primary {
-    grid-column: span 2;
-  }
+/* ─── RESPONSIVO ────────────────────────────────────────────── */
+@media (max-width: 900px) {
+    .filtro-linha {
+        flex-wrap: wrap;
+    }
+    .group-usuario {
+        flex: 1 1 100%;
+    }
+    .group-data {
+        flex: 1 1 calc(50% - 8px);
+    }
+    .filtro .btn-primary {
+        flex: 1 1 100%;
+    }
 }
