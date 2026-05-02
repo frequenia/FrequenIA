@@ -1,37 +1,14 @@
-* {
-    /* pagina inteira */
-    padding: 0;
-    margin: 0;
-    box-sizing: border-box;
-    font-family: 'Montserrat';
-}
-
-html, body {
-    min-height: 100%;
-    margin: 0;
-    padding: 0;
-    background: var(--background-color);
-    color: var(--text-color);
-}
-
 .perfil-page {
-    padding: 30px;
-    background: var(--background-color);
-    min-height: calc(100vh - 92px);
-}
+  padding: var(--spacing-2xl);
+  margin: 0 auto;
 
-form#formCadastro {
-    min-height: calc(100vh - 92px);
-    background: var(--background-color);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg); /* controla TUDO */
 }
 
 .card {
-    /* card padrão */
-    background: #fff;
-    padding: 20px 20px 30px 20px;
-    margin-bottom: 25px;
-    border-radius: 6px;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 0;
 }
 
 .card h3 {
@@ -75,57 +52,10 @@ form#formCadastro {
     gap: 15px;
 }
 
-.campo label {
-    /* titulos dentro da grid */
-    font-size: 18px;
-    font-weight: 500;
-    margin-bottom: 5px;
-    display: block;
-}
-
-.campo input {
-    /* texto dentro dos campos da grid (atualmente vazio) */
-    width: 100%;
-    padding: 8px 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background: #F2F2F2;
-    font-size: 18px;
-}
-
-.campo select {
-    /* texto dentro dos campos da grid (atualmente vazio) */
-    width: 100%;
-    padding: 8px 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background: #F2F2F2;
-    font-size: 18px;
-}
-
 .acoes {
-    /* div pro botao */
-    margin-top: 20px;
-    text-align: center;
-}
-
-.btn-alterar {
-    /* botao de redefinir senha */
-    padding: 8px;
-    background: #0f5c8c;
-    align-items: center;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    font-size: 20px;
-    font-weight: 500;
-    cursor: pointer;
-    width: 300px;
-}
-
-.btn-senha:hover {
-    /* hover do botao de redefinir senha */
-    background: #0C4A70;
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-lg);
 }
 
 .dias-semana {
@@ -163,7 +93,9 @@ form#formCadastro {
 }
 
 .dia-manual {
-    margin-top: 20px;
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--color-border);
 }
 
 .dia-manual h4 {
@@ -202,4 +134,10 @@ input[readonly] {
     border-left: none;
     transform: rotate(45deg);
     margin: 1px auto;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: var(--spacing-lg) 0;
 }

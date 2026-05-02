@@ -3,37 +3,33 @@ let jornadaPadrao = null;
 
 function horaParaMinutos(hora) {
     if (!hora || hora === "--:--") return null;
-
     const [h, m] = hora.split(":").map(Number);
     return h * 60 + m;
 }
 
 function classificarHorario(tipo, valor) {
-    if (!valor || valor === "--:--" || !jornadaPadrao) {
-        return "";
-    }
-
+    if (!valor || valor === "--:--" || !jornadaPadrao) return "";
+    
     const real = horaParaMinutos(valor);
     const esperado = horaParaMinutos(jornadaPadrao[tipo]);
+    if (real === null || esperado === null) return "";
 
-    if (real === null || esperado === null) {
-        return "";
+    // Calcula a diferença absoluta em minutos
+    const diferenca = Math.abs(real - esperado);
+
+    // 1. Se estiver exatamente no horário ou dentro da tolerância de 10 min
+    if (diferenca === 0) {
+        return "ok"; // Verde
+    }
+    
+    if (diferenca <= TOLERANCIA_MINUTOS) {
+        return "alerta"; // Amarelo
     }
 
-    if (tipo === "entrada" || tipo === "volta_intervalo") {
-        if (real <= esperado) return "ok";
-        if (real <= esperado + TOLERANCIA_MINUTOS) return "alerta";
-        return "erro";
-    }
-
-    if (tipo === "saida_intervalo" || tipo === "saida") {
-        if (real >= esperado) return "ok";
-        if (real >= esperado - TOLERANCIA_MINUTOS) return "alerta";
-        return "erro";
-    }
-
-    return "ok";
+    // 2. Se a diferença for maior que a tolerância (tanto para antes quanto para depois)
+    return "erro"; // Vermelho
 }
+
 
 function criarCelulaHora(valor, tipo) {
     if (!valor || valor === "--:--") {

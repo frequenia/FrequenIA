@@ -12,24 +12,12 @@ body {
 }
 
 .perfil-page {
-    /* div dos dados */
-    padding: 30px;
-}
+  padding: var(--spacing-2xl);
+  margin: 0 auto;
 
-.card {
-    /* card padrão */
-    background: #fff;
-    padding: 20px 20px 30px 20px;
-    margin-bottom: 25px;
-    border-radius: 6px;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
-}
-
-.card h3 {
-    /* titulos dentro do card */
-    margin-bottom: 20px;
-    font-size: 22px;
-    font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
 }
 
 .dados-pessoais {
@@ -66,58 +54,14 @@ body {
     gap: 15px;
 }
 
-.campo label {
-    /* titulos dentro da grid */
-    font-size: 18px;
-    font-weight: 500;
-    margin-bottom: 5px;
-    display: block;
-}
-
-.campo input {
-    /* texto dentro dos campos da grid (atualmente vazio) */
-    width: 100%;
-    padding: 8px 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background: #F2F2F2;
-    font-size: 18px;
-}
-
-.campo select {
-    /* texto dentro dos campos da grid (atualmente vazio) */
-    width: 100%;
-    padding: 8px 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background: #F2F2F2;
-    font-size: 18px;
-}
-
 .acoes {
     /* div pro botao */
-    margin-top: 20px;
-    text-align: center;
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-lg);
+  margin-top: 0; /* importante */
 }
 
-.btn-alterar {
-    /* botao de redefinir senha */
-    padding: 8px;
-    background: #0f5c8c;
-    align-items: center;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    font-size: 20px;
-    font-weight: 500;
-    cursor: pointer;
-    width: 300px;
-}
-
-.btn-senha:hover {
-    /* hover do botao de redefinir senha */
-    background: #0C4A70;
-}
 
 .dias-semana {
     display: flex;

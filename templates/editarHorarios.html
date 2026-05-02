@@ -9,7 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
-    
+     <!-- CSS Global -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/worksync-global.css') }}">
     <!--Dark-mode-->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
@@ -96,7 +97,7 @@
                                     value="{{ horarios_por_dia[0].termino_intervalo if 0 in horarios_por_dia else '' }}"></div>
                             <div class="campo"><label>Término - Expediente</label><input type="time" id="domingo_termino_expediente"
                                     value="{{ horarios_por_dia[0].termino_expediente if 0 in horarios_por_dia else '' }}"></div>
-                        </div><br>
+                        </div>
                         <hr>
                     </div>
                     
@@ -111,7 +112,7 @@
                                     value="{{ horarios_por_dia[1].termino_intervalo if 1 in horarios_por_dia else '' }}"></div>
                             <div class="campo"><label>Término - Expediente</label><input type="time" id="segunda_termino_expediente"
                                     value="{{ horarios_por_dia[1].termino_expediente if 1 in horarios_por_dia else '' }}"></div>
-                        </div><br>
+                        </div>
                         <hr>
                     </div>
                     
@@ -126,7 +127,7 @@
                                     value="{{ horarios_por_dia[2].termino_intervalo if 2 in horarios_por_dia else '' }}"></div>
                             <div class="campo"><label>Término - Expediente</label><input type="time" id="terca_termino_expediente"
                                     value="{{ horarios_por_dia[2].termino_expediente if 2 in horarios_por_dia else '' }}"></div>
-                        </div><br>
+                        </div>
                         <hr>
                     </div>
                     
@@ -141,7 +142,7 @@
                                     value="{{ horarios_por_dia[3].termino_intervalo if 3 in horarios_por_dia else '' }}"></div>
                             <div class="campo"><label>Término - Expediente</label><input type="time" id="quarta_termino_expediente"
                                     value="{{ horarios_por_dia[3].termino_expediente if 3 in horarios_por_dia else '' }}"></div>
-                        </div><br>
+                        </div>
                         <hr>
                     </div>
                     
@@ -156,7 +157,7 @@
                                     value="{{ horarios_por_dia[4].termino_intervalo if 4 in horarios_por_dia else '' }}"></div>
                             <div class="campo"><label>Término - Expediente</label><input type="time" id="quinta_termino_expediente"
                                     value="{{ horarios_por_dia[4].termino_expediente if 4 in horarios_por_dia else '' }}"></div>
-                        </div><br>
+                        </div>
                         <hr>
                     </div>
                     
@@ -171,7 +172,7 @@
                                     value="{{ horarios_por_dia[5].termino_intervalo if 5 in horarios_por_dia else '' }}"></div>
                             <div class="campo"><label>Término - Expediente</label><input type="time" id="sexta_termino_expediente"
                                     value="{{ horarios_por_dia[5].termino_expediente if 5 in horarios_por_dia else '' }}"></div>
-                        </div><br>
+                        </div>
                         <hr>
                     </div>
                     
@@ -186,7 +187,7 @@
                                     value="{{ horarios_por_dia[6].termino_intervalo if 6 in horarios_por_dia else '' }}"></div>
                             <div class="campo"><label>Término - Expediente</label><input type="time" id="sabado_termino_expediente"
                                     value="{{ horarios_por_dia[6].termino_expediente if 6 in horarios_por_dia else '' }}"></div>
-                        </div><br>
+                        </div>
                         <hr>
                     </div>
                 
@@ -194,10 +195,10 @@
 
 
                 </div>
-            </div>    
+              
              <div class="acoes">
-                    <button type="button" class="btn-alterar" onclick="alterarDados()">Alterar Dados</button>
-                    <button type="button" id="btnSalvar" class="btn-alterar" style="display:none;"
+                    <button type="button" class="btn-primary" onclick="alterarDados()">Alterar Dados</button>
+                    <button type="button" id="btnSalvar" class="btn-primary" style="display:none;"
                         onclick="salvarAlteracoes()">Salvar</button>
                 </div>
     </form>
