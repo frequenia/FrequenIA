@@ -4,52 +4,49 @@
 
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg); /* controla TUDO */
+  gap: var(--spacing-lg);
 }
 
+/* Evita conflito com o global sem remover comportamento */
 .card {
   margin-bottom: 0;
 }
 
 .card h3 {
-    /* titulos dentro do card */
-    margin-bottom: 20px;
-    font-size: 22px;
-    font-weight: 600;
+  margin-bottom: var(--spacing-md);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
 }
 
 .dados-pessoais {
-    /* div dos dados pessoais */
-    display: flex;
-    gap: 20px;
+  display: flex;
+  gap: var(--spacing-lg);
 }
 
 .foto {
-    /* circulo da foto, provavalemente vamos retirar */
-    width: 150px;
-    height: 150px;
-    border-radius: 50%;
-    background: #e0e0e0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 500;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
 }
 
 .campos {
-    /* campos dentro da grid */
-    flex: 1;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
 }
 
+/* Mantido (não removi duplicação estrutural) */
 .grid {
-    /* grid pros titulos/campos dentro da div dos cards padrão */
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
 }
 
 .acoes {
@@ -59,37 +56,37 @@
 }
 
 .dias-semana {
-    display: flex;
-    gap: 15px;
-    margin: 15px 0;
-    flex-wrap: wrap;
-    font-size: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  margin: var(--spacing-md) 0;
+  font-size: var(--font-size-base);
 }
 
 .horario-padrao {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    margin-top: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-sm);
 }
 
 .manual-grid {
-    margin-top: 15px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+  margin-top: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
 }
 
 .linha-manual {
-    display: grid;
-    grid-template-columns: 120px repeat(4, 1fr);
-    gap: 10px;
-    align-items: center;
-    margin-top: 10px;
+  display: grid;
+  grid-template-columns: 120px repeat(4, 1fr);
+  gap: var(--spacing-sm);
+  align-items: center;
+  margin-top: var(--spacing-sm);
 }
 
 .linha-manual span {
-    font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .dia-manual {
@@ -99,41 +96,41 @@
 }
 
 .dia-manual h4 {
-    margin-bottom: 10px;
-    font-size: 18px;
-    font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
 }
 
 input[readonly] {
-    cursor: default;
+  cursor: default;
 }
 
+/* Checkbox custom */
 .dias-semana input[type="checkbox"] {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 16px;
-    height: 16px;
-    border: 2px solid #ccc;
-    border-radius: 3px;
-    cursor: default;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border);
+  border-radius: 3px;
+  cursor: default;
 }
 
 .dias-semana input[type="checkbox"]:checked {
-    background-color: #2c3e8c;
-    /* sua cor */
-    border-color: #2c3e8c;
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .dias-semana input[type="checkbox"]:checked::after {
-    content: '';
-    display: block;
-    width: 4px;
-    height: 8px;
-    border: 2px solid white;
-    border-top: none;
-    border-left: none;
-    transform: rotate(45deg);
-    margin: 1px auto;
+  content: '';
+  display: block;
+  width: 4px;
+  height: 8px;
+  border: 2px solid var(--color-white);
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+  margin: 1px auto;
 }
 
 hr {

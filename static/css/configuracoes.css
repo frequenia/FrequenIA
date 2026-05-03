@@ -1,34 +1,33 @@
 .configuracoes-page {
-  padding: 30px;
+  padding: var(--spacing-2xl);
 }
 
 /* ─── CARD ──────────────────────────────────────────────────────── */
 .card {
-  margin-bottom: 24px;
+  margin-bottom: var(--spacing-lg);
 }
 
 .card h3 {
   display: flex;
   align-items: center;
-  gap: 5px;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  font-size: 18px;
-  font-weight: 600;
-  color: #888;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-md);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-light);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  border-bottom: 2px solid #f0f2f5;
+  border-bottom: 2px solid var(--color-border-light);
 }
 
-
-/* ─── SETTING ITEM (Layout de Configuração) ────────────────────── */
+/* ─── SETTING ITEM ─────────────────────────────────────────────── */
 .setting-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 0;
-  border-bottom: 1px solid #f0f2f5;
+  padding: var(--spacing-lg) 0;
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .setting-item:last-child {
@@ -40,62 +39,62 @@
 }
 
 .setting-label h4 {
-  font-size: 18px;
-  font-weight: 600;
-  color: #222;
-  margin-bottom: 4px;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-dark);
+  margin-bottom: var(--spacing-xs);
 }
 
 .setting-label p {
-  font-size: 18px;
-  color: #888;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-light);
   margin: 0;
 }
 
-/* ─── FORM GROUP (Específico para Fuso Horário) ────────────────── */
+/* ─── FORM GROUP ──────────────────────────────────────────────── */
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--spacing-sm);
   width: 250px;
 }
 
 .form-group label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #888;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-light);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .form-group select {
-  padding: 10px 14px;
-  font-size: 18px;
-  font-family: 'Montserrat', sans-serif;
-  height: 40px;
-  border: 1.5px solid #dde1e7;
-  border-radius: 7px;
-  color: #222;
-  background: #fafbfc;
-  transition: border-color 0.2s;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-size-base);
+  font-family: var(--font-family-base);
+  height: 44px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-dark);
+  background: var(--color-input-bg);
+  transition: border-color var(--transition-fast);
   outline: none;
 }
 
 .form-group select:focus {
-  border-color: #0f5c8c;
-  background: #fff;
+  border-color: var(--color-primary);
+  background: var(--color-white);
 }
 
-/* ─── RADIO GROUP ──────────────────────────────────────────────── */
+/* ─── RADIO GROUP ─────────────────────────────────────────────── */
 .radio-group {
   display: flex;
-  gap: 16px;
+  gap: var(--spacing-lg);
 }
 
 .radio-option {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: var(--spacing-sm);
   cursor: pointer;
 }
 
@@ -103,17 +102,17 @@
   width: 17px;
   height: 17px;
   cursor: pointer;
-  accent-color: #0f5c8c;
+  accent-color: var(--color-primary);
 }
 
 .radio-option label {
-  font-size: 18px;
-  color: #222;
-  font-weight: 500;
+  font-size: var(--font-size-base);
+  color: var(--color-text-dark);
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
 }
 
-/* ─── TOGGLE SWITCH (Componente Customizado) ───────────────────── */
+/* ─── TOGGLE SWITCH ───────────────────────────────────────────── */
 .toggle-switch {
   position: relative;
   display: inline-block;
@@ -131,12 +130,9 @@
 .toggle-track {
   position: absolute;
   cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #ddd;
-  transition: 0.3s;
+  inset: 0;
+  background-color: var(--color-border);
+  transition: var(--transition-base);
   border-radius: 28px;
 }
 
@@ -147,47 +143,48 @@
   width: 22px;
   left: 3px;
   bottom: 3px;
-  background-color: #fff;
-  transition: 0.3s;
+  background-color: var(--color-white);
+  transition: var(--transition-base);
   border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-xs);
 }
 
 input:checked + .toggle-track {
-  background-color: #0f5c8c;
+  background-color: var(--color-primary);
 }
 
 input:checked + .toggle-track::before {
   transform: translateX(22px);
 }
 
-/* ─── DANGER CARD (Seção de Segurança) ─────────────────────────── */
+/* ─── DANGER CARD (mantendo identidade antiga) ─────────────── */
 .danger-card {
-  border: 1.5px solid #ffd6d6;
+  border: 1.5px solid var(--color-danger-light);
   background: #fff8f8;
-  margin-bottom: 40px;
+  margin-bottom: var(--spacing-2xl);
 }
 
 .danger-card h3 {
-  color: #c0392b;
-  border-bottom-color: #ffd6d6;
+  color: var(--color-danger);
+  border-bottom-color: var(--color-danger-light);
 }
 
 .danger-card .setting-item {
   border-bottom-color: #fde8e8;
 }
 
-/* ─── FOOTER ACTIONS ───────────────────────────────────────────── */
+/* ─── FOOTER ACTIONS ─────────────────────────────────────────── */
 .footer-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  margin: 24px 0;
+  gap: var(--spacing-md);
+  margin: var(--spacing-xl) 0;
 }
-/* ─── RESPONSIVIDADE ───────────────────────────────────────────── */
+
+/* ─── RESPONSIVO ─────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .configuracoes-page {
-    padding: 20px;
+    padding: var(--spacing-lg);
   }
 
   .form-group {
@@ -196,13 +193,13 @@ input:checked + .toggle-track::before {
 
   .radio-group {
     flex-direction: column;
-    gap: 12px;
+    gap: var(--spacing-md);
   }
 
   .setting-item {
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: var(--spacing-md);
   }
 
   .toggle-switch {
@@ -211,80 +208,5 @@ input:checked + .toggle-track::before {
 
   .footer-actions {
     flex-direction: column-reverse;
-    margin-top: 30px;
   }
-
-  .btn {
-    width: 100%;
-  }
-
-  .danger-card {
-    margin-bottom: 30px;
-  }
-}
-
-/* ─── DARK MODE: CONFIGURAÇÕES ─────────────────────────────────── */
-
-body.dark-mode .card {
-  background: #1e1e1e;
-  border: 1px solid #2f2f2f;
-  color: #f1f1f1;
-}
-
-body.dark-mode .card h3 {
-  color: #bdbdbd;
-  border-bottom-color: #2f2f2f;
-}
-
-body.dark-mode .setting-item {
-  border-bottom-color: #2f2f2f;
-}
-
-body.dark-mode .setting-label h4 {
-  color: #f1f1f1;
-}
-
-body.dark-mode .setting-label p {
-  color: #b3b3b3;
-}
-
-body.dark-mode .radio-option label {
-  color: #f1f1f1;
-}
-
-body.dark-mode .form-group label {
-  color: #b3b3b3;
-}
-
-body.dark-mode .form-group select {
-  background: #2a2a2a;
-  color: #f1f1f1;
-  border-color: #444;
-}
-
-body.dark-mode .toggle-track {
-  background-color: #555;
-}
-
-body.dark-mode .toggle-track::before {
-  background-color: #f1f1f1;
-}
-
-body.dark-mode .danger-card {
-  background: #241b1b;
-  border: 1.5px solid #5a2d2d;
-}
-
-body.dark-mode .danger-card h3 {
-  color: #ff8a8a;
-}
-
-body.dark-mode .footer-actions {
-  border-top-color: #2f2f2f;
-}
-
-.danger-card {
-  --color-primary: var(--color-danger);
-  --color-primary-light: #f87171;
-  --color-primary-dark: #b91c1c;
 }

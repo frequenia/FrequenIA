@@ -1,20 +1,14 @@
 /* ============================================================
-   cadastroUsuario.css — Estilos Específicos da Página
-   Design System WorkSync v2.0
-   Depende de: worksync-global.css (deve ser carregado antes)
+   cadastroUsuario.css — Página Específica
    ============================================================ */
 
-/* ----------------------------------------------------------
-   Layout Principal
-   ---------------------------------------------------------- */
+/* LAYOUT */
 .perfil-page {
   padding: var(--spacing-2xl);
   margin: 0 auto;
 }
 
-/* ----------------------------------------------------------
-   Seções de Dados (Cards)
-   ---------------------------------------------------------- */
+/* CARDS */
 .card {
   margin-bottom: var(--spacing-lg);
 }
@@ -23,9 +17,7 @@
   margin-bottom: var(--spacing-lg);
 }
 
-/* ----------------------------------------------------------
-   Dados Pessoais
-   ---------------------------------------------------------- */
+/* DADOS PESSOAIS */
 .dados-pessoais {
   display: flex;
   gap: var(--spacing-lg);
@@ -36,17 +28,22 @@
   width: 150px;
   height: 150px;
   border-radius: 50%;
-  background: var(--color-bg-lighter);
+
+  background: var(--color-input-bg);
+  border: 2px solid var(--color-border);
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-light);
+
   flex-shrink: 0;
-  border: 2px solid var(--color-border);
 }
 
+/* CAMPOS */
 .campos {
   flex: 1;
   display: grid;
@@ -54,9 +51,7 @@
   gap: var(--spacing-lg);
 }
 
-/* ----------------------------------------------------------
-   Grids de Campos
-   ---------------------------------------------------------- */
+/* GRIDS */
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -72,39 +67,39 @@
   margin-bottom: var(--spacing-sm);
 }
 
-
-/* ----------------------------------------------------------
-   Dias da Semana (Checkboxes)
-   ---------------------------------------------------------- */
+/* DIAS DA SEMANA */
 .dias-semana {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--spacing-lg);
   margin: var(--spacing-lg) 0;
-  flex-wrap: wrap;
 }
 
 .dias-semana label {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
+
   cursor: pointer;
+
   font-weight: var(--font-weight-medium);
   font-size: var(--font-size-base);
+
   text-transform: none;
   letter-spacing: normal;
+
   margin-bottom: 0;
 }
 
 .dias-semana input[type="checkbox"] {
   width: 18px;
   height: 18px;
+
   cursor: pointer;
   accent-color: var(--color-primary);
 }
 
-/* ----------------------------------------------------------
-   Horário Padrão (Grid de Horários)
-   ---------------------------------------------------------- */
+/* HORÁRIOS */
 .horario-padrao {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -112,12 +107,11 @@
   margin-top: var(--spacing-lg);
 }
 
-/* ----------------------------------------------------------
-   Dias Manuais
-   ---------------------------------------------------------- */
+/* DIAS MANUAIS */
 .dia-manual {
   margin-top: var(--spacing-xl);
   padding-top: var(--spacing-lg);
+
   border-top: 1px solid var(--color-border);
 }
 
@@ -126,28 +120,34 @@
   color: var(--color-text-dark);
 }
 
-/* ----------------------------------------------------------
-   Ações (Botões)
-   ---------------------------------------------------------- */
+/* AÇÕES */
 .acoes {
   margin-top: var(--spacing-2xl);
+
   display: flex;
   justify-content: center;
   gap: var(--spacing-lg);
 }
 
+/* BOTÃO CADASTRO */
 .btn-cad {
   padding: var(--spacing-md) var(--spacing-xl);
   height: 44px;
+
   background: var(--color-primary);
   color: var(--color-white);
+
   border: none;
   border-radius: var(--radius-md);
+
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
+
   cursor: pointer;
+
   transition: all var(--transition-fast);
   box-shadow: var(--shadow-sm);
+
   min-width: 200px;
 }
 
@@ -168,18 +168,14 @@
   transform: none;
 }
 
-/* ----------------------------------------------------------
-   Divisores (HR)
-   ---------------------------------------------------------- */
+/* DIVISOR */
 hr {
   border: none;
   border-top: 1px solid var(--color-border);
   margin: var(--spacing-lg) 0;
 }
 
-/* ----------------------------------------------------------
-   Responsividade Mobile
-   ---------------------------------------------------------- */
+/* RESPONSIVO */
 @media (max-width: 768px) {
   .perfil-page {
     padding: var(--spacing-lg);
@@ -190,15 +186,8 @@ hr {
     align-items: center;
   }
 
-  .campos {
-    grid-template-columns: 1fr;
-    width: 100%;
-  }
-
-  .grid {
-    grid-template-columns: 1fr;
-  }
-
+  .campos,
+  .grid,
   .horario-padrao {
     grid-template-columns: 1fr;
   }
@@ -206,10 +195,6 @@ hr {
   .dias-semana {
     flex-direction: column;
     gap: var(--spacing-md);
-  }
-
-  .dias-semana label {
-    width: 100%;
   }
 
   .acoes {
@@ -222,26 +207,18 @@ hr {
   }
 }
 
-/* ─── DARK MODE: CADASTRO USUÁRIO ───────────────────────── */
-
+/* DARK MODE (alinhado ao global) */
 body.dark-mode .perfil-page {
   background: var(--background-color);
   color: var(--text-color);
 }
 
-/* foto */
 body.dark-mode .foto {
   background: var(--card-bg);
   color: var(--muted-text);
   border-color: var(--card-border);
 }
 
-/* textos */
-body.dark-mode .dia-manual h4 {
-  color: var(--text-color);
-}
-
-/* bordas */
 body.dark-mode .dia-manual {
   border-top-color: var(--card-border);
 }
@@ -250,7 +227,6 @@ body.dark-mode hr {
   border-top-color: var(--card-border);
 }
 
-/* botões */
 body.dark-mode .btn-cad {
   background: var(--color-primary);
   color: #fff;

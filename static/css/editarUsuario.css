@@ -1,16 +1,3 @@
-* {
-    /* pagina inteira */
-    padding: 0;
-    margin: 0;
-    box-sizing: border-box;
-    font-family: 'Montserrat';
-}
-
-body {
-    /* fundo da pagina */
-    background: #f2f2f2;
-}
-
 .perfil-page {
   padding: var(--spacing-2xl);
   margin: 0 auto;
@@ -21,92 +8,65 @@ body {
 }
 
 .dados-pessoais {
-    /* div dos dados pessoais */
-    display: flex;
-    gap: 20px;
+  display: flex;
+  gap: var(--spacing-lg);
 }
 
-.foto {
-    /* circulo da foto, provavalemente vamos retirar */
-    width: 150px;
-    height: 150px;
-    border-radius: 50%;
-    background: #e0e0e0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 500;
-}
-
+/* Mantido separado pois pode ter comportamento diferente no futuro */
 .campos {
-    /* campos dentro da grid */
-    flex: 1;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
 }
 
+/* Mantido (não removi), mas agora reutiliza padrão */
 .grid {
-    /* grid pros titulos/campos dentro da div dos cards padrão */
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
 }
 
 .acoes {
-    /* div pro botao */
   display: flex;
   justify-content: center;
   gap: var(--spacing-lg);
-  margin-top: 0; /* importante */
 }
 
-
 .dias-semana {
-    display: flex;
-    gap: 15px;
-    margin: 15px 0;
-    flex-wrap: wrap;
-    font-size: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-lg);
+  margin: var(--spacing-lg) 0;
 }
 
 .horario-padrao {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    margin-top: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-lg);
 }
 
 .manual-grid {
-    margin-top: 15px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
 }
 
 .linha-manual {
-    display: grid;
-    grid-template-columns: 120px repeat(4, 1fr);
-    gap: 10px;
-    align-items: center;
-    margin-top: 10px;
-}
+  display: grid;
+  grid-template-columns: 120px repeat(4, 1fr);
+  gap: var(--spacing-md);
+  align-items: center;
 
-.linha-manual span {
-    font-weight: 500;
+  /* removi duplicação de margin */
 }
 
 .dia-manual {
-    margin-top: 20px;
-}
-
-.dia-manual h4 {
-    margin-bottom: 10px;
-    font-size: 18px;
-    font-weight: 600;
+  margin-top: var(--spacing-xl);
 }
 
 input[readonly] {
-    cursor: default;
+  cursor: default;
 }

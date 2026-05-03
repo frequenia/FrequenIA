@@ -78,11 +78,25 @@
    Colunas da tabela
    ---------------------------------------------------------- */
 
+.table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+/* garante alinhamento entre header e body sem mexer no layout */
+.table th,
+.table td {
+  vertical-align: middle;
+}
+
+/* mantém estilo do conteúdo */
 td {
-  color: var(--color-column);
+  color: var(--color-text-medium);
   font-weight: var(--font-weight-medium);
 }
 
+/* ─── COLUNAS (INTACTAS) ─────────────────────────────────── */
 .col-nome {
   width: 40%;
   text-align: left;
@@ -104,6 +118,17 @@ td {
   text-align: center;
 }
 
+/* evita qualquer deslocamento visual no topo (HEADER) */
+.table th {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-light);
+  padding: var(--spacing-lg);
+}
+
+/* mantém células alinhadas com header */
+.table td {
+  padding: var(--spacing-lg);
+}
 /* ----------------------------------------------------------
    Botões de ação da tabela (Perfil / Horários)
    ---------------------------------------------------------- */
