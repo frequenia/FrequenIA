@@ -10,29 +10,29 @@ let processando = false;
 // =========================
 // CAMERA
 // =========================
-function ligarCamera() {
-    navigator.mediaDevices.getUserMedia({
-        video: {
-            width: { ideal: 640 },
-            height: { ideal: 480 },
-            facingMode: "user"
-        }
-    })
-    .then((stream) => {
-        video.srcObject = stream;
-        video.play();
+async function ligarCamera() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                width: { ideal: 640 },
+                height: { ideal: 480 },
+                facingMode: "user"
+            }
+        });
 
-const bg = document.querySelector(".camera-placeholder-bg");
-const status = document.querySelector(".camera-status");
-if (bg) bg.style.display = "none";
-if (status) status.style.display = "none";
-    })
-    .catch((erro) => {
+        video.srcObject = stream;
+        await video.play();
+
+        const bg = document.querySelector(".camera-placeholder-bg");
+        const status = document.querySelector(".camera-status");
+        if (bg) bg.style.display = "none";
+        if (status) status.style.display = "none";
+
+    } catch (erro) {
         console.error("Erro câmera:", erro);
         mostrarPopupErro("Não foi possível acessar a câmera.");
-    });
+    }
 }
-
 // =========================
 // CAPTURA
 // =========================
@@ -87,8 +87,11 @@ async function registrarPonto() {
         if (horaRegistro && dados.horario) {
             horaRegistro.innerText = "Hora: " + dados.horario;
         }
-
         if (dados.nome && dados.data && dados.horario) {
+
+            // 🔌 DESLIGA A CÂMERA AQUI
+            desligarCamera();
+
             mostrarPopupPonto(dados.nome, dados.data + " às " + dados.horario);
 
             video.style.border = "4px solid green";
@@ -171,6 +174,12 @@ function mostrarPopupPonto(nome, horario) {
 function fecharPopupPonto() {
     const popup = document.getElementById("popup-ponto");
     if (popup) popup.classList.remove("ativo");
+
+    // 🔌 desliga câmera
+    desligarCamera();
+
+    btnRegistrar.disabled = false;
+    btnRegistrar.innerText = "Bater Ponto";
 }
 
 // =========================
@@ -187,13 +196,43 @@ function mostrarPopupErro(mensagem) {
 function fecharPopupErro() {
     const popup = document.getElementById("popup-erro");
     if (popup) popup.classList.remove("ativo");
+
+    desligarCamera();
+
+    btnRegistrar.disabled = false;
+    btnRegistrar.innerText = "Bater Ponto";
 }
 
 // =========================
 // INIT
 // =========================
-window.addEventListener("load", ligarCamera);
 
 if (btnRegistrar) {
-    btnRegistrar.addEventListener("click", registrarComTentativas);
+    btnRegistrar.addEventListener("click", async () => {
+        if (btnRegistrar.disabled) return;
+
+        btnRegistrar.disabled = true;
+        btnRegistrar.innerText = "Abrindo câmera...";
+
+        // 🔓 liga câmera aqui
+        await ligarCamera();
+
+        btnRegistrar.innerText = "Processando...";
+
+        await registrarComTentativas();
+    });
 }
+
+function desligarCamera() {
+    if (video.srcObject) {
+        const tracks = video.srcObject.getTracks();
+        tracks.forEach(track => track.stop());
+        video.srcObject = null;
+    }
+
+    const bg = document.querySelector(".camera-placeholder-bg");
+    const status = document.querySelector(".camera-status");
+    if (bg) bg.style.display = "block";
+    if (status) status.style.display = "block";
+}
+
