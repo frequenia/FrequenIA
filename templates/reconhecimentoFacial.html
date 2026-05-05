@@ -73,7 +73,62 @@
         </div>
     </div>
 </div>
+<!-- POPUP CONFIRMAÇÃO -->
+<div id="popup-confirmacao" class="popup-overlay">
+    <div class="popup-card popup-confirmacao-card">
+        <div class="popup-topo popup-topo-confirmacao">
+            <div class="popup-icone-circulo">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="9" stroke="#ffffff" stroke-width="2"></circle>
+                    <path d="M12 7v6M12 16.5v.5" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"></path>
+                </svg>
+            </div>
+            <h3>Confirmar Identidade</h3>
+            <span>WORKSYNC</span>
+        </div>
 
+        <div class="popup-corpo">
+            <p class="popup-conf-pergunta">Esta é a pessoa correta?</p>
+
+            <div class="popup-linha">
+                <div class="popup-icone-box">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="8" r="4" stroke="#0f5c8c" stroke-width="2"></circle>
+                        <path d="M5 19c1.6-3 4-4.5 7-4.5s5.4 1.5 7 4.5" stroke="#0f5c8c" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div class="popup-info">
+                    <p class="popup-label">FUNCIONÁRIO IDENTIFICADO</p>
+                    <p class="popup-valor" id="popup-conf-nome">—</p>
+                </div>
+            </div>
+
+            <div class="popup-divisor"></div>
+
+            <div class="popup-linha">
+                <div class="popup-icone-box">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="8" stroke="#0f5c8c" stroke-width="2"></circle>
+                        <path d="M12 8v4l2.5 2.5" stroke="#0f5c8c" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div class="popup-info">
+                    <p class="popup-label">HORÁRIO</p>
+                    <p class="popup-valor" id="popup-conf-horario">—</p>
+                </div>
+            </div>
+
+            <div class="popup-conf-botoes">
+                <button class="popup-btn popup-btn-negar" type="button" onclick="negarPonto()">
+                    ✕ &nbsp;Não sou eu
+                </button>
+                <button class="popup-btn popup-btn-confirmar" type="button" onclick="confirmarPonto()">
+                    ✓ &nbsp;Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 <!-- POPUP SUCESSO -->
 <div id="popup-ponto" class="popup-overlay">
     <div class="popup-card popup-sucesso">

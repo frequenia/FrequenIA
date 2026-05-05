@@ -98,3 +98,61 @@ button:hover {
   padding-left: 25px;
   position: relative;
 }
+
+/* ==========================================
+   POPUP CONFIRMAÇÃO
+   ========================================== */
+
+.popup-confirmacao-card {
+    border: 3px solid #0f5c8c;
+    box-shadow:
+        0 0 0 3px rgba(15, 92, 140, 0.15),
+        0 20px 45px rgba(0, 0, 0, 0.35);
+}
+
+.popup-topo-confirmacao {
+    background: linear-gradient(135deg, #0f5c8c 0%, #0c4a70 100%);
+}
+
+.popup-conf-pergunta {
+    font-size: 15px;
+    color: rgba(0, 0, 0, 0.55);
+    font-weight: 500;
+    text-align: center;
+    margin: 0 0 20px;
+    letter-spacing: 0.3px;
+}
+
+.popup-conf-botoes {
+    display: flex;
+    gap: 12px;
+    margin-top: 26px;
+}
+
+.popup-conf-botoes .popup-btn {
+    flex: 1;
+    margin-top: 0;
+}
+
+.popup-btn-confirmar {
+    background: #1fa37c;
+}
+
+.popup-btn-confirmar:hover {
+    background: #178a68;
+}
+
+.popup-btn-negar {
+    background: #c96a45;
+}
+
+.popup-btn-negar:hover {
+    background: #a8522f;
+}
+
+@media (max-width: 480px) {
+    .popup-conf-botoes {
+        flex-direction: column;
+        gap: 10px;
+    }
+}

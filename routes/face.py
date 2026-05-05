@@ -419,26 +419,22 @@ def finalizar_cadastro():
 
 
 # =========================
-# RECONHECIMENTO
+# RECONHECIMENTO (só identifica, não registra)
+# =========================
 @face_bp.route("/reconhecer", methods=["POST"])
 def reconhecer():
     try:
         dados = request.get_json()
-
         imagem = dados.get("imagem")
         imagens = dados.get("imagens")
 
         lista_imagens = []
-
         if imagens and isinstance(imagens, list):
             lista_imagens = [img for img in imagens if img]
         elif imagem:
             lista_imagens = [imagem]
         else:
-            return (
-                jsonify({"erro": "Envie 'imagem' ou 'imagens' para reconhecimento."}),
-                400,
-            )
+            return jsonify({"erro": "Envie 'imagem' ou 'imagens'."}), 400
 
         conn = conectar_bd()
         register_vector(conn)
@@ -451,7 +447,6 @@ def reconhecer():
             resultado = reconhecer_uma_imagem(cursor, img_base64)
             if not resultado:
                 continue
-
             if resultado["valido"]:
                 resultados_validos.append(resultado)
             else:
@@ -459,7 +454,6 @@ def reconhecer():
 
         if not resultados_validos:
             melhor_tentativa = None
-
             if resultados_invalidos:
                 melhor_tentativa = min(resultados_invalidos, key=lambda x: x["distancia"])
 
@@ -467,84 +461,98 @@ def reconhecer():
             conn.close()
 
             if melhor_tentativa:
-                return (
-                    jsonify(
-                        {
-                            "erro": "Não reconhecido",
-                            "nome_mais_proximo": melhor_tentativa["nome"],
-                            "distancia": melhor_tentativa["distancia"],
-                            "segundo_nome": melhor_tentativa["segundo_nome"],
-                            "segunda_distancia": melhor_tentativa["segunda_distancia"],
-                        }
-                    ),
-                    404,
-                )
+                return jsonify({
+                    "erro": "Não reconhecido",
+                    "nome_mais_proximo": melhor_tentativa["nome"],
+                    "distancia": melhor_tentativa["distancia"],
+                }), 404
 
             return jsonify({"erro": "Nenhum rosto válido detectado"}), 404
 
         contagem = {}
         distancias = {}
-
         for r in resultados_validos:
             nome = r["nome"]
-            distancia = r["distancia"]
-
             contagem[nome] = contagem.get(nome, 0) + 1
-            distancias.setdefault(nome, []).append(distancia)
+            distancias.setdefault(nome, []).append(r["distancia"])
 
         nome_final = max(contagem, key=contagem.get)
+
         cursor.execute("""
-        SELECT u.id
-        FROM usuarios u
-        INNER JOIN fotos f ON u.nome = f.nome
-        WHERE f.nome = %s
-        LIMIT 1
+            SELECT u.id FROM usuarios u
+            INNER JOIN fotos f ON u.nome = f.nome
+            WHERE f.nome = %s LIMIT 1
         """, (nome_final,))
-
         usuario = cursor.fetchone()
-
-        if not usuario:
-            cursor.close()
-            conn.close()
-            return jsonify({"erro": "Usuário não encontrado"}), 404
-
-        usuario_id = usuario[0]
-        distancias_nome = distancias[nome_final]
-        melhor_distancia_final = min(distancias_nome)
-        media_distancia = sum(distancias_nome) / len(distancias_nome)
-
-        print("Resultados válidos:", resultados_validos)
-        print("Nome final:", nome_final)
-        print("Melhor distância:", melhor_distancia_final)
-        print("Média distância:", media_distancia)
-
-        agora = datetime.now()
-
-        if pode_registrar_presenca(cursor, usuario_id, agora):
-            cursor.execute(
-                """
-                INSERT INTO ponto (usuario_id, data_registro, horario_registro)
-                VALUES (%s, %s, %s)
-                """,
-                (usuario_id, agora.date(), agora.time().replace(microsecond=0)),
-            )
-            conn.commit()
 
         cursor.close()
         conn.close()
 
-        return (
-            jsonify(
-                {
-                    "nome": nome_final,
-                    "distancia": melhor_distancia_final,
-                    "media_distancia": media_distancia,
-                    "data": agora.strftime("%d/%m/%Y"),
-                    "horario": agora.strftime("%H:%M:%S"),
-                }
-            ),
-            200,
-        )
+        if not usuario:
+            return jsonify({"erro": "Usuário não encontrado"}), 404
+
+        usuario_id = usuario[0]
+        agora = datetime.now()
+        melhor_distancia = min(distancias[nome_final])
+        media_distancia = sum(distancias[nome_final]) / len(distancias[nome_final])
+
+        # ✅ Retorna os dados para confirmação — SEM registrar ainda
+        return jsonify({
+            "nome": nome_final,
+            "usuario_id": usuario_id,
+            "distancia": melhor_distancia,
+            "media_distancia": media_distancia,
+            "data": agora.strftime("%d/%m/%Y"),
+            "horario": agora.strftime("%H:%M:%S"),
+            "aguardando_confirmacao": True
+        }), 200
+
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
+
+# =========================
+# CONFIRMAR PONTO (registra após confirmação)
+# =========================
+@face_bp.route("/confirmar_ponto", methods=["POST"])
+def confirmar_ponto():
+    try:
+        dados = request.get_json()
+        usuario_id = dados.get("usuario_id")
+        nome = dados.get("nome")
+
+        if not usuario_id:
+            return jsonify({"erro": "Dados inválidos."}), 400
+
+        conn = conectar_bd()
+        register_vector(conn)
+        cursor = conn.cursor()
+
+        agora = datetime.now()
+
+        if pode_registrar_presenca(cursor, usuario_id, agora):
+            cursor.execute("""
+                INSERT INTO ponto (usuario_id, data_registro, horario_registro)
+                VALUES (%s, %s, %s)
+            """, (usuario_id, agora.date(), agora.time().replace(microsecond=0)))
+            conn.commit()
+
+            cursor.close()
+            conn.close()
+
+            return jsonify({
+                "nome": nome,
+                "data": agora.strftime("%d/%m/%Y"),
+                "horario": agora.strftime("%H:%M:%S"),
+                "registrado": True
+            }), 200
+        else:
+            cursor.close()
+            conn.close()
+            return jsonify({
+                "erro": "Ponto já registrado recentemente.",
+                "registrado": False
+            }), 429
 
     except Exception as e:
         return jsonify({"erro": str(e)}), 500
