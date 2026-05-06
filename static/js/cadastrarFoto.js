@@ -12,6 +12,7 @@ const maxFotos = 5;
 let processando = false;
 let cadastroIniciado = false;
 let nomeGlobal = "";
+let streamAtivo = null;
 
 // =========================
 // CARREGAR USUÁRIOS
@@ -41,29 +42,48 @@ carregarUsuarios();
 // CAMERA
 // =========================
 function ligarCamera() {
-    navigator.mediaDevices.getUserMedia({
-        video: {
-            width: { ideal: 640 },
-            height: { ideal: 480 },
-            facingMode: "user"
-        }
-    })
-        .then(stream => {
-            video.srcObject = stream;
-            video.play();
-
-            const bg = document.querySelector(".camera-placeholder-bg");
-            const status = document.querySelector(".camera-status");
-            if (bg) bg.style.display = "none";
-            if (status) status.style.display = "none";
+    return new Promise((resolve, reject) => {
+        navigator.mediaDevices.getUserMedia({
+            video: {
+                width: { ideal: 640 },
+                height: { ideal: 480 },
+                facingMode: "user"
+            }
         })
-        .catch(error => {
-            console.error("Erro câmera:", error);
-            mostrarPopupErro("Não foi possível acessar a câmera.");
-        });
+            .then(stream => {
+                streamAtivo = stream;
+                video.srcObject = stream;
+                video.play();
+
+                const bg = document.querySelector(".camera-placeholder-bg");
+                const status = document.querySelector(".camera-status");
+                if (bg) bg.style.display = "none";
+                if (status) status.style.display = "none";
+
+                video.addEventListener("canplay", () => resolve(), { once: true });
+            })
+            .catch(error => {
+                console.error("Erro câmera:", error);
+                reject(error);
+            });
+    });
 }
 
-window.addEventListener("load", ligarCamera);
+function desligarCamera() {
+    if (streamAtivo) {
+        streamAtivo.getTracks().forEach(track => track.stop());
+        streamAtivo = null;
+        video.srcObject = null;
+    }
+
+    const bg = document.querySelector(".camera-placeholder-bg");
+    const status = document.querySelector(".camera-status");
+    if (bg) bg.style.display = "";
+    if (status) {
+        status.style.display = "";
+        status.textContent = "Câmera desativada";
+    }
+}
 
 // =========================
 // CAPTURA IMAGEM
@@ -100,6 +120,20 @@ async function cadastrar() {
     if (fotosCapturadas >= maxFotos) {
         processando = false;
         return;
+    }
+
+    if (!streamAtivo) {
+        try {
+            btnCapturar.disabled = true;
+            btnCapturar.innerText = "Abrindo câmera...";
+            await ligarCamera();
+        } catch (error) {
+            mostrarPopupErro("Não foi possível acessar a câmera.");
+            btnCapturar.disabled = false;
+            btnCapturar.innerText = "Capturar Foto";
+            processando = false;
+            return;
+        }
     }
 
     const imagemBase64 = capturarImagem();
@@ -151,17 +185,13 @@ async function cadastrar() {
         const progresso = (fotosCapturadas / maxFotos) * 100;
         barra.style.width = progresso + "%";
 
-        const cores = [
-            "#e74c3c",
-            "orange",
-            "#f1c40f",
-            "#9acd32",
-            "#2ecc71"
-        ];
-
+        const cores = ["#e74c3c", "orange", "#f1c40f", "#9acd32", "#2ecc71"];
         barra.style.background = cores[fotosCapturadas - 1];
 
         if (fotosCapturadas === maxFotos) {
+            desligarCamera();
+
+            btnCapturar.disabled = true;
             btnCapturar.innerText = "Processando cadastro...";
 
             const resFinal = await fetch("/finalizar_cadastro", {
@@ -182,26 +212,19 @@ async function cadastrar() {
                 throw new Error(mensagemErro);
             }
 
+            // ← Sem setTimeout, popup fica aberto até o usuário confirmar
             mostrarPopupSucesso(nomeGlobal, fotosCapturadas);
-
-            setTimeout(() => {
-                fotosCapturadas = 0;
-                cadastroIniciado = false;
-                nomeGlobal = "";
-                contador.innerText = "Foto 0 de 5";
-                barra.style.width = "0%";
-                select.selectedIndex = 0;
-
-                window.location.reload();
-            }, 2000);
+            return;
         }
 
     } catch (error) {
         console.error(error);
         mostrarPopupErro(error.message);
     } finally {
-        btnCapturar.disabled = false;
-        btnCapturar.innerText = "Capturar Foto";
+        if (fotosCapturadas < maxFotos) {
+            btnCapturar.disabled = false;
+            btnCapturar.innerText = "Capturar Foto";
+        }
         processando = false;
     }
 }
@@ -237,6 +260,16 @@ function mostrarPopupSucesso(nome, fotos) {
 
 function fecharPopupSucesso() {
     document.getElementById("popup-ponto").classList.remove("ativo");
+
+    // ← Reset e reload só acontecem quando o usuário clica em Confirmar
+    fotosCapturadas = 0;
+    cadastroIniciado = false;
+    nomeGlobal = "";
+    contador.innerText = "Foto 0 de 5";
+    barra.style.width = "0%";
+    document.getElementById("nome").selectedIndex = 0;
+
+    window.location.reload();
 }
 
 function mostrarPopupErro(mensagem) {
@@ -248,51 +281,23 @@ function fecharPopupErro() {
     document.getElementById("popup-erro").classList.remove("ativo");
 }
 
-// Fechar popup ao clicar fora
-document.getElementById("popup-ponto").addEventListener('click', function(event) {
-    if (event.target === this) {
-        fecharPopupSucesso();
-    }
+document.getElementById("popup-ponto").addEventListener('click', function (event) {
+    if (event.target === this) fecharPopupSucesso();
 });
 
-document.getElementById("popup-erro").addEventListener('click', function(event) {
-    if (event.target === this) {
-        fecharPopupErro();
-    }
+document.getElementById("popup-erro").addEventListener('click', function (event) {
+    if (event.target === this) fecharPopupErro();
 });
 
-/// Event Listeners dos Botoes
-if (btnCapturar) {
-    btnCapturar.addEventListener('click', cadastrar);
-}
-
-if (btnInstrucoes) {
-    btnInstrucoes.addEventListener('click', abrirInstrucoes);
-}
+// Event Listeners
+if (btnCapturar) btnCapturar.addEventListener('click', cadastrar);
+if (btnInstrucoes) btnInstrucoes.addEventListener('click', abrirInstrucoes);
 
 const btnVoltar = document.getElementById('btnVoltar');
-if (btnVoltar) {
-    btnVoltar.addEventListener('click', function() {
-        history.back();
-    });
-}
+if (btnVoltar) btnVoltar.addEventListener('click', () => history.back());
 
 const btnFecharSucesso = document.getElementById('btnFecharSucesso');
-if (btnFecharSucesso) {
-    btnFecharSucesso.addEventListener('click', fecharPopupSucesso);
-}
+if (btnFecharSucesso) btnFecharSucesso.addEventListener('click', fecharPopupSucesso);
 
 const btnFecharErro = document.getElementById('btnFecharErro');
-if (btnFecharErro) {
-    btnFecharErro.addEventListener('click', fecharPopupErro);
-}
-
-// Debug
-console.log('Botoes carregados:', {
-    btnCapturar,
-    btnInstrucoes,
-    btnVoltar,
-    btnFecharSucesso,
-    btnFecharErro,
-    modal
-});
+if (btnFecharErro) btnFecharErro.addEventListener('click', fecharPopupErro);

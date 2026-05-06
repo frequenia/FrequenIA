@@ -85,6 +85,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transform: scaleX(-1);
 }
 
 /* PLACEHOLDER */
@@ -393,42 +394,182 @@
   }
 }
 
-/* POPUPS (mantido, só organizado visualmente) */
+/* ==========================================
+   POPUPS - cadastroFoto
+   ========================================== */
+
 .popup-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.72);
-
-  display: none;
-  align-items: center;
-  justify-content: center;
-
-  z-index: 2000;
-  padding: var(--spacing-md);
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.72);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 20px;
 }
 
 .popup-overlay.ativo {
-  display: flex;
+    display: flex;
 }
 
 .popup-card {
-  width: 100%;
-  max-width: 430px;
-
-  background: var(--color-white);
-  border-radius: var(--radius-xl);
-
-  overflow: hidden;
-  box-shadow: var(--shadow-xl);
+    width: 100%;
+    max-width: 430px;
+    background: #ffffff;
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
 }
 
-/* SUCESSO / ERRO mantidos (sem quebrar UI já pronta) */
+/* SUCESSO */
 .popup-sucesso {
-  border: 3px solid #1fa37c;
+    border: 3px solid #1fa37c;
+    box-shadow:
+        0 0 0 3px rgba(31, 163, 124, 0.15),
+        0 20px 45px rgba(0, 0, 0, 0.35);
 }
 
+/* ERRO */
 .popup-erro-card {
-  border: 3px solid #c96a45;
+    border: 3px solid #c96a45;
+    box-shadow:
+        0 0 0 3px rgba(201, 106, 69, 0.15),
+        0 20px 45px rgba(0, 0, 0, 0.35);
 }
 
-/* resto do popup mantido estruturalmente (sem mudanças visuais críticas) */
+/* TOPO AZUL (sucesso e confirmação) */
+.popup-topo {
+    background: linear-gradient(135deg, #0f5c8c 0%, #0c4a70 100%);
+    padding: 36px 28px 26px;
+    text-align: center;
+}
+
+/* TOPO VERMELHO (erro) */
+.popup-topo-erro {
+    background: linear-gradient(135deg, #c96a45 0%, #a8522f 100%);
+}
+
+.popup-icone-circulo {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 18px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.14);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.popup-topo h3 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.popup-topo span {
+    display: block;
+    margin-top: 6px;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 13px;
+    letter-spacing: 0.8px;
+    font-weight: 500;
+}
+
+/* CORPO */
+.popup-corpo {
+    padding: 28px 30px 30px;
+}
+
+.popup-linha {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.popup-icone-box {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.popup-info {
+    flex: 1;
+}
+
+.popup-label {
+    margin: 0 0 4px;
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.5);
+    font-weight: 500;
+    letter-spacing: 0.6px;
+}
+
+.popup-valor {
+    margin: 0;
+    font-size: 16px;
+    color: #222222;
+    font-weight: 700;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.popup-divisor {
+    height: 1px;
+    background: rgba(0, 0, 0, 0.08);
+    margin: 16px 0 14px;
+}
+
+.popup-btn {
+    width: 100%;
+    margin-top: 26px;
+    height: 50px;
+    border-radius: 14px;
+    border: none;
+    background: #0f5c8c;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s ease;
+    font-family: Montserrat, sans-serif;
+}
+
+.popup-btn:hover {
+    background: #0c4a70;
+}
+
+.popup-btn-erro {
+    background: #c96a45;
+}
+
+.popup-btn-erro:hover {
+    background: #a8522f;
+}
+
+@media (max-width: 480px) {
+    .popup-card {
+        max-width: 100%;
+        border-radius: 22px;
+    }
+
+    .popup-topo {
+        padding: 30px 20px 22px;
+    }
+
+    .popup-corpo {
+        padding: 22px 20px 24px;
+    }
+
+    .popup-topo h3 {
+        font-size: 20px;
+    }
+
+    .popup-valor {
+        font-size: 15px;
+    }
+}
