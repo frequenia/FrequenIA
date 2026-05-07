@@ -226,10 +226,7 @@
 
 /* Divisor no Menu */
 .sidebar .divider {
-  height: 1px;
-  background: var(--color-border);
-  margin: 8px 0;
-  padding: 0;
+  display: none;
 }
 
 /* ----------------------------------------------------------
