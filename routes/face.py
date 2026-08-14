@@ -22,7 +22,7 @@ cloudinary.config(
     api_secret=os.getenv("CLOUD_SECRET"),
 )
 
-MODEL_NAME = "Facenet"
+MODEL_NAME = "ArcFace"
 DETECTOR_CADASTRO = "opencv"
 DETECTOR_RECONHECIMENTO = "opencv"
 
@@ -105,12 +105,19 @@ def gerar_embedding(face_img):
     )
 
     embedding = np.array(rep[0]["embedding"], dtype=np.float32)
+
+    if len(embedding) != 512:
+        raise ValueError(
+            f"Embedding ArcFace com dimensão inesperada: {len(embedding)}"
+        )
+
     norma = np.linalg.norm(embedding)
 
     if norma == 0:
         raise ValueError("Não foi possível normalizar o embedding.")
 
     embedding = embedding / norma
+
     return embedding.tolist()
 
 
@@ -157,7 +164,7 @@ def reconhecer_uma_imagem(cursor, imagem_base64):
 
     cursor.execute(
         """
-        SELECT nome, embedding <-> %s::vector AS distancia
+        SELECT nome, embedding <=> %s::vector AS distancia
         FROM fotos
         ORDER BY distancia
         LIMIT 5
