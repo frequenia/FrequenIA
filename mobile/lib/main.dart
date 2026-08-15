@@ -1,5 +1,10 @@
+import 'dart:io';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
+const String apiUrl = 'http://192.168.0.108:5000';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +33,6 @@ class FrequenciaApp extends StatelessWidget {
   }
 }
 
-// TELA INICIAL
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
@@ -57,7 +61,6 @@ class HomePage extends StatelessWidget {
   }
 }
 
-// TELA DA CÂMERA
 class CameraPage extends StatefulWidget {
   final List<CameraDescription> cameras;
 
@@ -69,15 +72,15 @@ class CameraPage extends StatefulWidget {
 
 class _CameraPageState extends State<CameraPage> {
   CameraController? controller;
+  XFile? foto;
 
   @override
   void initState() {
     super.initState();
-
-    initializeCamera();
+    inicializarCamera();
   }
 
-  Future<void> initializeCamera() async {
+  Future<void> inicializarCamera() async {
     if (widget.cameras.isEmpty) {
       return;
     }
@@ -100,6 +103,67 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
+  Future<void> tirarFoto() async {
+    if (controller == null || !controller!.value.isInitialized) {
+      return;
+    }
+
+    final imagem = await controller!.takePicture();
+
+    setState(() {
+      foto = imagem;
+    });
+  }
+
+  void tirarNovamente() {
+    setState(() {
+      foto = null;
+    });
+  }
+
+  Future<void> confirmarFoto() async {
+    if (foto == null) {
+      return;
+    }
+
+    try {
+      final requisicao = http.MultipartRequest(
+        'POST',
+        Uri.parse('$apiUrl/mobile/foto'),
+      );
+
+      requisicao.files.add(
+        await http.MultipartFile.fromPath('foto', foto!.path),
+      );
+
+      final resposta = await requisicao.send();
+
+      if (!mounted) {
+        return;
+      }
+
+      if (resposta.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto enviada com sucesso!')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao enviar foto: ${resposta.statusCode}'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível enviar a foto')),
+      );
+    }
+  }
+
   @override
   void dispose() {
     controller?.dispose();
@@ -117,7 +181,37 @@ class _CameraPageState extends State<CameraPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Câmera'), centerTitle: true),
-      body: Center(child: CameraPreview(controller!)),
+      body: Column(
+        children: [
+          Expanded(
+            child: foto == null
+                ? CameraPreview(controller!)
+                : Image.file(File(foto!.path), fit: BoxFit.contain),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: foto == null
+                ? ElevatedButton(
+                    onPressed: tirarFoto,
+                    child: const Text('TIRAR FOTO'),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton(
+                        onPressed: tirarNovamente,
+                        child: const Text('TIRAR NOVAMENTE'),
+                      ),
+                      ElevatedButton(
+                        onPressed: confirmarFoto,
+                        child: const Text('CONFIRMAR'),
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
