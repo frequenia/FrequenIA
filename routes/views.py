@@ -1,6 +1,8 @@
 from flask import (
     Blueprint,
     app,
+    current_app,
+    g,
     render_template,
     redirect,
     url_for,
@@ -10,10 +12,12 @@ from flask import (
     request,
     send_file,
 )
-from datetime import datetime, date
+from datetime import datetime, date, timedelta, timezone
+from functools import wraps
 from zoneinfo import ZoneInfo
 from utils.auth_decorator import login_required, admin_required
 import psycopg2.extras
+import jwt
 import secrets
 from werkzeug.security import generate_password_hash, check_password_hash
 from db import (
@@ -34,6 +38,54 @@ from reportlab.pdfgen import canvas
 from docx import Document
 
 views_bp = Blueprint("views", __name__)
+
+JWT_ALGORITHM = "HS256"
+
+
+def gerar_access_token(user_id):
+    agora = datetime.now(timezone.utc)
+    payload = {
+        "sub": str(user_id),
+        "type": "access",
+        "iat": agora,
+        "exp": agora
+        + timedelta(minutes=current_app.config["JWT_ACCESS_TOKEN_MINUTES"]),
+    }
+    return jwt.encode(
+        payload,
+        current_app.config["JWT_SECRET_KEY"],
+        algorithm=JWT_ALGORITHM,
+    )
+
+
+def access_token_required(view_function):
+    @wraps(view_function)
+    def decorated_function(*args, **kwargs):
+        authorization = request.headers.get("Authorization", "")
+        scheme, separator, token = authorization.partition(" ")
+
+        if scheme.lower() != "bearer" or not separator or not token.strip():
+            return jsonify({"erro": "Token de acesso ausente."}), 401
+
+        try:
+            payload = jwt.decode(
+                token.strip(),
+                current_app.config["JWT_SECRET_KEY"],
+                algorithms=[JWT_ALGORITHM],
+                options={"require": ["sub", "iat", "exp"]},
+            )
+        except jwt.ExpiredSignatureError:
+            return jsonify({"erro": "Token de acesso expirado."}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({"erro": "Token de acesso inválido."}), 401
+
+        if payload.get("type") != "access":
+            return jsonify({"erro": "Token de acesso inválido."}), 401
+
+        g.auth_user_id = payload["sub"]
+        return view_function(*args, **kwargs)
+
+    return decorated_function
 
 
 @views_bp.route("/")
@@ -134,15 +186,19 @@ def inserir_token():
 # ==================================================================================================
 @views_bp.route("/login", methods=["POST"])
 def login():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
 
     cpf = data.get("cpf")
     senha = data.get("senha")
 
+    if not isinstance(cpf, str) or not isinstance(senha, str):
+        return jsonify({"erro": "Credenciais inválidas."}), 401
+
     cpf = cpf.replace(".", "").replace("-", "").strip()
     senha = senha.strip()
 
-    print("CPF recebido:", cpf)
+    if not cpf or not senha:
+        return jsonify({"erro": "Credenciais inválidas."}), 401
 
     conn = conectar_bd()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -161,25 +217,18 @@ def login():
     cursor.close()
     conn.close()
 
-    print("Usuário encontrado:", user)
-
-    if not user:
-        return jsonify({"erro": "CPF não encontrado"}), 404
-
-    if user["status"] == "inativo":
-        return jsonify({"erro": "Usuário inativo. Contate um administrador."}), 403
-
-    if not user["senha_hash"]:
-        return jsonify({"erro": "Usuário ainda não definiu senha"}), 400
-
-    resultado = check_password_hash(user["senha_hash"], senha)
-
-    if not resultado:
-        return jsonify({"erro": "Senha incorreta"}), 401
+    if (
+        not user
+        or user["status"] == "inativo"
+        or not user["senha_hash"]
+        or not check_password_hash(user["senha_hash"], senha)
+    ):
+        return jsonify({"erro": "Credenciais inválidas."}), 401
 
     session["user_id"] = user["id"]
     session["nome"] = user["nome"]
     session["tipo"] = user["tipo_perfil"]
+    access_token = gerar_access_token(user["id"])
 
     return (
         jsonify(
@@ -187,10 +236,19 @@ def login():
                 "ok": True,
                 "nome": user["nome"],
                 "tipo": user["tipo_perfil"],
+                "access_token": access_token,
+                "token_type": "Bearer",
+                "expires_in": current_app.config["JWT_ACCESS_TOKEN_MINUTES"] * 60,
             }
         ),
         200,
     )
+
+
+@views_bp.get("/auth/me")
+@access_token_required
+def auth_me():
+    return jsonify({"user_id": g.auth_user_id}), 200
 
 
 # ==================================================================================================
@@ -606,8 +664,6 @@ def enviar_token():
     token = secrets.token_hex(3)
 
     salvar_token(user["id"], token)
-
-    print("TOKEN GERADO:", token)
 
     return jsonify({"ok": True, "token": token}), 200
 
