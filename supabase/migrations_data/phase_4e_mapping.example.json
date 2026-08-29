@@ -1,0 +1,14 @@
+{
+  "authorized_source_user_ids": [],
+  "authorized_source_employee_ids": [],
+  "source_company_id": null,
+  "company_id": null,
+  "unit": {
+    "name": null
+  },
+  "sector_mappings": {},
+  "role_mappings": {},
+  "profile_mappings": {},
+  "contract_mappings": {},
+  "status_mappings": {}
+}

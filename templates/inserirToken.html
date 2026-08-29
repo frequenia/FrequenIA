@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FrequenIA | Recuperar Senha </title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/inserirToken.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap"
+        rel="stylesheet">
+
+</head>
+
+<body>
+
+    <div class="login-container">
+
+        <div class="login-header">
+            <span>WORK</span>SYNC
+        </div>
+
+        <div class="login-body">
+            <h3> Verificação em duas etapas </h3>
+            <label>Digite o token recebido pelo canal autorizado.</label>
+            <input type="text" id="token" placeholder="Token" autocomplete="one-time-code">
+        </div>
+        <div class="login-body">
+            <button onclick="validarToken()">Continuar</button>
+            <a class="senha" href="/recuperacaoSenha">Voltar</a>
+            <br>
+        </div>
+
+    </div>
+
+    <footer>
+        Copyright FrequenIA © 2026
+    </footer>
+
+    <script>async function validarToken() {
+            const token = document.getElementById("token").value;
+
+            const response = await fetch('/auth/password/validate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // salva o token pra próxima tela
+                sessionStorage.setItem("token", token);
+
+                // vai pra tela de nova senha
+                window.location.href = "/redefinicaoSenha";
+            } else {
+                alert(data.erro);
+            }
+        }</script>
+
+</body>
+
+</html>

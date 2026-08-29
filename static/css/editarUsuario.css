@@ -1,0 +1,72 @@
+.perfil-page {
+  padding: var(--spacing-2xl);
+  margin: 0 auto;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.dados-pessoais {
+  display: flex;
+  gap: var(--spacing-lg);
+}
+
+/* Mantido separado pois pode ter comportamento diferente no futuro */
+.campos {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+}
+
+/* Mantido (não removi), mas agora reutiliza padrão */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+}
+
+.acoes {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-lg);
+}
+
+.dias-semana {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-lg);
+  margin: var(--spacing-lg) 0;
+}
+
+.horario-padrao {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-lg);
+}
+
+.manual-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+.linha-manual {
+  display: grid;
+  grid-template-columns: 120px repeat(4, 1fr);
+  gap: var(--spacing-md);
+  align-items: center;
+
+  /* removi duplicação de margin */
+}
+
+.dia-manual {
+  margin-top: var(--spacing-xl);
+}
+
+input[readonly] {
+  cursor: default;
+}

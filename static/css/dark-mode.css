@@ -1,0 +1,454 @@
+:root {
+    --background-color: #f8f9fa;
+    --text-color: #000000;
+    --card-bg: #ffffff;
+    --card-border: #d9d9d9;
+    --sidebar-bg: #ffffff;
+    --topbar-text: #ffffff;
+    --link-color: #000000;
+    --link-hover: #cccccc;
+    --active-bg: #e0e0e0;
+    --active-border: #0C4A70;
+    --muted-text: #666666;
+
+    /* variáveis usadas no menu.css */
+    --color-white: #ffffff;
+    --color-text-dark: #000000;
+    --color-bg-light: #f8f9fa;
+    --color-border: #d9d9d9;
+    --color-primary: #0f5c8c;
+    --color-primary-dark: #0a3d5c;
+}
+
+/* ================= DARK MODE ================= */
+body.dark-mode,
+html.dark-mode {
+    --background-color: #121212;
+    --text-color: #f1f1f1;
+    --card-bg: #1e1e1e;
+    --card-border: #2f2f2f;
+    --sidebar-bg: #232323;
+    --topbar-text: #f1f1f1;
+    --link-color: #f1f1f1;
+    --link-hover: #333333;
+    --active-bg: #2d2d2d;
+    --active-border: #0F5C8C;
+    --muted-text: #b3b3b3;
+
+    --color-white: #1e1e1e;
+    --color-text-dark: #f1f1f1;
+    --color-bg-light: #121212;
+    --color-border: #2f2f2f;
+    --color-primary: #0f5c8c;
+    --color-primary-dark: #0a3d5c;
+
+    background-color: #121212;
+
+    /* Cor das legendas*/
+    --color-text-light: #cfcfcf;
+    --color-text-medium: #cfcfcf;
+
+    /*Cor hoje*/
+    --color-info-light: rgba(77, 163, 217, 0.2);
+    --color-info: #6bbcff;
+}
+
+/* ===== RESET IMPORTANTE (resolve fundo branco) ===== */
+html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    background-color: var(--background-color);
+    overflow-x: hidden;
+}
+
+/* fundo geral */
+body {
+    background-color: var(--background-color);
+    color: var(--text-color);
+}
+
+/* ================= CARDS ================= */
+.card {
+    background: var(--card-bg);
+    color: var(--text-color);
+    border: 1px solid var(--card-border);
+}
+
+/* textos */
+.card h3,
+.card h4,
+.setting-label h4 {
+    color: var(--text-color);
+}
+
+.card p,
+.setting-label p {
+    color: var(--muted-text);
+}
+
+/* linhas */
+.setting-item {
+    border-bottom: 1px solid var(--card-border);
+}
+
+/* ================= SIDEBAR ================= */
+.sidebar {
+    background: var(--sidebar-bg);
+}
+
+.sidebar a {
+    color: var(--link-color);
+}
+
+.sidebar a:hover {
+    background: var(--color-bg-light);
+    color: var(--color-text-dark); 
+    border-left-color: var(--color-primary);
+}
+
+body.dark-mode .sidebar .active a {
+    background: rgba(77, 163, 217, 0.15);
+    color: #FFFFFF;
+    border-left: 4px solid #4da3d9;
+}
+
+.sidebar .active a {
+    background: var(--active-bg);
+    border-left: 4px solid var(--active-border);
+}
+
+/* ================= TOPBAR ================= */
+.topbar {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+    color: var(--topbar-text);
+}
+
+.topbar .logo,
+.topbar .logo span,
+#relogio,
+#nomeUsuario,
+#status {
+    color: var(--topbar-text);
+}
+
+/* ================= BOTÕES ================= */
+body.dark-mode .btn-secondary {
+    background: transparent;
+    color: #f1f1f1;
+    border: 1px solid #666;
+}
+
+body.dark-mode .btn-primary {
+    background: #0F5C8C;
+    color: white;
+    border: none;
+}
+
+/* ================= INPUTS (CORREÇÃO DO CALENDÁRIO) ================= */
+
+/* inputs gerais */
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+    background-color: #1e1e1e;
+    color: #f1f1f1;
+    border: 1px solid #2f2f2f;
+}
+
+/* placeholder */
+body.dark-mode input::placeholder {
+    color: #b3b3b3;
+}
+
+/* input date (calendário) */
+body.dark-mode input[type="date"] {
+    background-color: #1e1e1e;
+    color: #f1f1f1;
+    border: 1px solid #2f2f2f;
+    color-scheme: dark;
+}
+
+/* ícone do calendário */
+body.dark-mode input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+}
+
+/* ================= CONTAINERS DA PÁGINA ================= */
+
+/* garante que nenhuma área fique branca */
+body.dark-mode .controle-page,
+body.dark-mode .main-content,
+body.dark-mode .content,
+body.dark-mode .container {
+    background-color: #121212;
+}
+
+/* ================= FLATPICKR DARK MODE ================= */
+
+body.dark-mode .flatpickr-calendar {
+    background: #1e1e1e;
+    border: 1px solid #2f2f2f;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+    color: #f1f1f1;
+}
+
+body.dark-mode .flatpickr-months {
+    background: #1e1e1e;
+    color: #f1f1f1;
+}
+
+body.dark-mode .flatpickr-month {
+    background: #1e1e1e;
+    color: #f1f1f1;
+}
+
+body.dark-mode .flatpickr-current-month {
+    color: #f1f1f1;
+}
+
+body.dark-mode .flatpickr-current-month .flatpickr-monthDropdown-months {
+    background: #1e1e1e;
+    color: #f1f1f1;
+    border: none;
+}
+
+body.dark-mode .flatpickr-current-month input.cur-year {
+    color: #f1f1f1;
+    background: transparent;
+}
+
+body.dark-mode .flatpickr-weekdays {
+    background: #1e1e1e;
+}
+
+body.dark-mode span.flatpickr-weekday {
+    background: #1e1e1e;
+    color: #b3b3b3;
+}
+
+body.dark-mode .flatpickr-day {
+    color: #f1f1f1;
+}
+
+body.dark-mode .flatpickr-day:hover {
+    background: #2d2d2d;
+    border-color: #2d2d2d;
+}
+
+body.dark-mode .flatpickr-day.today {
+    border-color: #4da3d9;
+    color: #f1f1f1;
+}
+
+body.dark-mode .flatpickr-day.selected,
+body.dark-mode .flatpickr-day.startRange,
+body.dark-mode .flatpickr-day.endRange,
+body.dark-mode .flatpickr-day.selected:hover,
+body.dark-mode .flatpickr-day.startRange:hover,
+body.dark-mode .flatpickr-day.endRange:hover {
+    background: #0F5C8C;
+    border-color: #0F5C8C;
+    color: #ffffff;
+}
+
+body.dark-mode .flatpickr-day.inRange {
+    background: rgba(15, 92, 140, 0.25);
+    border-color: rgba(15, 92, 140, 0.25);
+    color: #f1f1f1;
+    box-shadow: -5px 0 0 rgba(15, 92, 140, 0.25), 5px 0 0 rgba(15, 92, 140, 0.25);
+}
+
+body.dark-mode .flatpickr-day.prevMonthDay,
+body.dark-mode .flatpickr-day.nextMonthDay,
+body.dark-mode .flatpickr-day.flatpickr-disabled {
+    color: #666666;
+}
+
+body.dark-mode .flatpickr-time input,
+body.dark-mode .flatpickr-time .flatpickr-time-separator,
+body.dark-mode .flatpickr-time .flatpickr-am-pm {
+    color: #f1f1f1;
+    background: #1e1e1e;
+}
+
+body.dark-mode .flatpickr-prev-month,
+body.dark-mode .flatpickr-next-month {
+    fill: #f1f1f1;
+    color: #f1f1f1;
+}
+
+body.dark-mode .flatpickr-prev-month:hover svg,
+body.dark-mode .flatpickr-next-month:hover svg {
+    fill: #4da3d9;
+}
+
+body.dark-mode .flatpickr-prev-month svg,
+body.dark-mode .flatpickr-next-month svg {
+    fill: #f1f1f1;
+}
+
+body.dark-mode .flatpickr-monthDropdown-months:hover,
+body.dark-mode .numInputWrapper:hover {
+    background: #2d2d2d;
+}
+
+body.dark-mode .perfil-page {
+    background: var(--background-color);
+}
+
+body.dark-mode .card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-color);
+}
+
+body.dark-mode .campo label,
+body.dark-mode .dia-manual h4,
+body.dark-mode .dias-semana,
+body.dark-mode .dias-semana label,
+body.dark-mode .card h3 {
+    color: var(--text-color);
+}
+
+body.dark-mode .campo input,
+body.dark-mode .campo select {
+    background: #1e1e1e;
+    color: #f1f1f1;
+    border: 1px solid #2f2f2f;
+}
+
+body.dark-mode .campo input::placeholder {
+    color: #b3b3b3;
+}
+
+body.dark-mode hr {
+    border-top: 1px solid var(--card-border);
+}
+
+body.dark-mode,
+html.dark-mode {
+    background-color: #121212 !important;
+}
+
+body.dark-mode form,
+body.dark-mode main,
+body.dark-mode .perfil-page {
+    background-color: #121212 !important;
+}
+
+html.dark-mode,
+body.dark-mode {
+    background: #121212 !important;
+    min-height: 100vh !important;
+}
+
+body.dark-mode {
+    color: #f1f1f1 !important;
+}
+
+body.dark-mode form,
+body.dark-mode #formCadastro,
+body.dark-mode .perfil-page,
+body.dark-mode main,
+body.dark-mode .main-content,
+body.dark-mode .content,
+body.dark-mode .content-wrapper,
+body.dark-mode .page-content,
+body.dark-mode .app,
+body.dark-mode .layout,
+body.dark-mode .wrapper,
+body.dark-mode .container {
+    background: #121212 !important;
+}
+
+body.dark-mode .perfil-page {
+    min-height: 100vh !important;
+}
+
+/* =========================================================
+   GERENCIAR USUÁRIOS — DARK MODE
+   ========================================================= */
+
+/* container da página */
+body.dark-mode .gerenciar-usuarios {
+    background: var(--background-color);
+}
+
+/* ================= TABELA ================= */
+
+/* textos da tabela (principal problema) */
+body.dark-mode td {
+    color: #f1f1f1;
+}
+
+body.dark-mode th {
+    color: #ffffff;
+}
+
+/* linhas */
+body.dark-mode .table tr {
+    border-color: var(--card-border);
+}
+
+/* hover da linha (opcional, melhora UX) */
+body.dark-mode .table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+/* ================= INPUT BUSCA ================= */
+
+body.dark-mode .search-input {
+    background: #1e1e1e;
+    color: #f1f1f1;
+    border: 1px solid #2f2f2f;
+}
+
+/* placeholder */
+body.dark-mode .search-input::placeholder {
+    color: #b3b3b3;
+}
+
+/* ================= SELECTS ================= */
+
+body.dark-mode .top-bar select {
+    background: #1e1e1e;
+    color: #f1f1f1;
+    border: 1px solid #2f2f2f;
+}
+
+/* dropdown aberto (melhora aparência) */
+body.dark-mode .top-bar select option {
+    background: #1e1e1e;
+    color: #f1f1f1;
+}
+
+/* ================= BOTÕES ================= */
+
+body.dark-mode .btn-acao {
+    background: var(--color-primary);
+    color: #ffffff !important;
+}
+
+body.dark-mode .btn-acao:hover {
+    background: var(--color-primary-dark);
+}
+
+/* botão de busca */
+body.dark-mode .btn-search {
+    background: var(--color-primary);
+}
+
+body.dark-mode .btn-search:hover {
+    background: var(--color-primary-dark);
+}
+
+/* ================= TEXTOS GERAIS ================= */
+
+body.dark-mode .gerenciar-usuarios,
+body.dark-mode .gerenciar-usuarios p,
+body.dark-mode .gerenciar-usuarios span,
+body.dark-mode .gerenciar-usuarios label {
+    color: var(--text-color);
+}

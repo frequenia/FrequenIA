@@ -1,0 +1,233 @@
+/* ============================================================
+   perfil.css — Estilos Específicos da Página
+   Design System WorkSync v2.0
+   Depende de: worksync-global.css (deve ser carregado antes)
+   ============================================================ */
+
+/* ----------------------------------------------------------
+   Layout Principal
+   ---------------------------------------------------------- */
+.perfil-page {
+  padding: var(--spacing-2xl);
+  margin: 0 auto;
+}
+
+/* ----------------------------------------------------------
+   Seções de Dados (Cards)
+   ---------------------------------------------------------- */
+.card {
+  margin-bottom: var(--spacing-lg);
+}
+
+.card h3 {
+  margin-bottom: var(--spacing-lg);
+}
+
+/* ----------------------------------------------------------
+   Dados Pessoais
+   ---------------------------------------------------------- */
+.dados-pessoais {
+  display: flex;
+  gap: var(--spacing-lg);
+  align-items: flex-start;
+}
+
+.foto {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: var(--color-bg-lighter);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-light);
+  flex-shrink: 0;
+  border: 2px solid var(--color-border);
+}
+
+.campos {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+}
+
+/* ----------------------------------------------------------
+   Grids de Campos
+   ---------------------------------------------------------- */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+}
+
+.campo-cargo {
+  grid-column: 1 / -1;
+}
+
+.campo-jornada {
+  grid-column: 2;
+}
+.campo {
+  display: flex;
+  flex-direction: column;
+}
+
+.campo label {
+  margin-bottom: var(--spacing-sm);
+}
+
+/* ----------------------------------------------------------
+   Dias da Semana (Checkboxes)
+   ---------------------------------------------------------- */
+.dias-semana {
+  display: flex;
+  gap: var(--spacing-lg);
+  margin: var(--spacing-lg) 0;
+  flex-wrap: wrap;
+}
+
+.dias-semana label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-base);
+  text-transform: none;
+  letter-spacing: normal;
+  margin-bottom: 0;
+}
+
+.dias-semana input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+/* ----------------------------------------------------------
+   Horário Padrão (Grid de Horários)
+   ---------------------------------------------------------- */
+.horario-padrao {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-lg);
+}
+
+/* ----------------------------------------------------------
+   Dias Manuais
+   ---------------------------------------------------------- */
+.dia-manual {
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+.dia-manual h4 {
+  margin-bottom: var(--spacing-lg);
+  color: var(--color-text-dark);
+}
+
+/* ----------------------------------------------------------
+   Ações (Botões)
+   ---------------------------------------------------------- */
+.acoes {
+  margin-top: var(--spacing-2xl);
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-lg);
+}
+
+.btn-cad {
+  padding: var(--spacing-md) var(--spacing-xl);
+  height: 44px;
+  background: var(--color-primary);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+  min-width: 200px;
+}
+
+.btn-cad:hover {
+  background: var(--color-primary-light);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.btn-cad:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-xs);
+}
+
+.btn-cad:disabled {
+  background: var(--color-text-light);
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ----------------------------------------------------------
+   Divisores (HR)
+   ---------------------------------------------------------- */
+hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: var(--spacing-lg) 0;
+}
+
+/* ----------------------------------------------------------
+   Responsividade Mobile
+   ---------------------------------------------------------- */
+@media (max-width: 768px) {
+  .perfil-page {
+    padding: var(--spacing-lg);
+  }
+
+  .dados-pessoais {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .campos {
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .horario-padrao {
+    grid-template-columns: 1fr;
+  }
+
+  .dias-semana {
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .dias-semana label {
+    width: 100%;
+  }
+
+  .acoes {
+    flex-direction: column;
+  }
+
+  .btn-cad {
+    width: 100%;
+    min-width: auto;
+  }
+}
+
+input[readonly] {
+  cursor: default;
+}

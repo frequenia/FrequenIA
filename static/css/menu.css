@@ -1,0 +1,371 @@
+/* ============================================================
+   menu.css — Estilos do Menu Principal (Topbar e Sidebar)
+   Design System WorkSync
+   Depende de: worksync-global.css (deve ser carregado antes)
+   ============================================================ */
+
+/* ----------------------------------------------------------
+   Topbar (Barra Superior)
+   ---------------------------------------------------------- */
+.topbar {
+  height: 70px;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 30px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+
+/* Logo WorkSync */
+.logo {
+  font-family: var(--font-family-base);
+  color: var(--color-white);
+  font-weight: var(--font-weight-bold);
+  font-size: 28px;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.logo span:first-child {
+  color: var(--color-black);
+}
+
+.logo span:last-child {
+  color: var(--color-white);
+}
+
+/* ─── STATUS CONTAINER (BADGE) ─── */
+.status-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  justify-content: center;
+  min-width: 150px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: all 0.3s ease;
+}
+
+.status-badge-expediente {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+.status-badge-intervalo {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.status-badge-fora {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+.status-icon {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+/* Topbar Right (Profile + Relógio) */
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  align-items: center;
+}
+
+/* Profile Link */
+.profile-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.profile-link:hover {
+  opacity: 0.8;
+}
+
+.profile-avatar-topbar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: var(--font-weight-bold);
+  color: white;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.profile-link:hover .profile-avatar-topbar {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.profile-name-topbar {
+  font-weight: var(--font-weight-semibold);
+  color: white;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  font-size: 18px;
+}
+
+/* Topbar Separator */
+.topbar-separator {
+  width: 1px;
+  height: 30px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 0 10px;
+}
+/* Relógio e Data */
+#relogio {
+  color: var(--color-white);
+  text-align: right;
+  line-height: 1.3;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#hora {
+  font-size: 24px;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.02em;
+}
+
+#data {
+  font-size: 13px;
+  opacity: 0.9;
+  font-weight: var(--font-weight-medium);
+}
+
+/* ----------------------------------------------------------
+   Layout Principal
+   ---------------------------------------------------------- */
+.layout {
+  display: flex;
+  height: calc(100vh - 70px);
+  background: var(--color-bg-light);
+}
+
+/* ----------------------------------------------------------
+   Sidebar (Menu Lateral)
+   ---------------------------------------------------------- */
+.sidebar {
+  width: 280px;
+  background: var(--color-white);
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08);
+  overflow-y: auto;
+  border-right: 1px solid var(--color-border);
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 10px 0;
+}
+
+.sidebar li {
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar a {
+  display: block;
+  padding: 14px 24px;
+  text-decoration: none;
+  color: var(--color-text-dark);
+  font-weight: var(--font-weight-medium);
+  font-size: 20px;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+  letter-spacing: 0.01em;
+}
+
+.sidebar a:hover {
+  background: #f0f2f5;
+  color: var(--color-primary);
+  border-left-color: var(--color-primary);
+  padding-left: 26px;
+}
+
+.sidebar .active a {
+  background: #f0f2f5;
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+  border-left-color: var(--color-primary);
+  padding-left: 26px;
+}
+
+/* Divisor no Menu */
+.sidebar .divider {
+  display: none;
+}
+
+/* ----------------------------------------------------------
+   Conteúdo Principal (iframe)
+   ---------------------------------------------------------- */
+.content {
+  flex: 1;
+  background: var(--color-bg-light);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.iframe-content {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: var(--color-bg-light);
+}
+
+/* ----------------------------------------------------------
+   Scrollbar Customizada (Sidebar)
+   ---------------------------------------------------------- */
+.sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: var(--color-bg-light);
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-light);
+}
+
+/* ----------------------------------------------------------
+   Responsividade Mobile
+   ---------------------------------------------------------- */
+@media (max-width: 768px) {
+  .topbar {
+    height: 60px;
+    padding: 0 15px;
+  }
+
+  .logo {
+    font-size: 22px;
+  }
+
+  .status-badge {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .status-icon {
+    font-size: 12px;
+  }
+
+  .topbar-right {
+    gap: 15px;
+  }
+
+  #hora {
+    font-size: 18px;
+  }
+
+  #data {
+    font-size: 11px;
+  }
+
+  .profile-avatar-topbar {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+
+  .sidebar {
+    width: 200px;
+  }
+
+  .sidebar a {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .sidebar a:hover,
+  .sidebar .active a {
+    padding-left: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 60px;
+    padding: 8px 12px;
+  }
+
+  .logo {
+    font-size: 18px;
+    order: 1;
+  }
+
+  .status-container {
+    order: 3;
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  .status-badge {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  .status-icon {
+    font-size: 11px;
+  }
+
+  .topbar-right {
+    order: 2;
+    gap: 10px;
+  }
+
+  #hora {
+    font-size: 16px;
+  }
+
+  #data {
+    font-size: 10px;
+  }
+
+  .profile-avatar-topbar {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+}

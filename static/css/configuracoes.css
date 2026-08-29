@@ -1,0 +1,212 @@
+.configuracoes-page {
+  padding: var(--spacing-2xl);
+}
+
+/* ─── CARD ──────────────────────────────────────────────────────── */
+.card {
+  margin-bottom: var(--spacing-lg);
+}
+
+.card h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-md);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid var(--color-border-light);
+}
+
+/* ─── SETTING ITEM ─────────────────────────────────────────────── */
+.setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-lg) 0;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.setting-item:last-child {
+  border-bottom: none;
+}
+
+.setting-label {
+  flex: 1;
+}
+
+.setting-label h4 {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-dark);
+  margin-bottom: var(--spacing-xs);
+}
+
+.setting-label p {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-light);
+  margin: 0;
+}
+
+/* ─── FORM GROUP ──────────────────────────────────────────────── */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  width: 250px;
+}
+
+.form-group label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.form-group select {
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-size-base);
+  font-family: var(--font-family-base);
+  height: 44px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-dark);
+  background: var(--color-input-bg);
+  transition: border-color var(--transition-fast);
+  outline: none;
+}
+
+.form-group select:focus {
+  border-color: var(--color-primary);
+  background: var(--color-white);
+}
+
+/* ─── RADIO GROUP ─────────────────────────────────────────────── */
+.radio-group {
+  display: flex;
+  gap: var(--spacing-lg);
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+}
+
+.radio-option input[type="radio"] {
+  width: 17px;
+  height: 17px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.radio-option label {
+  font-size: var(--font-size-base);
+  color: var(--color-text-dark);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+/* ─── TOGGLE SWITCH ───────────────────────────────────────────── */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-track {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: var(--color-border);
+  transition: var(--transition-base);
+  border-radius: 28px;
+}
+
+.toggle-track::before {
+  position: absolute;
+  content: "";
+  height: 22px;
+  width: 22px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--color-white);
+  transition: var(--transition-base);
+  border-radius: 50%;
+  box-shadow: var(--shadow-xs);
+}
+
+input:checked + .toggle-track {
+  background-color: var(--color-primary);
+}
+
+input:checked + .toggle-track::before {
+  transform: translateX(22px);
+}
+
+/* ─── DANGER CARD (mantendo identidade antiga) ─────────────── */
+.danger-card {
+  border: 1.5px solid var(--color-danger-light);
+  background: #fff8f8;
+  margin-bottom: var(--spacing-2xl);
+}
+
+.danger-card h3 {
+  color: var(--color-danger);
+  border-bottom-color: var(--color-danger-light);
+}
+
+.danger-card .setting-item {
+  border-bottom-color: #fde8e8;
+}
+
+/* ─── FOOTER ACTIONS ─────────────────────────────────────────── */
+.footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-md);
+  margin: var(--spacing-xl) 0;
+}
+
+/* ─── RESPONSIVO ─────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .configuracoes-page {
+    padding: var(--spacing-lg);
+  }
+
+  .form-group {
+    width: 100%;
+  }
+
+  .radio-group {
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .setting-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .toggle-switch {
+    align-self: flex-start;
+  }
+
+  .footer-actions {
+    flex-direction: column-reverse;
+  }
+}

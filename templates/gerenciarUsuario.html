@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciar usuários — FrequenIA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/gerenciarUsuario.css') }}">
+</head>
+<body>
+  <div class="gerenciar-usuarios">
+    <div class="card">
+      <div class="top-bar">
+        <input type="text" id="search" class="search-input" placeholder="Nome, CPF ou matrícula">
+        <select id="statusFilter" onchange="filtrar()">
+          <option value="todos">Todos os status</option>
+          <option value="ativo">Ativos</option>
+          <option value="afastado">Afastados</option>
+          <option value="desligado">Desligados</option>
+        </select>
+      </div>
+      <table class="table">
+        <thead><tr><th>Nome</th><th>CPF</th><th>Matrícula</th><th>Empresa</th><th>Unidade</th><th>Equipe</th><th>Cargo</th><th>Status</th><th>Ações</th></tr></thead>
+        <tbody id="tabela"></tbody>
+      </table>
+    </div>
+  </div>
+  <script>
+    let dados = [];
+    const escapeHtml = (value) => String(value ?? "").replace(/[&<>'"]/g, (character) => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"})[character]);
+
+    async function carregarUsuarios() {
+      const response = await fetch("/listarUsuarios");
+      dados = response.ok ? await response.json() : [];
+      render(dados);
+    }
+
+    function render(lista) {
+      const tabela = document.getElementById("tabela");
+      if (!lista.length) {
+        tabela.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px">Nenhum vínculo encontrado.</td></tr>';
+        return;
+      }
+      tabela.innerHTML = lista.map((item) => `<tr>
+        <td>${escapeHtml(item.nome)}</td><td>${escapeHtml(item.cpf)}</td><td>${escapeHtml(item.matricula)}</td>
+        <td>${escapeHtml(item.empresa)}</td><td>${escapeHtml(item.unidade)}</td><td>${escapeHtml(item.equipe)}</td>
+        <td>${escapeHtml(item.cargo)}</td><td><span class="status ${escapeHtml(item.status)}">${escapeHtml(item.status)}</span></td>
+        <td><a href="/editarUsuario?funcionario_id=${encodeURIComponent(item.funcionario_id)}" class="btn-acao">Editar</a></td>
+      </tr>`).join("");
+    }
+
+    function filtrar() {
+      const texto = document.getElementById("search").value.toLowerCase();
+      const status = document.getElementById("statusFilter").value;
+      const filtrados = dados.filter((item) => {
+        const correspondeTexto = !texto || item.nome.toLowerCase().includes(texto) || item.cpf.includes(texto) || item.matricula.toLowerCase().includes(texto);
+        return correspondeTexto && (status === "todos" || item.status === status);
+      });
+      render(filtrados);
+    }
+
+    document.getElementById("search").addEventListener("input", filtrar);
+    carregarUsuarios();
+  </script>
+</body>
+</html>

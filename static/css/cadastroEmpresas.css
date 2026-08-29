@@ -1,0 +1,155 @@
+.container {
+    padding: var(--spacing-2xl);
+    margin: 0 auto;
+}
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-lg);
+}
+
+.grid-3 {
+    display: grid;
+    grid-template-columns: 2fr 1fr 2fr;
+    gap: var(--spacing-lg);
+}
+
+.mt {
+    margin-top: var(--spacing-lg);
+}
+
+.telefone-linha {
+    display: grid;
+    grid-template-columns: 120px 1fr 1fr 110px 50px;
+    gap: var(--spacing-md);
+    align-items: center;
+}
+
+.btn-primary.full {
+    width: 25%;
+    margin: var(--spacing-xl) auto 0;
+    display: block;
+}
+
+#emails input {
+    margin-bottom: var(--spacing-sm);
+}
+
+@media (max-width: 768px) {
+    .grid-2,
+    .grid-3,
+    .telefone-linha {
+        grid-template-columns: 1fr;
+    }
+}
+
+.email-linha {
+    display: grid;
+    grid-template-columns: 1fr 110px 50px;
+    gap: var(--spacing-md);
+    align-items: center;
+}
+
+
+select {
+    height: auto !important;
+    min-height: 44px;
+    padding: var(--spacing-md) var(--spacing-lg);
+    line-height: 1.2;
+}
+
+.telefone-linha select {
+    padding-right: var(--spacing-lg);
+}
+
+input, select {
+    display: flex;
+    align-items: center;
+}
+
+/* BOTÃO + */
+.btn-add {
+    font-size: 22px;
+}
+
+.btn-add-email {
+    font-size: 22px;
+}
+
+/* ─── DARK MODE: CADASTRO EMPRESAS ───────────────────────── */
+
+body.dark-mode .container {
+    background-color: var(--background-color);
+}
+
+/* textos */
+body.dark-mode label,
+body.dark-mode h2 {
+    color: var(--text-color);
+}
+
+/* inputs e selects (reforço, caso algum estilo sobrescreva) */
+body.dark-mode input,
+body.dark-mode select {
+    background-color: #1e1e1e;
+    color: #f1f1f1;
+    border: 1px solid var(--card-border);
+}
+
+/* placeholders */
+body.dark-mode input::placeholder {
+    color: var(--muted-text);
+}
+
+/* cards (caso não esteja herdando corretamente) */
+body.dark-mode .card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-color);
+}
+
+/* botões */
+body.dark-mode .btn-primary {
+    background: var(--color-primary);
+    color: #fff;
+}
+
+body.dark-mode .btn-primary:hover {
+    background: var(--color-primary-dark);
+}
+
+body.dark-mode .btn-secondary {
+    background: var(--color-primary);
+    color: var(--color-primary);
+    border: 1px solid var(--muted-text);
+}
+
+/* linhas dinâmicas (telefones/emails) */
+body.dark-mode .telefone-linha,
+body.dark-mode .email-linha {
+    color: var(--text-color);
+}
+
+/* selects (dropdown aberto melhora visual) */
+body.dark-mode select option {
+    background: #1e1e1e;
+    color: #f1f1f1;
+}
+
+/* ─── BOTÕES DE AÇÃO (ADICIONAR / REMOVER) NO DARK MODE ─── */
+
+body.dark-mode .btn-add,
+body.dark-mode .telefone-linha .btn-secondary,
+body.dark-mode .email-linha .btn-secondary {
+    background: var(--color-primary);
+    color: #ffffff;
+    border: none;
+}
+
+/* hover */
+body.dark-mode .btn-add:hover,
+body.dark-mode .telefone-linha .btn-secondary:hover,
+body.dark-mode .email-linha .btn-secondary:hover {
+    background: var(--color-primary-dark);
+}

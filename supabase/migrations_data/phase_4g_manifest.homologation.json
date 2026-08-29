@@ -1,0 +1,26 @@
+{
+  "phase": "4G",
+  "created_users": [
+    "084bdc2f-835e-4c60-92e3-5a5ee628face",
+    "7e5e8dbd-f562-41b5-8c9e-a27bb1c4c86c",
+    "9787bb11-878a-42a0-a74e-7982a7abac31",
+    "8853e2af-01be-4832-92c5-f34969792507"
+  ],
+  "created_employees": [
+    "6af5b98a-8767-47bb-bf48-2488e56ed511",
+    "e99952da-af2c-4d84-ba1f-c319f9580413",
+    "82d85e0d-47bd-422a-9b24-318d19355c05",
+    "7b6b2ca7-7223-446c-9991-87f7ff31e32b"
+  ],
+  "created_tokens": [
+    "6251c06b-dd3e-4fcf-9e67-af9f197b4429",
+    "364c8867-5531-4509-a015-7af83cd06a0f",
+    "5fd35caa-de3a-43ac-b6af-85b1ab82bd23",
+    "fc0e6b73-6a46-43ab-851e-2c7f799d009b"
+  ],
+  "created_units": [],
+  "created_teams": [
+    "057f5bc4-915e-43c3-b05a-b7a9c1d8a0da"
+  ],
+  "created_roles": []
+}

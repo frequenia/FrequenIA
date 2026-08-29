@@ -1,0 +1,109 @@
+body {
+    /* pagina inteira */
+    font-family: montserrat;
+    background: #F2F2F2;
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.login-container {
+    width: 450px;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+}
+
+span {
+    /* cor preta do WORKsync */
+    color: black;
+}
+
+.login-header {
+    font-family: montserrat;
+    background: #0F5C8C;
+    color: white;
+    text-align: center;
+    padding: 15px;
+    font-weight: bold;
+    font-size: 30px;
+}
+
+.login-body {
+    font-family: montserrat;
+    padding-left: 40px;
+    padding-right: 40px;
+    text-align: center;
+}
+
+.login-body input {
+    font-family: montserrat;
+    width: 100%;
+    padding: 8px 10px;
+    margin-top: 15px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #F2F2F2;
+    font-size: 15px;
+}
+
+.login-body button {
+    padding: 8px;
+    background: #0F5C8C;
+    align-items: center;
+    color: #fff;
+    font-family: montserrat;
+    border: none;
+    border-radius: 4px;
+    font-size: 20px;
+    font-weight: 500;
+    cursor: pointer;
+    height: 25%;
+    width: 100%;
+    margin-top: 10px;
+    /* espaço entre os campos e o botão */
+}
+
+.login-body button:hover {
+    background: #0C4A70;
+}
+
+.login-body a {
+    font-size: 13px;
+    color: #555;
+    text-decoration: underline;
+}
+
+.senha {
+    display: block;
+    margin-top: 10px;
+}
+
+footer {
+    margin-top: 20px;
+    font-size: 12px;
+    color: #999;
+}
+
+.login-body input,
+.login-body button {
+    box-sizing: border-box;
+}
+
+.login-body h3 {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 5px;
+    /* aproxima do texto */
+}
+
+.login-body label {
+    margin-top: 5px;
+    /* aproxima do título */
+}

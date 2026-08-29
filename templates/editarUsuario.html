@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editar vínculo — FrequenIA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/editarUsuario.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+</head>
+<body>
+  <form id="formCadastro" data-funcionario-id="{{ usuario.funcionario_id }}">
+    <div class="perfil-page">
+      <section class="card">
+        <h3>Identidade</h3>
+        <div class="grid">
+          <div class="campo"><label for="nome">Nome</label><input type="text" id="nome" class="campo-editavel" value="{{ usuario.nome }}" readonly required></div>
+          <div class="campo"><label for="email">E-mail</label><input type="email" id="email" class="campo-editavel" value="{{ usuario.email }}" readonly required></div>
+          <div class="campo"><label for="telefone">Telefone</label><input type="text" id="telefone" class="campo-editavel" value="{{ usuario.telefone or '' }}" readonly required></div>
+          <div class="campo"><label for="cpf">CPF</label><input type="text" id="cpf" class="campo-editavel" value="{{ usuario.cpf }}" readonly required></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>Vínculo funcional</h3>
+        <div class="grid">
+          <div class="campo"><label for="empresa">Empresa</label><select id="empresa" class="campo-editavel" disabled data-value="{{ usuario.empresa_id }}"></select></div>
+          <div class="campo"><label for="unidade">Unidade</label><select id="unidade" class="campo-editavel" disabled data-value="{{ usuario.unidade_id }}"></select></div>
+          <div class="campo"><label for="equipe">Equipe</label><select id="equipe" class="campo-editavel" disabled data-value="{{ usuario.equipe_id }}"></select></div>
+          <div class="campo"><label for="cargo">Cargo</label><select id="cargo" class="campo-editavel" disabled data-value="{{ usuario.cargo_id }}"></select></div>
+          <div class="campo"><label for="matricula">Matrícula</label><input type="text" id="matricula" class="campo-editavel" value="{{ usuario.matricula }}" readonly required></div>
+          <div class="campo">
+            <label for="perfil">Perfil funcional</label>
+            <select id="perfil" class="campo-editavel" disabled data-value="{{ usuario.perfil }}">
+              <option value="funcionario">Funcionário</option><option value="gestor">Gestor</option>
+              <option value="rh">RH</option><option value="administrador">Administrador</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="tipo_contrato">Tipo de contrato</label>
+            <select id="tipo_contrato" class="campo-editavel" disabled data-value="{{ usuario.tipo_contrato }}">
+              <option value="efetivo">Efetivo</option><option value="comissionado">Comissionado</option>
+              <option value="temporario">Temporário</option><option value="estagiario">Estagiário</option>
+              <option value="terceirizado">Terceirizado</option><option value="outro">Outro</option>
+            </select>
+          </div>
+          <div class="campo"><label for="data_admissao">Data de admissão</label><input type="date" id="data_admissao" class="campo-editavel" value="{{ usuario.data_admissao }}" readonly required></div>
+          <div class="campo"><label for="carga_horaria">Carga horária semanal</label><input type="number" id="carga_horaria" class="campo-editavel" value="{{ usuario.carga_horaria_semanal }}" min="1" max="168" step="0.5" readonly required></div>
+        </div>
+      </section>
+
+      <div class="acoes">
+        <button type="button" class="btn-primary" onclick="alterarDados()">Alterar dados</button>
+        <button type="button" id="btnSalvar" class="btn-primary" style="display:none" onclick="salvarAlteracoes()">Salvar</button>
+        <button type="button" id="btnStatus" class="btn-primary" data-status="{{ usuario.status }}" onclick="atualizarStatus()"></button>
+      </div>
+    </div>
+  </form>
+  <script src="{{ url_for('static', filename='js/editarUsuario.js') }}"></script>
+</body>
+</html>

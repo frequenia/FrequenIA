@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FrequenIA | Recuperar Senha </title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/recuperacaoSenha.css') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap"
+    rel="stylesheet">
+
+</head>
+
+<body>
+
+  <div class="login-container">
+
+    <div class="login-header">
+      <span>WORK</span>SYNC
+    </div>
+
+    <div class="login-body">
+      <h3> Recuperar senha </h3>
+      <label>Informe seu e-mail. Se a conta for elegível, as instruções serão disponibilizadas pelo canal autorizado.</label>
+      <input type="text" id="email" placeholder="E-mail">
+    </div>
+    <div class="login-body">
+<button onclick="enviarCodigo()">Enviar código</button>
+      <a class="senha" href="/login-page">Voltar</a>
+      <br>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/login.js') }}"></script>
+  </div>
+
+  <footer>
+    Copyright FrequenIA © 2026
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/login.js') }}"></script>
+</body>
+
+</html>

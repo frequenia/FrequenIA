@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FrequenIA | Recuperar Senha </title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/redefinicaoSenha.css') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap"
+    rel="stylesheet">
+
+</head>
+
+<body>
+
+  <div class="login-container">
+
+    <div class="login-header">
+      <spam>WORK</spam>SYNC
+    </div>
+
+    <div class="login-body">
+      <h3> Nova senha: </h3>
+      <div class="password-box">
+        <input type="password" id="novaSenha" placeholder="Nova senha" maxlength="12" oninput="validarSenha()">
+        <span class="toggle show" onclick="toggleSenha(this)">
+          <svg class="eye" viewBox="0 0 24 24">
+            <path d="M12 5C5 5 1 12 1 12s4 7 11 7 11-7 11-7-4-7-11-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8" />
+            <line class="eye-slash" x1="3" y1="3" x2="21" y2="21" />
+          </svg>
+        </span>
+      </div>
+
+      <div class="senha-requisitos">
+        <div class="barra">
+          <span id="forca"></span>
+        </div>
+
+        <p>A senha deve:</p>
+        <ul>
+          <li id="req-tamanho">Conter de 8-12 caracteres.</li>
+          <li id="req-letra">Conter 1 ou mais letras minúsculas (a-z).</li>
+          <li id="req-letraMai">Conter 1 ou mais letras maiúsculas (A-Z).</li>
+          <li id="req-numero">Conter 1 ou mais números (0-9).</li>
+          <li id="req-especial">Conter 1 ou mais símbolos especiais (@ # $).</li>
+        </ul>
+      </div>
+
+      <div class="password-box">
+        <input type="password" id="confirmarSenha" placeholder="Confirmar nova senha" maxlength="12"
+          oninput="validarConfirmacao()">
+
+        <span class="toggle show" onclick="toggleSenha(this)">
+          <svg class="eye" viewBox="0 0 24 24">
+            <path d="M12 5C5 5 1 12 1 12s4 7 11 7 11-7 11-7-4-7-11-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8" />
+            <line class="eye-slash" x1="3" y1="3" x2="21" y2="21" />
+          </svg>
+        </span>
+      </div>
+
+      <p id="erroSenha" class="erro-senha" style="display:none;">
+        As senhas não coincidem!
+      </p>
+
+    </div>
+    <div class="login-body">
+      <button onclick="redefinirSenhaFinal()">Confirmar</button>
+      <a class="senha" onclick="history.back(-1)">Voltar</a>
+    </div>
+  </div>
+
+  <footer>
+    Copyright FrequenIA © 2026
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/redefinicaoSenha.js') }}"></script>
+</body>
+
+</html>

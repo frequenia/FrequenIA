@@ -1,0 +1,207 @@
+body {
+  /* pagina inteira */
+  font-family: montserrat;
+  background: #F2F2F2;
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.login-container {
+  width: 450px;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+}
+
+spam {
+  /* cor preta do WORKsync */
+  color: black;
+}
+
+.login-header {
+  font-family: montserrat;
+  background: #0F5C8C;
+  color: white;
+  text-align: center;
+  padding: 15px;
+  font-weight: bold;
+  font-size: 30px;
+}
+
+.login-body {
+  font-family: montserrat;
+  padding-left: 40px;
+  padding-right: 40px;
+  text-align: center;
+}
+
+.login-body input {
+  font-family: montserrat;
+  width: 100%;
+  padding: 8px 10px;
+  margin-top: 15px;
+  margin-bottom: 15px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #F2F2F2;
+  font-size: 15px;
+}
+
+.login-body button {
+  padding: 8px;
+  background: #0F5C8C;
+  align-items: center;
+  color: #fff;
+  font-family: montserrat;
+  border: none;
+  border-radius: 4px;
+  font-size: 20px;
+  font-weight: 500;
+  cursor: pointer;
+  height: 25%;
+  width: 100%;
+  margin-top: 3px;
+  /* espaço entre os campos e o botão */
+}
+
+.login-body button:hover {
+  background: #0C4A70;
+}
+
+.login-body a {
+  font-size: 13px;
+  color: #555;
+  text-decoration: underline;
+}
+
+.senha {
+  display: block;
+  margin-top: 10px;
+  margin-bottom: 18px;
+  cursor: pointer;
+}
+
+footer {
+  margin-top: 20px;
+  font-size: 12px;
+  color: #999;
+}
+
+.login-body input,
+.login-body button {
+  box-sizing: border-box;
+}
+
+.login-body h3 {
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 5px;
+  /* aproxima do texto */
+}
+
+.login-body label {
+  margin-top: 5px;
+  /* aproxima do título */
+}
+
+.senha-requisitos {
+  text-align: left;
+  font-size: 15px;
+  color: #777;
+}
+
+.senha-requisitos ul {
+  padding-left: 18px;
+  margin-top: 5px;
+  margin-bottom: 6px;
+}
+
+.senha-requisitos li {
+  list-style: none;
+  margin-bottom: 4px;
+}
+
+.senha-requisitos li::before {
+  content: "● ";
+  color: #bbb;
+}
+
+.senha-requisitos li.ok {
+  color: #1db954;
+}
+
+.senha-requisitos li.ok::before {
+  content: "✔ ";
+  color: #1db954;
+}
+
+/* Barra de força */
+.barra {
+  width: 100%;
+  height: 6px;
+  background: #ddd;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+#forca {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: red;
+  border-radius: 4px;
+  transition: width 0.3s, background 0.3s;
+}
+
+input.erro {
+  border: 1px solid red;
+}
+
+input.ok {
+  border: 1px solid #1db954;
+}
+
+.erro-senha {
+  margin-top: 2px;
+  font-size: 16px;
+  color: red;
+  text-align: left;
+}
+
+.password-box {
+  position: relative;
+}
+
+.password-box input {
+  padding-right: 40px;
+}
+
+.toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.eye {
+  width: 20px;
+  height: 20px;
+  fill: #777;
+}
+
+.eye-slash {
+  stroke: #777;
+  stroke-width: 2;
+  display: none;
+}
+
+.toggle.show .eye-slash {
+  display: block;
+}

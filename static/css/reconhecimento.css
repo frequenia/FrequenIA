@@ -1,0 +1,158 @@
+body {
+  background: #f2f4f8;
+    font-family: Montserrat;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+.fundo-cadastro {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08);
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+}
+
+.quadrocima {
+  display: flex;
+  gap: 40px;
+}
+
+.registro, .info {
+  font-family: Montserrat;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #f4f4f4;
+  border-radius: 12px;
+  padding: 30px;
+  width: 300px;
+}
+
+.tituloreg {
+  font-family: Montserrat;
+  font-size: 18px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #0f5c8c;
+  color: #fff;
+  font-weight: 600;
+  width: 90%;
+  text-align: center;
+}
+
+.dataehora {
+    font-size: 20px;
+    font-weight: 500px;
+    margin-top: 30px;
+}
+
+.camera {
+  width: 200px;
+  height: 200px;
+  background: #d9d9d9;
+  border-radius: 50%;
+  margin-bottom: 30px;
+}
+
+button {
+  font-size: 16px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #0f5c8c;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: 0.3s ease;
+}
+
+button:hover {
+  background: #0C4A70;
+}
+
+.orientacoes {
+  background: #f4f4f4;
+  padding: 25px 40px;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 640px;
+}
+
+.orientacoes h4 {
+  font-size: 15px;
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+
+.orientacoes li {
+  margin-bottom: 10px;
+  padding-left: 25px;
+  position: relative;
+}
+
+/* ==========================================
+   POPUP CONFIRMAÇÃO
+   ========================================== */
+
+.popup-confirmacao-card {
+    border: 3px solid #0f5c8c;
+    box-shadow:
+        0 0 0 3px rgba(15, 92, 140, 0.15),
+        0 20px 45px rgba(0, 0, 0, 0.35);
+}
+
+.popup-topo-confirmacao {
+    background: linear-gradient(135deg, #0f5c8c 0%, #0c4a70 100%);
+}
+
+.popup-conf-pergunta {
+    font-size: 15px;
+    color: rgba(0, 0, 0, 0.55);
+    font-weight: 500;
+    text-align: center;
+    margin: 0 0 20px;
+    letter-spacing: 0.3px;
+}
+
+.popup-conf-botoes {
+    display: flex;
+    gap: 12px;
+    margin-top: 26px;
+}
+
+.popup-conf-botoes .popup-btn {
+    flex: 1;
+    margin-top: 0;
+}
+
+.popup-btn-confirmar {
+    background: #1fa37c;
+}
+
+.popup-btn-confirmar:hover {
+    background: #178a68;
+}
+
+.popup-btn-negar {
+    background: #c96a45;
+}
+
+.popup-btn-negar:hover {
+    background: #a8522f;
+}
+
+@media (max-width: 480px) {
+    .popup-conf-botoes {
+        flex-direction: column;
+        gap: 10px;
+    }
+}

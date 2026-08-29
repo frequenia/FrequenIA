@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meu Perfil — FrequenIA</title>
+
+  <!-- Fonte Montserrat -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- CSS Global (SEMPRE PRIMEIRO) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
+  <!-- CSS Específico -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/perfil.css') }}">
+
+  <!--Dark-mode-->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+
+</head>
+
+<body>
+
+  <div class="perfil-page">
+
+    <!-- DADOS PESSOAIS -->
+    <section class="card">
+      <h3>Dados Pessoais</h3>
+
+      <div class="dados-pessoais">
+        <div class="foto">Foto</div>
+
+        <div class="campos">
+          <div class="campo">
+            <label>Nome</label>
+            <input type="text" id="nome" value="{{ user.nome }}" readonly>
+          </div>
+
+          <div class="campo">
+            <label>Email</label>
+            <input type="email" id="email" value="{{ user.email }}" readonly>
+          </div>
+
+          <div class="campo">
+            <label>Telefone</label>
+            <input type="text" id="telefone" value="{{ user.telefone }}" readonly>
+          </div>
+
+          <div class="campo">
+            <label>CPF</label>
+            <input type="text" id="cpf" value="{{ user.cpf }}" readonly>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DADOS DO TRABALHADOR -->
+    <section class="card">
+      <h3>Dados do Trabalhador</h3>
+
+      <div class="grid">
+        <div class="campo campo-cargo">
+          <label>Cargo</label>
+          <input type="text" id="cargo" value="{{ user.cargo_nome if user.cargo_nome else 'Sem cargo' }}" disabled>
+        </div>
+
+        <div class="campo">
+          <label>Setor</label>
+          <input type="text" id="setor" value="{{ user.setor_nome if user.setor_nome else 'Sem setor' }}" disabled>
+        </div>
+
+        <div class="campo">
+          <label>Tipo de Perfil</label>
+          <input type="text" id="tipo_perfil"
+            value="{{ 'Administrador' if user.tipo_perfil == 'admin' else 'Colaborador' if user.tipo_perfil == 'funcionario' else user.tipo_perfil }}"
+            disabled>
+        </div>
+
+        <div class="campo">
+          <label>Data de Admissão</label>
+          <input type="text" id="data_admissao" disabled>
+        </div>
+
+        <div class="campo">
+          <label>Tipo de Contrato</label>
+          <input type="text" id="tipo_contrato" disabled>
+        </div>
+
+        <div class="campo">
+          <label>Carga Horária</label>
+          <input type="text" id="carga_horaria" disabled>
+        </div>
+
+        <div class="campo">
+          <label>Jornada Padrão</label>
+          <input type="text" id="jornada_padrao" disabled>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script src="{{ url_for('static', filename='js/perfil.js') }}"></script>
+
+</body>
+
+</html>

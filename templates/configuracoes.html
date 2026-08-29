@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configurações</title>
+
+  <!-- Fonte Montserrat -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- CSS Global -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+  <!-- CSS Específico -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/configuracoes.css') }}">
+</head>
+
+<body>
+
+<div class="configuracoes-page">
+
+  <!-- CARD: PREFERÊNCIAS (TEMA + NOTIFICAÇÕES) -->
+  <div class="card">
+    <h3>Preferências</h3>
+
+    <div class="setting-item">
+      <div class="setting-label">
+        <h4>Tema</h4>
+        <p>Escolha entre tema claro ou escuro</p>
+      </div>
+      <div class="radio-group">
+        <div class="radio-option">
+          <input type="radio" id="tema-light" name="tema" value="light" checked>
+          <label for="tema-light">Claro</label>
+        </div>
+        <div class="radio-option">
+          <input type="radio" id="tema-dark" name="tema" value="dark">
+          <label for="tema-dark">Escuro</label>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+        <!-- FOOTER: BOTÃO SALVAR -->
+    <div class="footer-actions">
+      <button class="btn btn-secondary" id="cancelar-config">Cancelar</button>
+      <button class="btn btn-primary" id="salvar-config">Salvar</button>
+    </div>
+
+  <!-- CARD: SEGURANÇA -->
+  <div class="card danger-card">
+    <h3>Segurança</h3>
+
+    <div class="setting-item">
+      <div class="setting-label">
+        <h4>Redefinir senha</h4>
+        <p>Altere sua senha de acesso ao sistema</p>
+      </div>
+      <a href="/redefinicaoSenha">
+        <button class="btn btn-secondary">Redefinir</button>
+      </a>
+    </div>
+
+    <div class="setting-item">
+      <div class="setting-label">
+        <h4>Fazer logout</h4>
+        <p>Sair de sua conta e voltar à tela de login</p>
+      </div>
+      <a href="#" onclick="logout(event)">
+        <button class="btn btn-secondary">Sair</button>
+      </a>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/dark-mode.js') }}"></script>
+<script src="{{ url_for('static', filename='js/menu.js') }}"></script>
+<script src="{{ url_for('static', filename='js/configuracoes.js') }}"></script>
+</body>
+</html>

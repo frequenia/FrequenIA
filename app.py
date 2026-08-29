@@ -30,6 +30,18 @@ except ValueError as exc:
 if jwt_access_token_minutes <= 0:
     raise RuntimeError("JWT_ACCESS_TOKEN_MINUTES must be a positive integer.")
 
+try:
+    password_reset_token_minutes = int(os.getenv("PASSWORD_RESET_TOKEN_MINUTES", "30"))
+except ValueError as exc:
+    raise RuntimeError("PASSWORD_RESET_TOKEN_MINUTES must be a positive integer.") from exc
+
+if password_reset_token_minutes <= 0:
+    raise RuntimeError("PASSWORD_RESET_TOKEN_MINUTES must be a positive integer.")
+
+password_reset_test_key = os.getenv("PASSWORD_RESET_TEST_KEY", "")
+if APP_ENV == "production" and password_reset_test_key:
+    raise RuntimeError("PASSWORD_RESET_TEST_KEY cannot be enabled in production.")
+
 cors_origins = [
     origin.strip()
     for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
@@ -40,9 +52,12 @@ if "*" in cors_origins:
     raise RuntimeError("CORS_ALLOWED_ORIGINS must contain explicit origins.")
 
 app = Flask(__name__)
+app.config["APP_ENV"] = APP_ENV
 app.config["SECRET_KEY"] = secret_key
 app.config["JWT_SECRET_KEY"] = jwt_secret_key
 app.config["JWT_ACCESS_TOKEN_MINUTES"] = jwt_access_token_minutes
+app.config["PASSWORD_RESET_TOKEN_MINUTES"] = password_reset_token_minutes
+app.config["PASSWORD_RESET_TEST_KEY"] = password_reset_test_key
 
 if cors_origins:
     CORS(app, origins=cors_origins, supports_credentials=True)

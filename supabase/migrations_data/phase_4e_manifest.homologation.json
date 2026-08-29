@@ -1,0 +1,27 @@
+{
+  "phase": "4E",
+  "created_users": [
+    "d9b935de-c342-4dff-8fdd-b2108bd81d75",
+    "82fca6ff-719a-4338-9a22-49e2f1bab86c",
+    "7cb113dd-b207-4151-b16c-5fcc3544fe2b",
+    "1aea8682-17d0-4d47-8728-e1a26ddb7d5f"
+  ],
+  "created_employees": [
+    "59bbb908-4624-4ab0-b633-ba8971f8e9c9",
+    "066e2069-9e28-4cf7-954f-c2ae06a5af7d",
+    "662b34db-9a80-4d0b-a69c-0a314f1326ef",
+    "3f95a603-ea12-41aa-8693-9fa190ec0ea1"
+  ],
+  "created_units": [
+    "629159ea-dadc-4360-9bb4-b9d917ce5fb3"
+  ],
+  "created_teams": [
+    "1fb33243-e822-4b5e-bdd5-25561f87ca85",
+    "43dd5dac-bb72-4bf0-841e-394c18ad4dfa"
+  ],
+  "created_roles": [
+    "d3d19d85-e930-4981-a473-c7c86db366c9",
+    "4c8847de-a32e-4f1f-9b7f-3d8920cec148",
+    "18952db6-2312-4701-85e6-51593e07c46f"
+  ]
+}

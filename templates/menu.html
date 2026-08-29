@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FrequenIA</title>
+
+  <!-- CSS Global (SEMPRE PRIMEIRO) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
+  <!-- CSS Específico -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+
+  <!-- Fonte -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <span class="logo">
+      <span>FREQUEN</span><span>IA</span>
+    </span>
+
+    <!---
+    <div id="status" class="status-container"></div>
+    -->
+
+    <div class="topbar-right">
+      <!-- PROFILE LINK -->
+      <a href="/perfil" target="conteudo" class="profile-link">
+        <div class="profile-avatar-topbar" id="profileAvatar">
+          <span id="profileInitials">--</span>
+        </div>
+        <span class="profile-name-topbar" id="profileName">Usuário</span>
+      </a>
+
+      <div class="topbar-separator"></div>
+
+      <div id="relogio">
+        <div id="hora"></div>
+        <div id="data"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- LAYOUT PRINCIPAL -->
+  <div class="layout">
+
+    <!-- SIDEBAR (Menu Lateral) -->
+    <aside class="sidebar">
+      <ul>
+        <li>
+          <a href="/controleponto" target="conteudo">
+            {% if tipo in ['admin', 'administrador'] %}
+            Controle de Pontos
+            {% else %}
+            Meu Ponto
+            {% endif %}
+          </a>
+        </li>
+        <!-- <li><a href="/inicio" >Registro de ponto</a></li> -->
+      {% if tipo in ['admin', 'administrador'] %}
+        <li class="divider"></li>
+        <li><a href="/gerenciarUsuario" id="gerenciamentous" target="conteudo">Gerenciar usuários</a></li>
+        <!---
+        <li><a href="/gerenciarEmpresa" id="gerenciamentoemp" target="conteudo">Gerenciar (Empresas)</a></li>
+        -->
+        <li><a href="/cadastroUsuario" target="conteudo">Cadastro</a></li>
+        <!---
+        <li><a href="/cadastroEmpresas" target="conteudo">Cadastro (Empresas)</a></li>
+        -->
+        <li><a href="/cadastrarFoto" target="conteudo">Cadastro facial</a></li>
+      {% endif %}
+              <li><a href="/configuracoes" target="conteudo">Configurações</a></li>
+      </ul>
+    </aside>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="content">
+      <iframe src="/controleponto" name="conteudo" class="iframe-content"></iframe>
+    </main>
+
+  </div>
+
+  <script>
+    const usuarioNome = "{{ nome }}";
+    const usuarioEmail = "{{ email }}";
+    const usuarioFoto = "{{ foto }}";
+  </script>
+
+  <!-- SCRIPTS -->
+  <script src="{{ url_for('static', filename='js/menu.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/dark-mode.js') }}"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro de Biometria - FrequenIA</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/cadastroFoto.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+    <div class="facial-page">
+        <div class="facial-content">
+
+            <!-- CAMERA CARD -->
+            <div class="card camera-card">
+                <!-- Select de Usuário -->
+                <select id="nome">
+                    <option value="" disabled selected>Selecione um usuário</option>
+                </select>
+
+                <!-- Camera Container -->
+                <div class="camera-container">
+                    <video id="video" class="camera-video" autoplay playsinline></video>
+
+                    <div class="camera-placeholder">
+                        <div class="camera-placeholder-bg"></div>
+                        <div class="camera-frame-guide"></div>
+                        <p class="camera-status">Câmera desativada</p>
+                    </div>
+                </div>
+
+                <!-- Contador -->
+                <p id="contador">Foto 0 de 5</p>
+
+                <!-- Barra de Progresso -->
+                <div class="barra">
+                    <div class="barra-preenchimento" id="barra"></div>
+                </div>
+            </div>
+
+            <!-- BOTÕES -->
+            <div class="button-container">
+                <button id="btnCapturar" class="btn-primary" type="button">Capturar Foto</button>
+                <button id="btnInstrucoes" class="btn-secondary" type="button">Instruções</button>
+                <button id="btnVoltar" class="btn-secondary" type="button">Voltar</button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- MODAL DE INSTRUÇÕES -->
+    <div id="modal-instrucoes" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Instruções para Cadastro</h2>
+                <button id="btnFecharModal" class="modal-close" type="button">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="instructions-list">
+                    <div class="instruction-item">
+                        <div class="instruction-number">1</div>
+                        <p>Posicione o rosto de frente para a câmera</p>
+                    </div>
+                    <div class="instruction-item">
+                        <div class="instruction-number">2</div>
+                        <p>Mantenha o rosto centralizado</p>
+                    </div>
+                    <div class="instruction-item">
+                        <div class="instruction-number">3</div>
+                        <p>Esteja em um ambiente com iluminação adequada</p>
+                    </div>
+                    <div class="instruction-item">
+                        <div class="instruction-number">4</div>
+                        <p>Não utilize acessórios que obstruam o rosto (boné, óculos, etc)</p>
+                    </div>
+                    <div class="instruction-item">
+                        <div class="instruction-number">5</div>
+                        <p>Permaneça imóvel durante a captura</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- POPUP SUCESSO -->
+    <div id="popup-ponto" class="popup-overlay">
+        <div class="popup-card popup-sucesso">
+            <div class="popup-topo">
+                <div class="popup-icone-circulo">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="9" stroke="#ffffff" stroke-width="2"></circle>
+                        <path d="M8.5 12.3L10.8 14.6L15.7 9.5" stroke="#ffffff" stroke-width="2.4"
+                            stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                </div>
+
+                <h3>Cadastro Concluído!</h3>
+                <span>FrequenIA</span>
+            </div>
+
+            <div class="popup-corpo">
+                <div class="popup-linha">
+                    <div class="popup-icone-box">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="8" r="4" stroke="#239b73" stroke-width="2"></circle>
+                            <path d="M5 19c1.6-3 4-4.5 7-4.5s5.4 1.5 7 4.5" stroke="#239b73" stroke-width="2"
+                                stroke-linecap="round"></path>
+                        </svg>
+                    </div>
+                    <div class="popup-info">
+                        <p class="popup-label">FUNCIONÁRIO</p>
+                        <p class="popup-valor" id="popup-nome">—</p>
+                    </div>
+                </div>
+
+                <div class="popup-divisor"></div>
+
+                <div class="popup-linha">
+                    <div class="popup-icone-box">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="margin-top: 6px;">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
+                                stroke="#239b73" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                            <circle cx="12" cy="13" r="4" stroke="#239b73" stroke-width="2"></circle>
+                        </svg>
+                    </div>
+                    <div class="popup-info">
+                        <p class="popup-label">FOTOS CAPTURADAS</p>
+                        <p class="popup-valor" id="popup-fotos">5 de 5</p>
+                    </div>
+                </div>
+
+                <button id="btnFecharSucesso" class="popup-btn" type="button">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- POPUP ERRO -->
+    <div id="popup-erro" class="popup-overlay">
+        <div class="popup-card popup-erro-card">
+            <div class="popup-topo popup-topo-erro">
+                <div class="popup-icone-circulo">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="9" stroke="#ffffff" stroke-width="2"></circle>
+                        <path d="M9 9L15 15M15 9L9 15" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round">
+                        </path>
+                    </svg>
+                </div>
+
+                <h3>Erro no Cadastro</h3>
+                <span>FrequenIA</span>
+            </div>
+
+            <div class="popup-corpo">
+                <div class="popup-linha">
+                    <div class="popup-icone-box">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="8" stroke="#c35b36" stroke-width="2"></circle>
+                            <path d="M12 8v5" stroke="#c35b36" stroke-width="2" stroke-linecap="round"></path>
+                            <circle cx="12" cy="16.5" r="1" fill="#c35b36"></circle>
+                        </svg>
+                    </div>
+                    <div class="popup-info">
+                        <p class="popup-label">MOTIVO</p>
+                        <p class="popup-valor" id="popup-erro-mensagem">Erro ao processar cadastro.</p>
+                    </div>
+                </div>
+
+                <button id="btnFecharErro" class="popup-btn popup-btn-erro" type="button">Tentar Novamente</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/cadastrarFoto.js') }}"></script>
+
+</body>
+
+</html>

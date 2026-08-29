@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FrequenIA | Bater Ponto</title>
+
+  <!-- CSS Global (SEMPRE PRIMEIRO) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
+  <!-- CSS Específico -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/inicio.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+
+  <!-- Fonte -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+<div class="initial-page">
+    <div class="initial-content">
+        <div class="logo-container">
+            <h1 class="logo-text">FrequenIA</h1>
+        </div>
+        
+        <p class="subtitle">Sistema de Controle de Ponto</p>
+  <a href="/reconhecimentoFacial">
+        <button class="btn-time-tracking">Bater Ponto</button>
+      </a>
+        
+    </div>
+</div>
+
+</body>
+
+</html>

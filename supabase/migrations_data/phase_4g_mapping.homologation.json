@@ -1,0 +1,45 @@
+{
+  "authorized_source_user_ids": [34, 45, 49, 60],
+  "authorized_source_employee_ids": [20, 30, 31, 39],
+  "source_company_id": 1,
+  "company_id": "2fc04ab1-cb6a-4fcc-90b5-7d80216b9ab0",
+  "unit": {
+    "name": "Prefeitura - Unidade Piloto"
+  },
+  "sector_mappings": {
+    "2": {
+      "source_name": "RH",
+      "team_name": "RH"
+    },
+    "3": {
+      "source_name": "TI",
+      "team_name": "TI"
+    },
+    "4": {
+      "source_name": "Comercial",
+      "team_name": "Comercial"
+    }
+  },
+  "role_mappings": {
+    "1": {
+      "source_name": "Analista",
+      "cargo_name": "Analista"
+    },
+    "3": {
+      "source_name": "Gerente",
+      "cargo_name": "Gerente"
+    },
+    "4": {
+      "source_name": "Coordenador",
+      "cargo_name": "Coordenador"
+    }
+  },
+  "profile_mappings": {
+    "admin": "administrador",
+    "funcionario": "funcionario"
+  },
+  "contract_mappings": {
+    "clt": "efetivo",
+    "pj": "terceirizado"
+  }
+}
