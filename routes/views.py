@@ -16,7 +16,7 @@ from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 import hashlib
 import re
-from uuid import UUID
+from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 from utils.auth_decorator import access_token_required, login_required, require_roles
 from utils.schedules import (
@@ -58,6 +58,13 @@ ALLOWED_CONTRACT_TYPES = {
     "terceirizado",
     "outro",
 }
+ALLOWED_CLOCK_EVENT_TYPES = {
+    "entrada",
+    "saida_intervalo",
+    "retorno_intervalo",
+    "saida",
+}
+CLOCK_EVENT_MINIMUM_INTERVAL_SECONDS = 60
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
@@ -1923,6 +1930,218 @@ def get_jornada():
         return jsonify({"erro": str(exc)}), 400
     except Exception:
         return jsonify({"erro": "Não foi possível consultar a jornada."}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+
+def serializar_marcacao(marcacao):
+    return {
+        "id": str(marcacao["id"]),
+        "tipo": marcacao["tipo"],
+        "origem": marcacao["origem"],
+        "estado": marcacao["estado"],
+        "instante": marcacao["instante"].isoformat(),
+        "chave_idempotencia": str(marcacao["chave_idempotencia"]),
+    }
+
+
+def validar_identidade_ausente(dados=None):
+    dados = dados or {}
+    campos_proibidos = ("funcionario_id", "usuario_id", "empresa_id")
+    if any(dados.get(campo) not in (None, "") for campo in campos_proibidos):
+        raise ValueError("A operação pessoal não aceita identificadores de vínculo.")
+    if any(request.args.get(campo) not in (None, "") for campo in campos_proibidos):
+        raise ValueError("A operação pessoal não aceita identificadores de vínculo.")
+
+
+def chave_idempotencia_requisicao():
+    valor = request.headers.get("Idempotency-Key")
+    if valor in (None, ""):
+        return str(uuid4())
+    return uuid_obrigatorio(valor, "Idempotency-Key")
+
+
+def buscar_marcacao_por_idempotencia(cursor, empresa_id, chave_idempotencia):
+    cursor.execute(
+        """
+        SELECT id, funcionario_id, tipo, origem, estado, instante,
+               chave_idempotencia
+        FROM marcacoes
+        WHERE empresa_id = %s AND chave_idempotencia = %s
+        """,
+        (empresa_id, chave_idempotencia),
+    )
+    return cursor.fetchone()
+
+
+def listar_marcacoes_funcionario(cursor, empresa_id, funcionario_id):
+    cursor.execute(
+        """
+        SELECT id, tipo, origem, estado, instante, chave_idempotencia
+        FROM marcacoes
+        WHERE empresa_id = %s AND funcionario_id = %s
+        ORDER BY instante DESC, id DESC
+        """,
+        (empresa_id, funcionario_id),
+    )
+    return [serializar_marcacao(item) for item in cursor.fetchall()]
+
+
+@views_bp.route("/api/marcacoes", methods=["GET", "POST"])
+@require_roles("administrador", "funcionario", "gestor", "rh")
+def marcacoes_proprias():
+    conn = None
+    cursor = None
+    try:
+        dados = request.get_json(silent=True) or {}
+        validar_identidade_ausente(dados)
+        empresa_id = g.auth_context["empresa_id"]
+        funcionario_id = g.auth_funcionario_id
+
+        conn = conectar_bd()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        if request.method == "GET":
+            return jsonify(
+                {
+                    "marcacoes": listar_marcacoes_funcionario(
+                        cursor, empresa_id, funcionario_id
+                    )
+                }
+            ), 200
+
+        campos_controlados = (
+            "instante",
+            "origem",
+            "estado",
+            "tentativa_facial_id",
+            "chave_idempotencia",
+        )
+        if any(dados.get(campo) not in (None, "") for campo in campos_controlados):
+            raise ValueError("A requisição contém campos controlados pelo servidor.")
+
+        tipo = str(dados.get("tipo") or "").strip()
+        if tipo not in ALLOWED_CLOCK_EVENT_TYPES:
+            raise ValueError("Tipo de marcação inválido.")
+        chave_idempotencia = chave_idempotencia_requisicao()
+
+        cursor.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+            (f"{empresa_id}:{funcionario_id}",),
+        )
+        existente = buscar_marcacao_por_idempotencia(
+            cursor, empresa_id, chave_idempotencia
+        )
+        if existente:
+            conn.rollback()
+            if str(existente["funcionario_id"]) != str(funcionario_id):
+                return jsonify({"erro": "Chave de idempotência indisponível."}), 409
+            return jsonify(
+                {"marcacao": serializar_marcacao(existente), "reutilizada": True}
+            ), 200
+
+        cursor.execute(
+            """
+            SELECT id, tipo, origem, estado, instante, chave_idempotencia
+            FROM marcacoes
+            WHERE empresa_id = %s
+              AND funcionario_id = %s
+              AND instante >= clock_timestamp() - (%s * interval '1 second')
+            ORDER BY instante DESC, id DESC
+            LIMIT 1
+            """,
+            (
+                empresa_id,
+                funcionario_id,
+                CLOCK_EVENT_MINIMUM_INTERVAL_SECONDS,
+            ),
+        )
+        recente = cursor.fetchone()
+        if recente:
+            conn.rollback()
+            return (
+                jsonify(
+                    {
+                        "erro": "Já existe uma marcação registrada recentemente.",
+                        "codigo": "marcacao_recente",
+                        "marcacao": serializar_marcacao(recente),
+                    }
+                ),
+                409,
+            )
+
+        cursor.execute(
+            """
+            INSERT INTO marcacoes (
+                empresa_id, funcionario_id, tentativa_facial_id,
+                instante, tipo, origem, estado, chave_idempotencia
+            )
+            VALUES (%s, %s, NULL, clock_timestamp(), %s, 'manual',
+                    'confirmada', %s)
+            RETURNING id, tipo, origem, estado, instante, chave_idempotencia
+            """,
+            (empresa_id, funcionario_id, tipo, chave_idempotencia),
+        )
+        marcacao = cursor.fetchone()
+        conn.commit()
+        return jsonify({"marcacao": serializar_marcacao(marcacao)}), 201
+    except ValueError as exc:
+        if conn:
+            conn.rollback()
+        return jsonify({"erro": str(exc)}), 400
+    except psycopg2.errors.UniqueViolation:
+        if conn:
+            conn.rollback()
+        return jsonify({"erro": "Não foi possível repetir esta marcação."}), 409
+    except Exception:
+        if conn:
+            conn.rollback()
+        return jsonify({"erro": "Não foi possível processar a marcação."}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+
+@views_bp.route(
+    "/api/admin/funcionarios/<funcionario_id>/marcacoes", methods=["GET"]
+)
+@require_roles("administrador")
+def marcacoes_funcionario_administrativo(funcionario_id):
+    conn = None
+    cursor = None
+    try:
+        funcionario_id = uuid_obrigatorio(funcionario_id, "Funcionário")
+        empresa_id = g.auth_context["empresa_id"]
+        if request.args.get("empresa_id") not in (None, ""):
+            empresa_id_autorizada(request.args["empresa_id"])
+
+        conn = conectar_bd()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute(
+            "SELECT 1 FROM funcionarios WHERE id = %s AND empresa_id = %s",
+            (funcionario_id, empresa_id),
+        )
+        if not cursor.fetchone():
+            return jsonify({"erro": "Funcionário não encontrado."}), 404
+
+        return jsonify(
+            {
+                "marcacoes": listar_marcacoes_funcionario(
+                    cursor, empresa_id, funcionario_id
+                )
+            }
+        ), 200
+    except PermissionError as exc:
+        return jsonify({"erro": str(exc)}), 403
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 400
+    except Exception:
+        return jsonify({"erro": "Não foi possível consultar as marcações."}), 500
     finally:
         if cursor:
             cursor.close()
