@@ -150,6 +150,47 @@ try:
     employee_headers = auth_headers(employee["access_token"])
     empty_headers = auth_headers(employee_without_schedule["access_token"])
 
+    admin_ui = requests.get(
+        f"{BASE_URL}/jornadas", headers=admin_headers, timeout=20
+    )
+    expect(admin_ui, 200, "admin_schedules_ui")
+    for expected_marker in (
+        'id="tabelaTurnos"',
+        'id="listaPeriodos"',
+        'id="formAtribuicao"',
+        'id="tabelaHistorico"',
+        'static/js/jornadas.js',
+        'static/css/jornadas.css',
+    ):
+        if expected_marker not in admin_ui.text:
+            raise AssertionError(f"schedules UI is missing {expected_marker}")
+
+    expect(
+        requests.get(
+            f"{BASE_URL}/jornadas", headers=employee_headers, timeout=20
+        ),
+        403,
+        "employee_schedules_ui_rejected",
+    )
+
+    schedules_js = requests.get(
+        f"{BASE_URL}/static/js/jornadas.js", timeout=20
+    )
+    expect(schedules_js, 200, "schedules_ui_javascript")
+    schedules_css = requests.get(
+        f"{BASE_URL}/static/css/jornadas.css", timeout=20
+    )
+    expect(schedules_css, 200, "schedules_ui_styles")
+    if "horarios" in schedules_js.text.lower() or "empresa_id" in schedules_js.text:
+        raise AssertionError("schedules UI must not use legacy schedules or arbitrary company IDs")
+    for endpoint_fragment in (
+        "/api/admin/turnos",
+        "/api/admin/funcionarios/",
+        "/listarUsuarios",
+    ):
+        if endpoint_fragment not in schedules_js.text:
+            raise AssertionError(f"schedules UI does not consume {endpoint_fragment}")
+
     expect(
         requests.get(f"{BASE_URL}/auth/me", headers=admin_headers, timeout=20),
         200,

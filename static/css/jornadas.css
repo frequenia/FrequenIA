@@ -1,0 +1,316 @@
+.jornadas-page {
+  width: 100%;
+  padding: 30px;
+}
+
+.page-heading,
+.section-heading,
+.periodos-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+}
+
+.page-heading {
+  margin-bottom: var(--spacing-xl);
+}
+
+.page-heading h1,
+.section-heading h2,
+.periodos-heading h3 {
+  margin-bottom: 0;
+}
+
+.page-heading p,
+.periodos-heading p {
+  margin: var(--spacing-xs) 0 0;
+}
+
+.section-heading,
+.periodos-heading {
+  margin-bottom: var(--spacing-lg);
+}
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table {
+  min-width: 680px;
+}
+
+.table th:last-child,
+.table td:last-child {
+  text-align: right;
+}
+
+.empty-state {
+  color: var(--color-text-light);
+  padding: var(--spacing-xl) !important;
+  text-align: center !important;
+}
+
+.status-chip,
+.vigencia-chip {
+  display: inline-block;
+  min-width: 82px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-align: center;
+  text-transform: capitalize;
+}
+
+.status-chip.ativo,
+.vigencia-chip.atual {
+  background: var(--color-success);
+}
+
+.status-chip.inativo,
+.vigencia-chip.encerrada {
+  background: var(--color-danger);
+}
+
+.vigencia-chip.futura {
+  background: var(--color-info);
+}
+
+.btn-acao {
+  min-height: 36px;
+  padding: 8px 18px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: var(--font-size-sm);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.atribuicao-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.campo-amplo {
+  grid-column: span 2;
+}
+
+.periodos-heading {
+  margin-top: var(--spacing-xl);
+}
+
+.periodos-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+}
+
+.periodo-item {
+  display: grid;
+  grid-template-columns: 44px minmax(160px, 1.5fr) minmax(120px, 1fr) minmax(120px, 1fr) minmax(170px, 1fr) auto;
+  gap: var(--spacing-md);
+  align-items: end;
+  padding: var(--spacing-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-input-bg);
+}
+
+.periodo-ordem {
+  align-self: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-weight-semibold);
+}
+
+.virada-dia {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin: 0;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.virada-dia input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.periodo-acoes {
+  display: flex;
+  gap: var(--spacing-xs);
+  min-height: 44px;
+  align-items: center;
+}
+
+.btn-icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  background: var(--color-white);
+  color: var(--color-primary);
+  font-size: 20px;
+}
+
+.btn-icon.danger {
+  color: var(--color-danger);
+}
+
+.acoes.alinhada-esquerda {
+  justify-content: flex-start;
+  margin-top: var(--spacing-lg);
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--spacing-lg);
+}
+
+.jornada-heading {
+  align-items: flex-end;
+}
+
+.date-query {
+  display: grid;
+  grid-template-columns: minmax(145px, 1fr) auto;
+  gap: var(--spacing-sm);
+  align-items: end;
+}
+
+.date-query label {
+  grid-column: 1 / -1;
+  margin-bottom: 0;
+}
+
+.jornada-resumo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-md);
+}
+
+.jornada-resumo > div,
+.jornada-periodos li {
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.jornada-resumo strong {
+  display: block;
+  color: var(--color-text-light);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--spacing-xs);
+}
+
+.jornada-periodos {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-lg);
+}
+
+.mensagem {
+  padding: var(--spacing-md) var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-info);
+  background: var(--color-info-light);
+  color: var(--color-text-dark);
+  font-weight: var(--font-weight-medium);
+}
+
+.mensagem.erro {
+  border-color: var(--color-danger);
+  background: var(--color-danger-light);
+}
+
+.mensagem.sucesso {
+  border-color: var(--color-success);
+  background: var(--color-success-light);
+}
+
+body.dark-mode .periodo-item,
+body.dark-mode .btn-icon,
+body.dark-mode .jornada-resumo > div,
+body.dark-mode .jornada-periodos li {
+  background: var(--card-bg);
+  border-color: var(--card-border);
+}
+
+body.dark-mode .mensagem {
+  color: var(--text-color);
+  background: rgba(59, 130, 246, 0.18);
+}
+
+body.dark-mode .mensagem.erro {
+  background: rgba(239, 68, 68, 0.18);
+}
+
+body.dark-mode .mensagem.sucesso {
+  background: rgba(16, 185, 129, 0.18);
+}
+
+@media (max-width: 1100px) {
+  .periodo-item {
+    grid-template-columns: 44px repeat(2, minmax(140px, 1fr));
+  }
+
+  .virada-dia,
+  .periodo-acoes {
+    grid-column: span 1;
+  }
+
+  .details-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .jornadas-page {
+    padding: var(--spacing-lg);
+  }
+
+  .page-heading,
+  .section-heading,
+  .periodos-heading,
+  .jornada-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .form-grid,
+  .atribuicao-grid,
+  .periodo-item,
+  .jornada-resumo {
+    grid-template-columns: 1fr;
+  }
+
+  .campo-amplo,
+  .virada-dia,
+  .periodo-acoes {
+    grid-column: auto;
+  }
+
+  .periodo-ordem {
+    justify-self: start;
+  }
+}

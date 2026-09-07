@@ -492,6 +492,12 @@ def gerenciar_usuario():
     return render_template("gerenciarUsuario.html")
 
 
+@views_bp.route("/jornadas")
+@require_roles("administrador")
+def jornadas():
+    return render_template("jornadas.html")
+
+
 @views_bp.route("/gerenciarEmpresa")
 @require_roles("administrador")
 def gerenciar_empresa():

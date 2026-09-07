@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jornadas — FrequenIA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/jornadas.css') }}">
+</head>
+<body>
+  <main class="jornadas-page">
+    <div class="page-heading">
+      <div>
+        <h1>Jornadas e turnos</h1>
+        <p>Defina períodos de trabalho e atribua vigências aos funcionários.</p>
+      </div>
+      <button type="button" id="novoTurno" class="btn-primary">Novo turno</button>
+    </div>
+
+    <div id="mensagem" class="mensagem" role="status" aria-live="polite" hidden></div>
+
+    <section class="card" aria-labelledby="tituloTurnos">
+      <div class="section-heading">
+        <h2 id="tituloTurnos">Turnos cadastrados</h2>
+        <button type="button" id="recarregarTurnos" class="btn-secondary btn-sm">Atualizar lista</button>
+      </div>
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Status</th>
+              <th>Timezone</th>
+              <th>Períodos</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaTurnos">
+            <tr><td colspan="5" class="empty-state">Carregando turnos...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="editorTurno" class="card" aria-labelledby="tituloEditor" hidden>
+      <div class="section-heading">
+        <h2 id="tituloEditor">Novo turno</h2>
+        <button type="button" id="cancelarEdicao" class="btn-ghost btn-sm">Cancelar</button>
+      </div>
+
+      <form id="formTurno">
+        <div class="form-grid">
+          <div class="campo">
+            <label for="nomeTurno">Nome do turno</label>
+            <input type="text" id="nomeTurno" maxlength="120" required>
+          </div>
+          <div class="campo">
+            <label for="timezoneTurno">Timezone</label>
+            <input type="text" id="timezoneTurno" value="America/Sao_Paulo" required>
+          </div>
+          <div class="campo">
+            <label for="statusTurno">Status</label>
+            <select id="statusTurno" required>
+              <option value="ativo">Ativo</option>
+              <option value="inativo">Inativo</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="periodos-heading">
+          <div>
+            <h3>Períodos do turno</h3>
+            <p>Os intervalos são os espaços entre períodos consecutivos.</p>
+          </div>
+          <button type="button" id="adicionarPeriodo" class="btn-secondary btn-sm">Adicionar período</button>
+        </div>
+
+        <div id="listaPeriodos" class="periodos-lista"></div>
+
+        <div class="acoes">
+          <button type="submit" id="salvarTurno" class="btn-primary">Salvar turno</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card" aria-labelledby="tituloAtribuicao">
+      <h2 id="tituloAtribuicao">Atribuição de jornada</h2>
+      <form id="formAtribuicao">
+        <div class="form-grid atribuicao-grid">
+          <div class="campo campo-amplo">
+            <label for="funcionario">Funcionário</label>
+            <select id="funcionario" required>
+              <option value="">Selecione um funcionário</option>
+            </select>
+          </div>
+          <div class="campo campo-amplo">
+            <label for="turnoAtribuicao">Turno ativo</label>
+            <select id="turnoAtribuicao" required>
+              <option value="">Selecione um turno</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="vigenciaInicio">Início da vigência</label>
+            <input type="date" id="vigenciaInicio" required>
+          </div>
+          <div class="campo">
+            <label for="vigenciaFim">Fim da vigência</label>
+            <input type="date" id="vigenciaFim">
+          </div>
+        </div>
+        <div class="acoes alinhada-esquerda">
+          <button type="submit" id="atribuirTurno" class="btn-primary">Atribuir turno</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="details-grid">
+      <article class="card" aria-labelledby="tituloJornadaAtual">
+        <div class="section-heading jornada-heading">
+          <h2 id="tituloJornadaAtual">Jornada na data</h2>
+          <div class="date-query">
+            <label for="dataConsulta">Data</label>
+            <input type="date" id="dataConsulta">
+            <button type="button" id="consultarJornada" class="btn-secondary btn-sm">Consultar</button>
+          </div>
+        </div>
+        <div id="jornadaAtual" class="empty-state">Selecione um funcionário.</div>
+      </article>
+
+      <article class="card" aria-labelledby="tituloHistorico">
+        <h2 id="tituloHistorico">Histórico de atribuições</h2>
+        <div class="table-wrapper">
+          <table class="table history-table">
+            <thead>
+              <tr><th>Turno</th><th>Início</th><th>Fim</th><th>Vigência</th></tr>
+            </thead>
+            <tbody id="tabelaHistorico">
+              <tr><td colspan="4" class="empty-state">Selecione um funcionário.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <template id="modeloPeriodo">
+    <div class="periodo-item">
+      <div class="periodo-ordem" aria-label="Ordem do período">1</div>
+      <div class="campo">
+        <label>Dia da semana</label>
+        <select class="periodo-dia" required>
+          <option value="0">Domingo</option>
+          <option value="1">Segunda-feira</option>
+          <option value="2">Terça-feira</option>
+          <option value="3">Quarta-feira</option>
+          <option value="4">Quinta-feira</option>
+          <option value="5">Sexta-feira</option>
+          <option value="6">Sábado</option>
+        </select>
+      </div>
+      <div class="campo">
+        <label>Início</label>
+        <input type="time" class="periodo-inicio" required>
+      </div>
+      <div class="campo">
+        <label>Fim</label>
+        <input type="time" class="periodo-fim" required>
+      </div>
+      <label class="virada-dia">
+        <input type="checkbox" class="periodo-offset">
+        Termina no dia seguinte
+      </label>
+      <div class="periodo-acoes">
+        <button type="button" class="btn-icon subir-periodo" aria-label="Mover período para cima">↑</button>
+        <button type="button" class="btn-icon descer-periodo" aria-label="Mover período para baixo">↓</button>
+        <button type="button" class="btn-icon danger remover-periodo" aria-label="Remover período">×</button>
+      </div>
+    </div>
+  </template>
+
+  <script src="{{ url_for('static', filename='js/jornadas.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/dark-mode.js') }}"></script>
+</body>
+</html>
