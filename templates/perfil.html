@@ -23,6 +23,13 @@
 
 <body>
 
+  {% set perfil_labels = {
+    'administrador': 'Administrador',
+    'funcionario': 'Funcionário',
+    'gestor': 'Gestor',
+    'rh': 'RH'
+  } %}
+
   <div class="perfil-page">
 
     <!-- DADOS PESSOAIS -->
@@ -40,17 +47,22 @@
 
           <div class="campo">
             <label>Email</label>
-            <input type="email" id="email" value="{{ user.email }}" readonly>
+            <input type="email" id="email" value="{{ user.email or 'Não informado' }}" readonly>
           </div>
 
           <div class="campo">
             <label>Telefone</label>
-            <input type="text" id="telefone" value="{{ user.telefone }}" readonly>
+            <input type="text" id="telefone" value="{{ user.telefone or 'Não informado' }}" readonly>
           </div>
 
           <div class="campo">
             <label>CPF</label>
             <input type="text" id="cpf" value="{{ user.cpf }}" readonly>
+          </div>
+
+          <div class="campo">
+            <label>Status da Conta</label>
+            <input type="text" id="usuario_status" value="{{ user.usuario_status|title }}" readonly>
           </div>
         </div>
       </div>
@@ -61,48 +73,64 @@
       <h3>Dados do Trabalhador</h3>
 
       <div class="grid">
+        <div class="campo">
+          <label>Empresa</label>
+          <input type="text" id="empresa" value="{{ user.empresa_nome }}" disabled>
+        </div>
+
+        <div class="campo">
+          <label>Unidade</label>
+          <input type="text" id="unidade" value="{{ user.unidade_nome }}" disabled>
+        </div>
+
+        <div class="campo">
+          <label>Equipe</label>
+          <input type="text" id="equipe" value="{{ user.equipe_nome or 'Não definida' }}" disabled>
+        </div>
+
         <div class="campo campo-cargo">
           <label>Cargo</label>
-          <input type="text" id="cargo" value="{{ user.cargo_nome if user.cargo_nome else 'Sem cargo' }}" disabled>
+          <input type="text" id="cargo" value="{{ user.cargo_nome or 'Não definido' }}" disabled>
         </div>
 
         <div class="campo">
-          <label>Setor</label>
-          <input type="text" id="setor" value="{{ user.setor_nome if user.setor_nome else 'Sem setor' }}" disabled>
+          <label>Matrícula</label>
+          <input type="text" id="matricula" value="{{ user.matricula }}" disabled>
         </div>
 
         <div class="campo">
-          <label>Tipo de Perfil</label>
-          <input type="text" id="tipo_perfil"
-            value="{{ 'Administrador' if user.tipo_perfil == 'admin' else 'Colaborador' if user.tipo_perfil == 'funcionario' else user.tipo_perfil }}"
-            disabled>
+          <label>Perfil Funcional</label>
+          <input type="text" id="perfil" value="{{ perfil_labels.get(user.perfil, user.perfil) }}" disabled>
+        </div>
+
+        <div class="campo">
+          <label>Status do Vínculo</label>
+          <input type="text" id="funcionario_status" value="{{ user.funcionario_status|title }}" disabled>
         </div>
 
         <div class="campo">
           <label>Data de Admissão</label>
-          <input type="text" id="data_admissao" disabled>
+          <input type="text" id="data_admissao" value="{{ user.data_admissao or 'Não definida' }}" disabled>
         </div>
 
         <div class="campo">
           <label>Tipo de Contrato</label>
-          <input type="text" id="tipo_contrato" disabled>
+          <input type="text" id="tipo_contrato" value="{{ (user.tipo_contrato|replace('_', ' ')|title) if user.tipo_contrato else 'Não definido' }}" disabled>
         </div>
 
         <div class="campo">
-          <label>Carga Horária</label>
-          <input type="text" id="carga_horaria" disabled>
+          <label>Carga Horária Semanal</label>
+          <input type="text" id="carga_horaria_semanal" value="{{ (user.carga_horaria_semanal ~ ' horas') if user.carga_horaria_semanal is not none else 'Não definida' }}" disabled>
         </div>
 
         <div class="campo">
-          <label>Jornada Padrão</label>
-          <input type="text" id="jornada_padrao" disabled>
+          <label>Jornada</label>
+          <input type="text" id="jornada" value="Não definida" disabled>
         </div>
       </div>
     </section>
 
   </div>
-
-  <script src="{{ url_for('static', filename='js/perfil.js') }}"></script>
 
 </body>
 

@@ -31,6 +31,14 @@ if jwt_access_token_minutes <= 0:
     raise RuntimeError("JWT_ACCESS_TOKEN_MINUTES must be a positive integer.")
 
 try:
+    jwt_refresh_token_days = int(os.getenv("JWT_REFRESH_TOKEN_DAYS", "30"))
+except ValueError as exc:
+    raise RuntimeError("JWT_REFRESH_TOKEN_DAYS must be a positive integer.") from exc
+
+if jwt_refresh_token_days <= 0:
+    raise RuntimeError("JWT_REFRESH_TOKEN_DAYS must be a positive integer.")
+
+try:
     password_reset_token_minutes = int(os.getenv("PASSWORD_RESET_TOKEN_MINUTES", "30"))
 except ValueError as exc:
     raise RuntimeError("PASSWORD_RESET_TOKEN_MINUTES must be a positive integer.") from exc
@@ -56,6 +64,8 @@ app.config["APP_ENV"] = APP_ENV
 app.config["SECRET_KEY"] = secret_key
 app.config["JWT_SECRET_KEY"] = jwt_secret_key
 app.config["JWT_ACCESS_TOKEN_MINUTES"] = jwt_access_token_minutes
+app.config["JWT_REFRESH_TOKEN_DAYS"] = jwt_refresh_token_days
+app.config["REFRESH_COOKIE_SECURE"] = APP_ENV == "production"
 app.config["PASSWORD_RESET_TOKEN_MINUTES"] = password_reset_token_minutes
 app.config["PASSWORD_RESET_TEST_KEY"] = password_reset_test_key
 

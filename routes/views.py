@@ -14,18 +14,23 @@ from flask import (
 )
 from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal, InvalidOperation
-from functools import wraps
 import hashlib
 import re
 from uuid import UUID
 from zoneinfo import ZoneInfo
-from utils.auth_decorator import login_required, admin_required
+from utils.auth_decorator import access_token_required, login_required, require_roles
+from utils.schedules import (
+    parse_iso_date,
+    parse_optional_iso_date,
+    serialize_period,
+    validate_periods,
+    validate_timezone,
+)
 import psycopg2.extras
 import jwt
 import secrets
 from werkzeug.security import generate_password_hash, check_password_hash
 from db import (
-    buscar_contexto_autenticado,
     buscar_usuario_login_por_cpf,
     buscar_vinculos_ativos,
     conectar_bd,
@@ -43,6 +48,7 @@ from docx import Document
 views_bp = Blueprint("views", __name__)
 
 JWT_ALGORITHM = "HS256"
+REFRESH_COOKIE_NAME = "frequenia_refresh_token"
 ALLOWED_EMPLOYEE_PROFILES = {"funcionario", "gestor", "rh", "administrador"}
 ALLOWED_CONTRACT_TYPES = {
     "efetivo",
@@ -79,6 +85,163 @@ def uuid_obrigatorio(value, field_name):
         return str(UUID(str(value)))
     except (TypeError, ValueError, AttributeError) as exc:
         raise ValueError(f"{field_name} inválido.") from exc
+
+
+def empresa_id_autorizada(value):
+    empresa_id = uuid_obrigatorio(value, "Empresa")
+    if empresa_id != str(g.auth_context["empresa_id"]):
+        raise PermissionError("Empresa fora do escopo autorizado.")
+    return empresa_id
+
+
+def empresa_autenticada(dados=None):
+    empresa_id = str(g.auth_context["empresa_id"])
+    if dados and dados.get("empresa_id") not in (None, ""):
+        empresa_id_autorizada(dados["empresa_id"])
+    return empresa_id
+
+
+def validar_turno_payload(dados, partial=False):
+    if not isinstance(dados, dict):
+        raise ValueError("Corpo da requisição inválido.")
+
+    result = {}
+    if not partial or "nome" in dados:
+        nome = str(dados.get("nome") or "").strip()
+        if not nome:
+            raise ValueError("Nome do turno é obrigatório.")
+        result["nome"] = nome
+
+    if not partial or "timezone" in dados:
+        result["timezone"] = validate_timezone(dados.get("timezone"))
+
+    if not partial or "status" in dados:
+        status = str(dados.get("status") or "ativo").strip().lower()
+        if status not in {"ativo", "inativo"}:
+            raise ValueError("Status do turno inválido.")
+        result["status"] = status
+
+    if not partial or "periodos" in dados:
+        result["periodos"] = validate_periods(dados.get("periodos"))
+
+    if partial and not result:
+        raise ValueError("Nenhuma alteração de turno foi informada.")
+    return result
+
+
+def inserir_periodos_turno(cursor, empresa_id, turno_id, periodos):
+    for periodo in periodos:
+        cursor.execute(
+            """
+            INSERT INTO periodos_turno (
+                empresa_id, turno_id, dia_semana, ordem,
+                inicio, fim, fim_dia_offset
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                empresa_id,
+                turno_id,
+                periodo["dia_semana"],
+                periodo["ordem"],
+                periodo["inicio"],
+                periodo["fim"],
+                periodo["fim_dia_offset"],
+            ),
+        )
+
+
+def buscar_turno(cursor, empresa_id, turno_id, bloquear=False):
+    cursor.execute(
+        f"""
+        SELECT id, nome, timezone, status
+        FROM turnos
+        WHERE id = %s AND empresa_id = %s
+        {"FOR UPDATE" if bloquear else ""}
+        """,
+        (turno_id, empresa_id),
+    )
+    turno = cursor.fetchone()
+    if not turno:
+        return None
+
+    cursor.execute(
+        """
+        SELECT id, dia_semana, ordem, inicio, fim, fim_dia_offset
+        FROM periodos_turno
+        WHERE turno_id = %s AND empresa_id = %s
+        ORDER BY dia_semana, ordem, id
+        """,
+        (turno_id, empresa_id),
+    )
+    turno["periodos"] = [serialize_period(item) for item in cursor.fetchall()]
+    return turno
+
+
+def serializar_turno(turno):
+    return {
+        "id": str(turno["id"]),
+        "nome": turno["nome"],
+        "timezone": turno["timezone"],
+        "status": turno["status"],
+        "periodos": turno["periodos"],
+    }
+
+
+def buscar_jornada_data(cursor, empresa_id, funcionario_id, data_consulta):
+    cursor.execute(
+        """
+        SELECT
+            ft.id AS atribuicao_id,
+            ft.vigencia_inicio,
+            ft.vigencia_fim,
+            t.id AS turno_id,
+            t.nome AS turno_nome,
+            t.timezone,
+            t.status AS turno_status
+        FROM funcionarios_turnos ft
+        INNER JOIN turnos t
+            ON t.id = ft.turno_id
+           AND t.empresa_id = ft.empresa_id
+        WHERE ft.empresa_id = %s
+          AND ft.funcionario_id = %s
+          AND ft.vigencia_inicio <= %s
+          AND (ft.vigencia_fim IS NULL OR ft.vigencia_fim >= %s)
+        ORDER BY ft.vigencia_inicio DESC, ft.created_at DESC, ft.id
+        LIMIT 1
+        """,
+        (empresa_id, funcionario_id, data_consulta, data_consulta),
+    )
+    atribuicao = cursor.fetchone()
+    if not atribuicao:
+        return None
+
+    cursor.execute(
+        """
+        SELECT id, dia_semana, ordem, inicio, fim, fim_dia_offset
+        FROM periodos_turno
+        WHERE empresa_id = %s AND turno_id = %s
+        ORDER BY dia_semana, ordem, id
+        """,
+        (empresa_id, atribuicao["turno_id"]),
+    )
+    return {
+        "turno": {
+            "id": str(atribuicao["turno_id"]),
+            "nome": atribuicao["turno_nome"],
+            "timezone": atribuicao["timezone"],
+            "status": atribuicao["turno_status"],
+        },
+        "vigencia": {
+            "inicio": atribuicao["vigencia_inicio"].isoformat(),
+            "fim": (
+                atribuicao["vigencia_fim"].isoformat()
+                if atribuicao["vigencia_fim"]
+                else None
+            ),
+        },
+        "periodos": [serialize_period(item) for item in cursor.fetchall()],
+    }
 
 
 def validar_dados_administrativos(dados, password_required=False):
@@ -165,11 +328,12 @@ def validar_estrutura_funcional(cursor, dados):
         raise ValueError("Empresa, unidade, equipe ou cargo incompatível.")
 
 
-def gerar_access_token(user_id, funcionario_id):
+def gerar_access_token(user_id, funcionario_id, session_id):
     agora = datetime.now(timezone.utc)
     payload = {
         "sub": str(user_id),
         "funcionario_id": str(funcionario_id),
+        "sid": str(session_id),
         "type": "access",
         "iat": agora,
         "exp": agora
@@ -182,35 +346,86 @@ def gerar_access_token(user_id, funcionario_id):
     )
 
 
-def access_token_required(view_function):
-    @wraps(view_function)
-    def decorated_function(*args, **kwargs):
-        authorization = request.headers.get("Authorization", "")
-        scheme, separator, token = authorization.partition(" ")
+def gerar_refresh_token():
+    raw_token = secrets.token_urlsafe(48)
+    token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    return raw_token, token_hash
 
-        if scheme.lower() != "bearer" or not separator or not token.strip():
-            return jsonify({"erro": "Token de acesso ausente."}), 401
 
-        try:
-            payload = jwt.decode(
-                token.strip(),
-                current_app.config["JWT_SECRET_KEY"],
-                algorithms=[JWT_ALGORITHM],
-                options={"require": ["sub", "funcionario_id", "iat", "exp"]},
+def criar_auth_session(cursor, user_id, vinculo, familia_id=None):
+    refresh_token, refresh_token_hash = gerar_refresh_token()
+    cursor.execute(
+        """
+        INSERT INTO auth_sessions (
+            usuario_id, empresa_id, funcionario_id,
+            refresh_token_hash, familia_id, expires_at
+        )
+        VALUES (
+            %s, %s, %s, %s, COALESCE(%s, extensions.gen_random_uuid()),
+            now() + (%s * interval '1 day')
+        )
+        RETURNING id, familia_id
+        """,
+        (
+            user_id,
+            vinculo["empresa_id"],
+            vinculo["funcionario_id"],
+            refresh_token_hash,
+            familia_id,
+            current_app.config["JWT_REFRESH_TOKEN_DAYS"],
+        ),
+    )
+    auth_session = cursor.fetchone()
+    return auth_session, refresh_token
+
+
+def resposta_com_tokens(payload, refresh_token, status=200):
+    response = jsonify(payload)
+    response.set_cookie(
+        REFRESH_COOKIE_NAME,
+        refresh_token,
+        max_age=current_app.config["JWT_REFRESH_TOKEN_DAYS"] * 24 * 60 * 60,
+        httponly=True,
+        secure=current_app.config["REFRESH_COOKIE_SECURE"],
+        samesite="Lax",
+        path="/auth",
+    )
+    return response, status
+
+
+def limpar_cookie_refresh(response):
+    response.delete_cookie(
+        REFRESH_COOKIE_NAME,
+        httponly=True,
+        secure=current_app.config["REFRESH_COOKIE_SECURE"],
+        samesite="Lax",
+        path="/auth",
+    )
+    return response
+
+
+def revogar_familia_por_sessao(session_id):
+    conn = conectar_bd()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            UPDATE auth_sessions
+            SET revoked_at = COALESCE(revoked_at, now())
+            WHERE familia_id = (
+                SELECT familia_id FROM auth_sessions WHERE id = %s
             )
-        except jwt.ExpiredSignatureError:
-            return jsonify({"erro": "Token de acesso expirado."}), 401
-        except jwt.InvalidTokenError:
-            return jsonify({"erro": "Token de acesso inválido."}), 401
-
-        if payload.get("type") != "access":
-            return jsonify({"erro": "Token de acesso inválido."}), 401
-
-        g.auth_user_id = payload["sub"]
-        g.auth_funcionario_id = payload["funcionario_id"]
-        return view_function(*args, **kwargs)
-
-    return decorated_function
+            """,
+            (session_id,),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cursor.close()
+        conn.close()
 
 
 @views_bp.route("/")
@@ -250,8 +465,7 @@ def inicio():
 
 
 @views_bp.route("/cadastroUsuario")
-@login_required
-@admin_required
+@require_roles("administrador")
 def cadastro_usuario():
     return render_template("cadastroUsuario.html")
 
@@ -273,27 +487,25 @@ def redefinicao_senha():
 
 
 @views_bp.route("/gerenciarUsuario")
-@login_required
-@admin_required
+@require_roles("administrador")
 def gerenciar_usuario():
     return render_template("gerenciarUsuario.html")
 
 
 @views_bp.route("/gerenciarEmpresa")
-@login_required
-@admin_required
+@require_roles("administrador")
 def gerenciar_empresa():
     return render_template("gerenciarEmpresa.html")
 
 
 @views_bp.route("/configuracoes")
-@login_required
+@require_roles("administrador")
 def configuracoes():
     return render_template("configuracoes.html")
 
 
 @views_bp.route("/cadastroEmpresas")
-@login_required
+@require_roles("administrador")
 def cadastroEmpresas():
     return render_template("cadastroEmpresas.html")
 
@@ -345,38 +557,172 @@ def login():
         return jsonify({"erro": "Seleção de vínculo necessária."}), 409
 
     vinculo = vinculos[0]
+    conn = conectar_bd()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        auth_session, refresh_token = criar_auth_session(cursor, user["id"], vinculo)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        return jsonify({"erro": "Não foi possível iniciar a sessão."}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
     session["user_id"] = str(user["id"])
     session["nome"] = user["nome"]
     session["tipo"] = vinculo["perfil"]
     session["funcionario_id"] = str(vinculo["funcionario_id"])
     session["empresa_id"] = str(vinculo["empresa_id"])
-    access_token = gerar_access_token(user["id"], vinculo["funcionario_id"])
+    session["auth_session_id"] = str(auth_session["id"])
+    access_token = gerar_access_token(
+        user["id"],
+        vinculo["funcionario_id"],
+        auth_session["id"],
+    )
 
-    return (
-        jsonify(
-            {
-                "ok": True,
-                "nome": user["nome"],
-                "tipo": vinculo["perfil"],
-                "funcionario_id": str(vinculo["funcionario_id"]),
-                "access_token": access_token,
-                "token_type": "Bearer",
-                "expires_in": current_app.config["JWT_ACCESS_TOKEN_MINUTES"] * 60,
-            }
-        ),
-        200,
+    return resposta_com_tokens(
+        {
+            "ok": True,
+            "nome": user["nome"],
+            "tipo": vinculo["perfil"],
+            "funcionario_id": str(vinculo["funcionario_id"]),
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "Bearer",
+            "expires_in": current_app.config["JWT_ACCESS_TOKEN_MINUTES"] * 60,
+        },
+        refresh_token,
+    )
+
+
+@views_bp.post("/auth/refresh")
+def auth_refresh():
+    data = request.get_json(silent=True) or {}
+    refresh_token = data.get("refresh_token") or request.cookies.get(
+        REFRESH_COOKIE_NAME
+    )
+    if not isinstance(refresh_token, str) or not refresh_token:
+        return jsonify({"erro": "Refresh token inválido."}), 401
+
+    refresh_token_hash = hashlib.sha256(refresh_token.encode("utf-8")).hexdigest()
+    conn = conectar_bd()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cursor.execute(
+            """
+            SELECT
+                id, usuario_id, empresa_id, funcionario_id, familia_id,
+                expires_at, rotated_at, revoked_at
+            FROM auth_sessions
+            WHERE refresh_token_hash = %s
+            FOR UPDATE
+            """,
+            (refresh_token_hash,),
+        )
+        current_session = cursor.fetchone()
+        if not current_session:
+            conn.rollback()
+            response = jsonify({"erro": "Refresh token inválido."})
+            return limpar_cookie_refresh(response), 401
+
+        if current_session["rotated_at"] is not None:
+            cursor.execute(
+                """
+                UPDATE auth_sessions
+                SET revoked_at = COALESCE(revoked_at, now())
+                WHERE familia_id = %s
+                """,
+                (current_session["familia_id"],),
+            )
+            conn.commit()
+            response = jsonify({"erro": "Refresh token inválido."})
+            return limpar_cookie_refresh(response), 401
+
+        if (
+            current_session["revoked_at"] is not None
+            or current_session["expires_at"] <= datetime.now(timezone.utc)
+        ):
+            conn.rollback()
+            response = jsonify({"erro": "Refresh token inválido."})
+            return limpar_cookie_refresh(response), 401
+
+        cursor.execute(
+            """
+            SELECT 1
+            FROM usuarios u
+            INNER JOIN funcionarios f
+                ON f.usuario_id = u.id
+               AND f.id = %s
+               AND f.empresa_id = %s
+            INNER JOIN empresas e ON e.id = f.empresa_id
+            WHERE u.id = %s
+              AND u.status = 'ativo'
+              AND f.status = 'ativo'
+              AND e.status = 'ativa'
+            """,
+            (
+                current_session["funcionario_id"],
+                current_session["empresa_id"],
+                current_session["usuario_id"],
+            ),
+        )
+        if not cursor.fetchone():
+            cursor.execute(
+                """
+                UPDATE auth_sessions
+                SET revoked_at = COALESCE(revoked_at, now())
+                WHERE familia_id = %s
+                """,
+                (current_session["familia_id"],),
+            )
+            conn.commit()
+            response = jsonify({"erro": "Refresh token inválido."})
+            return limpar_cookie_refresh(response), 401
+
+        cursor.execute(
+            """
+            UPDATE auth_sessions
+            SET last_used_at = now(), rotated_at = now()
+            WHERE id = %s
+            """,
+            (current_session["id"],),
+        )
+        next_session, next_refresh_token = criar_auth_session(
+            cursor,
+            current_session["usuario_id"],
+            current_session,
+            current_session["familia_id"],
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        return jsonify({"erro": "Não foi possível renovar a sessão."}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+    access_token = gerar_access_token(
+        current_session["usuario_id"],
+        current_session["funcionario_id"],
+        next_session["id"],
+    )
+    session["auth_session_id"] = str(next_session["id"])
+    return resposta_com_tokens(
+        {
+            "access_token": access_token,
+            "refresh_token": next_refresh_token,
+            "token_type": "Bearer",
+            "expires_in": current_app.config["JWT_ACCESS_TOKEN_MINUTES"] * 60,
+        },
+        next_refresh_token,
     )
 
 
 @views_bp.get("/auth/me")
 @access_token_required
 def auth_me():
-    contexto = buscar_contexto_autenticado(
-        g.auth_user_id,
-        g.auth_funcionario_id,
-    )
-    if not contexto:
-        return jsonify({"erro": "Token de acesso inválido."}), 401
+    contexto = g.auth_context
 
     return (
         jsonify(
@@ -390,12 +736,24 @@ def auth_me():
     )
 
 
+@views_bp.post("/auth/logout")
+@access_token_required
+def auth_logout():
+    try:
+        revogar_familia_por_sessao(g.auth_session_id)
+    except Exception:
+        return jsonify({"erro": "Não foi possível encerrar a sessão."}), 500
+
+    session.clear()
+    response = limpar_cookie_refresh(jsonify({"ok": True}))
+    return response, 200
+
+
 # ==================================================================================================
 # FUNÇÃO PRINCIPAL - CADASTRO DE USUÁRIOS
 # ==================================================================================================
 @views_bp.route("/cadastrar_usuario", methods=["POST"])
-@login_required
-@admin_required
+@require_roles("administrador")
 def cadastrar_usuario():
     conn = None
     cursor = None
@@ -405,6 +763,7 @@ def cadastrar_usuario():
             request.get_json(silent=True) or {},
             password_required=True,
         )
+        empresa_id_autorizada(dados["empresa_id"])
 
         conn = conectar_bd()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -469,6 +828,10 @@ def cadastrar_usuario():
 
         return jsonify({"status": "ok", "mensagem": "Usuário cadastrado com sucesso."}), 201
 
+    except PermissionError as exc:
+        if conn:
+            conn.rollback()
+        return jsonify({"status": "erro", "mensagem": str(exc)}), 403
     except ValueError as exc:
         if conn:
             conn.rollback()
@@ -493,6 +856,7 @@ def cadastrar_usuario():
 # FUNÇÃO PRINCIPAL - CADASTRO DE EMPRESAS
 # ==================================================================================================
 @views_bp.route("/cadastrar_empresa", methods=["POST"])
+@require_roles("administrador")
 def cadastrar_empresa():
     conn = None
     cursor = None
@@ -564,41 +928,76 @@ def login_page():
 # ==================================================================================================
 @views_bp.route("/logout")
 def logout():
+    auth_session_id = session.get("auth_session_id")
+    if auth_session_id:
+        try:
+            revogar_familia_por_sessao(auth_session_id)
+        except Exception:
+            return "Não foi possível encerrar a sessão.", 500
     session.clear()
-    return redirect("/login-page")
+    response = limpar_cookie_refresh(redirect("/login-page"))
+    return response
 
 
 # ==================================================================================================
 # FUNÇÃO - MEU PERFIL
 # ==================================================================================================
 @views_bp.route("/perfil")
-@login_required
+@require_roles("administrador", "funcionario", "gestor", "rh")
 def perfil():
     conn = conectar_bd()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cursor.execute(
+            """
+            SELECT
+                u.nome,
+                u.cpf,
+                u.email,
+                u.telefone,
+                u.status AS usuario_status,
+                f.matricula,
+                f.perfil,
+                f.status AS funcionario_status,
+                f.data_admissao,
+                f.tipo_contrato,
+                f.carga_horaria_semanal,
+                e.nome AS empresa_nome,
+                un.nome AS unidade_nome,
+                eq.nome AS equipe_nome,
+                c.nome AS cargo_nome
+            FROM usuarios u
+            INNER JOIN funcionarios f
+                ON f.usuario_id = u.id
+               AND f.id = %s
+               AND f.empresa_id = %s
+            INNER JOIN empresas e
+                ON e.id = f.empresa_id
+            INNER JOIN unidades un
+                ON un.id = f.unidade_id
+               AND un.empresa_id = f.empresa_id
+            LEFT JOIN equipes eq
+                ON eq.id = f.equipe_id
+               AND eq.empresa_id = f.empresa_id
+               AND eq.unidade_id = f.unidade_id
+            LEFT JOIN cargos c
+                ON c.id = f.cargo_id
+               AND c.empresa_id = f.empresa_id
+            WHERE u.id = %s
+            """,
+            (
+                g.auth_funcionario_id,
+                g.auth_context["empresa_id"],
+                g.auth_user_id,
+            ),
+        )
+        user = cursor.fetchone()
+    finally:
+        cursor.close()
+        conn.close()
 
-    cursor.execute(
-        """
-        SELECT 
-            u.nome, u.cpf, u.email, u.telefone,
-            c.nome AS cargo_nome,
-            s.nome AS setor_nome,
-            f.tipo_perfil,
-            f.data_admissao, f.tipo_contrato,
-            f.matricula, f.carga_horaria, f.jornada_padrao
-        FROM usuarios u
-        LEFT JOIN funcionarios f ON u.id = f.usuario_id
-        LEFT JOIN cargos c ON u.cargo_id = c.id
-        LEFT JOIN setores s ON u.setor_id = s.id
-        WHERE u.id = %s
-        """,
-        (session["user_id"],),
-    )
-
-    user = cursor.fetchone()
-
-    cursor.close()
-    conn.close()
+    if not user:
+        return "Perfil não encontrado", 404
 
     return render_template("perfil.html", user=user)
 
@@ -607,8 +1006,7 @@ def perfil():
 # FUNÇÃO - LISTAGEM DE USUÁRIOS (GERENCIAMENTO)
 # ==================================================================================================
 @views_bp.route("/listarUsuarios")
-@login_required
-@admin_required
+@require_roles("administrador")
 def listar_usuarios():
     try:
         conn = conectar_bd()
@@ -636,8 +1034,11 @@ def listar_usuarios():
             INNER JOIN unidades un ON un.id = f.unidade_id
             LEFT JOIN equipes eq ON eq.id = f.equipe_id
             LEFT JOIN cargos c ON c.id = f.cargo_id
+            WHERE f.empresa_id = %s
             ORDER BY u.nome, e.nome
             """
+            ,
+            (g.auth_context["empresa_id"],),
         )
 
         usuarios = cursor.fetchall()
@@ -655,8 +1056,7 @@ def listar_usuarios():
 # FUNÇÃO - LISTAGEM DE EMPRESAS (GERENCIAMENTO)
 # ==================================================================================================
 @views_bp.route("/listarEmpresas")
-@login_required
-@admin_required
+@require_roles("administrador")
 def listar_empresas():
     try:
         conn = conectar_bd()
@@ -666,9 +1066,10 @@ def listar_empresas():
             """
             SELECT id, nome
             FROM empresas
-            WHERE status = 'ativa'
+            WHERE id = %s AND status = 'ativa'
             ORDER BY nome
-            """
+            """,
+            (g.auth_context["empresa_id"],),
         )
         empresas = cursor.fetchall()
 
@@ -685,8 +1086,7 @@ def listar_empresas():
 # FUNÇÃO - ALTERAÇÃO DE DADOS DO USUÁRIO
 # ==================================================================================================
 @views_bp.route("/atualizar_usuario", methods=["POST"])
-@login_required
-@admin_required
+@require_roles("administrador")
 def atualizar_usuario():
     conn = None
     cursor = None
@@ -697,13 +1097,14 @@ def atualizar_usuario():
             "Funcionário",
         )
         dados = validar_dados_administrativos(request_data)
+        empresa_id_autorizada(dados["empresa_id"])
 
         conn = conectar_bd()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
         cursor.execute(
-            "SELECT usuario_id FROM funcionarios WHERE id = %s FOR UPDATE",
-            (funcionario_id,),
+            "SELECT usuario_id FROM funcionarios WHERE id = %s AND empresa_id = %s FOR UPDATE",
+            (funcionario_id, g.auth_context["empresa_id"]),
         )
         funcionario = cursor.fetchone()
         if not funcionario:
@@ -773,6 +1174,10 @@ def atualizar_usuario():
 
         return jsonify({"status": "ok"})
 
+    except PermissionError as exc:
+        if conn:
+            conn.rollback()
+        return jsonify({"status": "erro", "mensagem": str(exc)}), 403
     except ValueError as exc:
         if conn:
             conn.rollback()
@@ -796,56 +1201,189 @@ def atualizar_usuario():
 # FUNÇÃO - ALTERAÇÃO DE HORÁRIOS DO USUÁRIO
 # ==================================================================================================
 @views_bp.route("/atualizar_horarios", methods=["POST"])
+@require_roles("administrador")
 def atualizar_horarios():
+    return (
+        jsonify(
+            {
+                "status": "erro",
+                "mensagem": (
+                    "A interface antiga de horários não suporta múltiplos períodos. "
+                    "Utilize a API de turnos."
+                ),
+            }
+        ),
+        410,
+    )
+
+
+@views_bp.route("/api/admin/turnos", methods=["GET", "POST"])
+@require_roles("administrador")
+def turnos_administrativos():
+    conn = None
+    cursor = None
     try:
-        dados = request.get_json()
-
-        user_id = dados.get("id")
-        horarios = dados.get("horarios", [])
-
-        if not horarios:
-            return jsonify({"status": "erro", "mensagem": "Nenhum horário informado"})
-
-        conn = conectar_bd()
-        cursor = conn.cursor()
-
-        # Remove apenas os dias que serão substituídos
-        dias_enviados = [h["dia_semana"] for h in horarios]
-        cursor.execute(
-            "DELETE FROM horarios WHERE usuario_id = %s AND dia_semana = ANY(%s)",
-            (user_id, dias_enviados),
+        empresa_id = empresa_autenticada(
+            request.get_json(silent=True) if request.method == "POST" else None
         )
+        conn = conectar_bd()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        # Insere os novos horários
-        for h in horarios:
+        if request.method == "GET":
+            if request.args.get("empresa_id") not in (None, ""):
+                empresa_id_autorizada(request.args["empresa_id"])
             cursor.execute(
                 """
-                INSERT INTO horarios (
-                    usuario_id, dia_semana,
-                    inicio_expediente, inicio_intervalo,
-                    termino_intervalo, termino_expediente
-                )
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """,
-                (
-                    user_id,
-                    h["dia_semana"],
-                    h["inicio_expediente"],
-                    h["inicio_intervalo"],
-                    h["termino_intervalo"],
-                    h["termino_expediente"],
-                ),
+                SELECT id
+                FROM turnos
+                WHERE empresa_id = %s
+                ORDER BY nome, id
+                """,
+                (empresa_id,),
             )
+            turnos = []
+            for item in cursor.fetchall():
+                turno = buscar_turno(cursor, empresa_id, item["id"])
+                turnos.append(serializar_turno(turno))
+            return jsonify({"turnos": turnos}), 200
 
+        dados = request.get_json(silent=True) or {}
+        turno_data = validar_turno_payload(dados)
+        cursor.execute(
+            """
+            INSERT INTO turnos (empresa_id, nome, timezone, status)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id
+            """,
+            (
+                empresa_id,
+                turno_data["nome"],
+                turno_data["timezone"],
+                turno_data["status"],
+            ),
+        )
+        turno_id = cursor.fetchone()["id"]
+        inserir_periodos_turno(
+            cursor, empresa_id, turno_id, turno_data["periodos"]
+        )
+        turno = buscar_turno(cursor, empresa_id, turno_id)
         conn.commit()
-        cursor.close()
-        conn.close()
+        return jsonify({"turno": serializar_turno(turno)}), 201
+    except PermissionError as exc:
+        if conn:
+            conn.rollback()
+        return jsonify({"erro": str(exc)}), 403
+    except ValueError as exc:
+        if conn:
+            conn.rollback()
+        return jsonify({"erro": str(exc)}), 400
+    except psycopg2.errors.UniqueViolation:
+        if conn:
+            conn.rollback()
+        return jsonify({"erro": "Já existe um turno com esses dados."}), 409
+    except Exception:
+        if conn:
+            conn.rollback()
+        return jsonify({"erro": "Não foi possível processar o turno."}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
-        return jsonify({"status": "ok"})
 
-    except Exception as e:
-        print("ERRO:", e)
-        return jsonify({"status": "erro", "mensagem": str(e)})
+@views_bp.route("/api/admin/turnos/<turno_id>", methods=["GET", "PUT"])
+@require_roles("administrador")
+def turno_administrativo(turno_id):
+    conn = None
+    cursor = None
+    try:
+        turno_id = uuid_obrigatorio(turno_id, "Turno")
+        dados = request.get_json(silent=True) or {}
+        empresa_id = empresa_autenticada(dados if request.method == "PUT" else None)
+        if request.args.get("empresa_id") not in (None, ""):
+            empresa_id_autorizada(request.args["empresa_id"])
+
+        conn = conectar_bd()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        turno = buscar_turno(
+            cursor, empresa_id, turno_id, bloquear=request.method == "PUT"
+        )
+        if not turno:
+            return jsonify({"erro": "Turno não encontrado."}), 404
+        if request.method == "GET":
+            return jsonify({"turno": serializar_turno(turno)}), 200
+
+        turno_data = validar_turno_payload(dados, partial=True)
+        if "periodos" in turno_data:
+            cursor.execute(
+                """
+                SELECT 1
+                FROM funcionarios_turnos
+                WHERE empresa_id = %s AND turno_id = %s
+                LIMIT 1
+                """,
+                (empresa_id, turno_id),
+            )
+            if cursor.fetchone():
+                return (
+                    jsonify(
+                        {
+                            "erro": (
+                                "Períodos de um turno já atribuído não podem ser "
+                                "alterados; crie um novo turno para preservar o histórico."
+                            )
+                        }
+                    ),
+                    409,
+                )
+
+        cursor.execute(
+            """
+            UPDATE turnos
+            SET nome = %s, timezone = %s, status = %s, updated_at = now()
+            WHERE id = %s AND empresa_id = %s
+            """,
+            (
+                turno_data.get("nome", turno["nome"]),
+                turno_data.get("timezone", turno["timezone"]),
+                turno_data.get("status", turno["status"]),
+                turno_id,
+                empresa_id,
+            ),
+        )
+        if "periodos" in turno_data:
+            cursor.execute(
+                "DELETE FROM periodos_turno WHERE turno_id = %s AND empresa_id = %s",
+                (turno_id, empresa_id),
+            )
+            inserir_periodos_turno(
+                cursor, empresa_id, turno_id, turno_data["periodos"]
+            )
+        updated = buscar_turno(cursor, empresa_id, turno_id)
+        conn.commit()
+        return jsonify({"turno": serializar_turno(updated)}), 200
+    except PermissionError as exc:
+        if conn:
+            conn.rollback()
+        return jsonify({"erro": str(exc)}), 403
+    except ValueError as exc:
+        if conn:
+            conn.rollback()
+        return jsonify({"erro": str(exc)}), 400
+    except psycopg2.errors.UniqueViolation:
+        if conn:
+            conn.rollback()
+        return jsonify({"erro": "Já existe um turno com esses dados."}), 409
+    except Exception:
+        if conn:
+            conn.rollback()
+        return jsonify({"erro": "Não foi possível atualizar o turno."}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 # ==================================================================================================
@@ -1108,42 +1646,282 @@ def hora_servidor():
 
 
 # ==================================================================================================
-# FUNÇÃO - PUXAR HORÁRIOS-PADRÃO DO USUÁRIO
+# JORNADAS E ATRIBUIÇÕES DE TURNOS
 # ==================================================================================================
+@views_bp.route(
+    "/api/admin/funcionarios/<funcionario_id>/turnos", methods=["GET", "POST"]
+)
+@require_roles("administrador")
+def turnos_funcionario_administrativo(funcionario_id):
+    conn = None
+    cursor = None
+    try:
+        funcionario_id = uuid_obrigatorio(funcionario_id, "Funcionário")
+        dados = request.get_json(silent=True) or {}
+        empresa_id = empresa_autenticada(dados if request.method == "POST" else None)
+        if request.args.get("empresa_id") not in (None, ""):
+            empresa_id_autorizada(request.args["empresa_id"])
+        if dados.get("funcionario_id") not in (None, ""):
+            body_funcionario_id = uuid_obrigatorio(
+                dados["funcionario_id"], "Funcionário"
+            )
+            if body_funcionario_id != funcionario_id:
+                raise PermissionError("Funcionário fora do escopo solicitado.")
+
+        conn = conectar_bd()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute(
+            f"""
+            SELECT id, status
+            FROM funcionarios
+            WHERE id = %s AND empresa_id = %s
+            {"FOR UPDATE" if request.method == "POST" else ""}
+            """,
+            (funcionario_id, empresa_id),
+        )
+        funcionario = cursor.fetchone()
+        if not funcionario:
+            return jsonify({"erro": "Funcionário não encontrado."}), 404
+
+        if request.method == "GET":
+            cursor.execute(
+                """
+                SELECT
+                    ft.id, ft.vigencia_inicio, ft.vigencia_fim,
+                    t.id AS turno_id, t.nome AS turno_nome
+                FROM funcionarios_turnos ft
+                INNER JOIN turnos t
+                    ON t.id = ft.turno_id
+                   AND t.empresa_id = ft.empresa_id
+                WHERE ft.funcionario_id = %s AND ft.empresa_id = %s
+                ORDER BY ft.vigencia_inicio, ft.created_at, ft.id
+                """,
+                (funcionario_id, empresa_id),
+            )
+            historico = [
+                {
+                    "id": str(item["id"]),
+                    "turno": {
+                        "id": str(item["turno_id"]),
+                        "nome": item["turno_nome"],
+                    },
+                    "vigencia": {
+                        "inicio": item["vigencia_inicio"].isoformat(),
+                        "fim": (
+                            item["vigencia_fim"].isoformat()
+                            if item["vigencia_fim"]
+                            else None
+                        ),
+                    },
+                }
+                for item in cursor.fetchall()
+            ]
+            return jsonify({"historico": historico}), 200
+
+        if funcionario["status"] != "ativo":
+            return jsonify({"erro": "O vínculo do funcionário não está ativo."}), 409
+
+        turno_id = uuid_obrigatorio(dados.get("turno_id"), "Turno")
+        vigencia_inicio = parse_iso_date(
+            dados.get("vigencia_inicio"), "Início da vigência"
+        )
+        vigencia_fim = parse_optional_iso_date(
+            dados.get("vigencia_fim"), "Fim da vigência"
+        )
+        if vigencia_fim and vigencia_fim < vigencia_inicio:
+            raise ValueError("O fim da vigência não pode anteceder o início.")
+
+        cursor.execute(
+            """
+            SELECT id
+            FROM turnos
+            WHERE id = %s AND empresa_id = %s AND status = 'ativo'
+            """,
+            (turno_id, empresa_id),
+        )
+        if not cursor.fetchone():
+            return jsonify({"erro": "Turno ativo não encontrado."}), 404
+
+        cursor.execute(
+            """
+            SELECT id, vigencia_inicio, vigencia_fim
+            FROM funcionarios_turnos
+            WHERE funcionario_id = %s AND empresa_id = %s
+            ORDER BY vigencia_inicio, id
+            FOR UPDATE
+            """,
+            (funcionario_id, empresa_id),
+        )
+        atribuicoes = cursor.fetchall()
+        anterior = None
+        for atribuicao in atribuicoes:
+            inicio_existente = atribuicao["vigencia_inicio"]
+            fim_existente = atribuicao["vigencia_fim"]
+            if inicio_existente == vigencia_inicio:
+                return (
+                    jsonify({"erro": "Já existe atribuição iniciada nessa data."}),
+                    409,
+                )
+            if inicio_existente > vigencia_inicio and (
+                vigencia_fim is None or inicio_existente <= vigencia_fim
+            ):
+                return (
+                    jsonify({"erro": "A vigência informada sobrepõe atribuição futura."}),
+                    409,
+                )
+            if inicio_existente < vigencia_inicio and (
+                fim_existente is None or fim_existente >= vigencia_inicio
+            ):
+                if anterior:
+                    return jsonify({"erro": "O histórico atual possui sobreposição."}), 409
+                anterior = atribuicao
+
+        if anterior:
+            cursor.execute(
+                """
+                UPDATE funcionarios_turnos
+                SET vigencia_fim = %s
+                WHERE id = %s AND empresa_id = %s
+                """,
+                (vigencia_inicio - timedelta(days=1), anterior["id"], empresa_id),
+            )
+
+        cursor.execute(
+            """
+            INSERT INTO funcionarios_turnos (
+                empresa_id, funcionario_id, turno_id,
+                vigencia_inicio, vigencia_fim
+            )
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (
+                empresa_id,
+                funcionario_id,
+                turno_id,
+                vigencia_inicio,
+                vigencia_fim,
+            ),
+        )
+        atribuicao_id = cursor.fetchone()["id"]
+        conn.commit()
+        return (
+            jsonify(
+                {
+                    "atribuicao": {
+                        "id": str(atribuicao_id),
+                        "funcionario_id": funcionario_id,
+                        "turno_id": turno_id,
+                        "vigencia": {
+                            "inicio": vigencia_inicio.isoformat(),
+                            "fim": vigencia_fim.isoformat() if vigencia_fim else None,
+                        },
+                    }
+                }
+            ),
+            201,
+        )
+    except PermissionError as exc:
+        if conn:
+            conn.rollback()
+        return jsonify({"erro": str(exc)}), 403
+    except ValueError as exc:
+        if conn:
+            conn.rollback()
+        return jsonify({"erro": str(exc)}), 400
+    except psycopg2.errors.UniqueViolation:
+        if conn:
+            conn.rollback()
+        return jsonify({"erro": "Já existe atribuição iniciada nessa data."}), 409
+    except Exception:
+        if conn:
+            conn.rollback()
+        return jsonify({"erro": "Não foi possível processar a atribuição."}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+
+@views_bp.route(
+    "/api/admin/funcionarios/<funcionario_id>/jornada", methods=["GET"]
+)
+@require_roles("administrador")
+def jornada_funcionario_administrativo(funcionario_id):
+    conn = None
+    cursor = None
+    try:
+        funcionario_id = uuid_obrigatorio(funcionario_id, "Funcionário")
+        empresa_id = empresa_autenticada()
+        if request.args.get("empresa_id") not in (None, ""):
+            empresa_id_autorizada(request.args["empresa_id"])
+        data_consulta = (
+            parse_iso_date(request.args["data"], "Data")
+            if request.args.get("data")
+            else date.today()
+        )
+        conn = conectar_bd()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute(
+            "SELECT 1 FROM funcionarios WHERE id = %s AND empresa_id = %s",
+            (funcionario_id, empresa_id),
+        )
+        if not cursor.fetchone():
+            return jsonify({"erro": "Funcionário não encontrado."}), 404
+        jornada = buscar_jornada_data(
+            cursor, empresa_id, funcionario_id, data_consulta
+        )
+        return jsonify({"data": data_consulta.isoformat(), "jornada": jornada}), 200
+    except PermissionError as exc:
+        return jsonify({"erro": str(exc)}), 403
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 400
+    except Exception:
+        return jsonify({"erro": "Não foi possível consultar a jornada."}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+
+@views_bp.route("/api/jornada", methods=["GET"])
 @views_bp.route("/jornada", methods=["GET"])
-@login_required
+@require_roles("administrador", "funcionario", "gestor", "rh")
 def get_jornada():
-    # Admin pode buscar qualquer usuário, funcionário só vê o próprio
-    if session.get("tipo") == "admin":
-        user_id = request.args.get("user_id", session["user_id"])
-    else:
-        user_id = session["user_id"]
-
-    conn = conectar_bd()
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
-    cursor.execute(
-        """
-        SELECT 
-            TO_CHAR(inicio_expediente, 'HH24:MI') AS entrada,
-            TO_CHAR(inicio_intervalo, 'HH24:MI') AS saida_intervalo,
-            TO_CHAR(termino_intervalo, 'HH24:MI') AS volta_intervalo,
-            TO_CHAR(termino_expediente, 'HH24:MI') AS saida
-        FROM horarios
-        WHERE usuario_id = %s
-        """,
-        (user_id,),
-    )
-
-    jornada = cursor.fetchone()
-
-    cursor.close()
-    conn.close()
-
-    if not jornada:
-        return jsonify({"erro": "Jornada não encontrada"}), 404
-
-    return jsonify(jornada), 200
+    conn = None
+    cursor = None
+    try:
+        if request.args.get("funcionario_id") or request.args.get("user_id"):
+            return jsonify({"erro": "A jornada pessoal não aceita outro vínculo."}), 400
+        if request.args.get("empresa_id") not in (None, ""):
+            empresa_id_autorizada(request.args["empresa_id"])
+        data_consulta = (
+            parse_iso_date(request.args["data"], "Data")
+            if request.args.get("data")
+            else date.today()
+        )
+        conn = conectar_bd()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        jornada = buscar_jornada_data(
+            cursor,
+            g.auth_context["empresa_id"],
+            g.auth_funcionario_id,
+            data_consulta,
+        )
+        return jsonify({"data": data_consulta.isoformat(), "jornada": jornada}), 200
+    except PermissionError as exc:
+        return jsonify({"erro": str(exc)}), 403
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 400
+    except Exception:
+        return jsonify({"erro": "Não foi possível consultar a jornada."}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 def formatar_hora(hora):
@@ -1450,11 +2228,12 @@ def exportar_pontos():
 # FUNÇÃO - LISTAGEM DE SETORES DO BANCO DE DADOS
 # ==================================================================================================
 @views_bp.route("/listar_unidades", methods=["GET"])
-@login_required
-@admin_required
+@require_roles("administrador")
 def listar_unidades():
     try:
-        empresa_id = uuid_obrigatorio(request.args.get("empresa_id"), "Empresa")
+        empresa_id = empresa_id_autorizada(request.args.get("empresa_id"))
+    except PermissionError as exc:
+        return jsonify({"erro": str(exc)}), 403
     except ValueError as exc:
         return jsonify({"erro": str(exc)}), 400
 
@@ -1477,12 +2256,13 @@ def listar_unidades():
 
 @views_bp.route("/listar_equipes", methods=["GET"])
 @views_bp.route("/listar_setores", methods=["GET"])
-@login_required
-@admin_required
+@require_roles("administrador")
 def listar_equipes():
     try:
-        empresa_id = uuid_obrigatorio(request.args.get("empresa_id"), "Empresa")
+        empresa_id = empresa_id_autorizada(request.args.get("empresa_id"))
         unidade_id = uuid_obrigatorio(request.args.get("unidade_id"), "Unidade")
+    except PermissionError as exc:
+        return jsonify({"erro": str(exc)}), 403
     except ValueError as exc:
         return jsonify({"erro": str(exc)}), 400
 
@@ -1507,11 +2287,12 @@ def listar_equipes():
 # FUNÇÃO - LISTAGEM DE CARGOS DO BANCO DE DADOS
 # ==================================================================================================
 @views_bp.route("/listar_cargos", methods=["GET"])
-@login_required
-@admin_required
+@require_roles("administrador")
 def listar_cargos():
     try:
-        empresa_id = uuid_obrigatorio(request.args.get("empresa_id"), "Empresa")
+        empresa_id = empresa_id_autorizada(request.args.get("empresa_id"))
+    except PermissionError as exc:
+        return jsonify({"erro": str(exc)}), 403
     except ValueError as exc:
         return jsonify({"erro": str(exc)}), 400
 
@@ -1536,8 +2317,7 @@ def listar_cargos():
 
 
 @views_bp.route("/editarUsuario")
-@login_required
-@admin_required
+@require_roles("administrador")
 def editar_usuario():
     try:
         funcionario_id = uuid_obrigatorio(
@@ -1580,9 +2360,9 @@ def editar_usuario():
         INNER JOIN unidades un ON un.id = f.unidade_id
         LEFT JOIN cargos c ON c.id = f.cargo_id
         LEFT JOIN equipes eq ON eq.id = f.equipe_id
-        WHERE f.id = %s
+        WHERE f.id = %s AND f.empresa_id = %s
         """,
-        (funcionario_id,),
+        (funcionario_id, g.auth_context["empresa_id"]),
     )
 
     usuario = cursor.fetchone()
@@ -1597,59 +2377,23 @@ def editar_usuario():
 
 
 @views_bp.route("/editarHorarios")
-@login_required
+@require_roles("administrador")
 def editar_horarios():
-    user_id = request.args.get("id")
-
-    conn = conectar_bd()
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
-    cursor.execute("SELECT id, nome FROM usuarios WHERE id = %s", (user_id,))
-    usuario = cursor.fetchone()
-
-    if not usuario:
-        cursor.close()
-        conn.close()
-        return "Usuário não encontrado", 404
-
-    cursor.execute(
-        """
-        SELECT dia_semana, inicio_expediente, inicio_intervalo,
-               termino_intervalo, termino_expediente
-        FROM horarios
-        WHERE usuario_id = %s
-        ORDER BY dia_semana
-    """,
-        (user_id,),
-    )
-
-    horarios = cursor.fetchall()
-    horario = horarios[0] if horarios else None
-    dias = [h["dia_semana"] for h in horarios]
-
-    horarios_por_dia = {h["dia_semana"]: h for h in horarios}
-
-    horarios_unicos = set(
-        (h["inicio_expediente"], h["termino_expediente"]) for h in horarios
-    )
-    tipo_jornada = "padrao" if len(horarios_unicos) <= 1 else "manual"
-
-    cursor.close()
-    conn.close()
-
-    return render_template(
-        "editarHorarios.html",
-        usuario=usuario,
-        horario=horario,
-        dias=dias,
-        horarios_por_dia=horarios_por_dia,
-        tipo_jornada=tipo_jornada,
+    return (
+        jsonify(
+            {
+                "erro": (
+                    "A interface antiga de horários não suporta múltiplos períodos. "
+                    "A gestão de jornadas está disponível pela API de turnos."
+                )
+            }
+        ),
+        410,
     )
 
 
 @views_bp.route("/deletar_usuario", methods=["POST"])
-@login_required
-@admin_required
+@require_roles("administrador")
 def deletar_usuario():
     conn = None
     cursor = None
@@ -1671,8 +2415,8 @@ def deletar_usuario():
         conn = conectar_bd()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute(
-            "SELECT usuario_id FROM funcionarios WHERE id = %s FOR UPDATE",
-            (funcionario_id,),
+            "SELECT usuario_id FROM funcionarios WHERE id = %s AND empresa_id = %s FOR UPDATE",
+            (funcionario_id, g.auth_context["empresa_id"]),
         )
         funcionario = cursor.fetchone()
         if not funcionario:
@@ -1680,8 +2424,8 @@ def deletar_usuario():
             return jsonify({"status": "erro", "mensagem": "Funcionário não encontrado."}), 404
 
         cursor.execute(
-            "UPDATE funcionarios SET status = 'desligado', updated_at = now() WHERE id = %s",
-            (funcionario_id,),
+            "UPDATE funcionarios SET status = 'desligado', updated_at = now() WHERE id = %s AND empresa_id = %s",
+            (funcionario_id, g.auth_context["empresa_id"]),
         )
         cursor.execute(
             "SELECT 1 FROM funcionarios WHERE usuario_id = %s AND status = 'ativo' LIMIT 1",
@@ -1716,8 +2460,7 @@ def deletar_usuario():
 
 
 @views_bp.route("/atualizar_status_usuario", methods=["POST"])
-@login_required
-@admin_required
+@require_roles("administrador")
 def atualizar_status_usuario():
     conn = None
     cursor = None
@@ -1730,8 +2473,8 @@ def atualizar_status_usuario():
         conn = conectar_bd()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute(
-            "SELECT usuario_id, status FROM funcionarios WHERE id = %s FOR UPDATE",
-            (funcionario_id,),
+            "SELECT usuario_id, status FROM funcionarios WHERE id = %s AND empresa_id = %s FOR UPDATE",
+            (funcionario_id, g.auth_context["empresa_id"]),
         )
         funcionario = cursor.fetchone()
         if not funcionario:
@@ -1740,8 +2483,8 @@ def atualizar_status_usuario():
 
         novo_status = "desligado" if funcionario["status"] == "ativo" else "ativo"
         cursor.execute(
-            "UPDATE funcionarios SET status = %s, updated_at = now() WHERE id = %s",
-            (novo_status, funcionario_id),
+            "UPDATE funcionarios SET status = %s, updated_at = now() WHERE id = %s AND empresa_id = %s",
+            (novo_status, funcionario_id, g.auth_context["empresa_id"]),
         )
         if novo_status == "ativo":
             cursor.execute(
