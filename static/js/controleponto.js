@@ -9,33 +9,17 @@ function horaParaMinutos(hora) {
 
 function classificarHorario(tipo, valor) {
     if (!valor || valor === "--:--" || !jornadaPadrao) return "";
-    
     const real = horaParaMinutos(valor);
     const esperado = horaParaMinutos(jornadaPadrao[tipo]);
     if (real === null || esperado === null) return "";
-
-    // Calcula a diferença absoluta em minutos
     const diferenca = Math.abs(real - esperado);
-
-    // 1. Se estiver exatamente no horário ou dentro da tolerância de 10 min
-    if (diferenca === 0) {
-        return "ok"; // Verde
-    }
-    
-    if (diferenca <= TOLERANCIA_MINUTOS) {
-        return "alerta"; // Amarelo
-    }
-
-    // 2. Se a diferença for maior que a tolerância (tanto para antes quanto para depois)
-    return "erro"; // Vermelho
+    if (diferenca === 0) return "ok";
+    if (diferenca <= TOLERANCIA_MINUTOS) return "alerta";
+    return "erro";
 }
 
-
 function criarCelulaHora(valor, tipo) {
-    if (!valor || valor === "--:--") {
-        return `<div class="hora">--:--</div>`;
-    }
-
+    if (!valor || valor === "--:--") return `<div class="hora">--:--</div>`;
     const classe = classificarHorario(tipo, valor);
     return `<div class="hora ${classe}">${valor}</div>`;
 }
@@ -51,155 +35,113 @@ function converterDataParaIso(dataBr) {
     return `${ano}-${mes}-${dia}`;
 }
 
-async function carregarJornadaPadrao(userId = null) {
-  try {
-    const url = userId ? `/jornada?user_id=${userId}` : "/jornada";
-    const resp = await fetch(url);
+function jornadaLegadaDaApi(payload) {
+    const periodos = payload?.jornada?.periodos || [];
+    const hoje = new Date();
+    const diaSemana = (hoje.getDay() + 6) % 7;
+    const doDia = periodos.filter(p => p.dia_semana === diaSemana).sort((a, b) => a.ordem - b.ordem);
+    if (!doDia.length) return null;
+    return {
+        entrada: doDia[0]?.inicio?.slice(0, 5) || "--:--",
+        saida_intervalo: doDia[0]?.fim?.slice(0, 5) || "--:--",
+        volta_intervalo: doDia[1]?.inicio?.slice(0, 5) || "--:--",
+        saida: doDia[doDia.length - 1]?.fim?.slice(0, 5) || "--:--"
+    };
+}
 
-    if (!resp.ok) {
-      console.error("Erro ao buscar jornada:", resp.status);
-      return;
+async function carregarJornadaPadrao(funcionarioId = null) {
+    try {
+        const url = funcionarioId
+            ? `/api/admin/funcionarios/${funcionarioId}/jornada`
+            : "/api/jornada";
+        const resp = await fetch(url);
+        if (!resp.ok) {
+            jornadaPadrao = null;
+            return;
+        }
+        jornadaPadrao = jornadaLegadaDaApi(await resp.json());
+        document.getElementById("hora-entrada").textContent = jornadaPadrao?.entrada ?? "--:--";
+        document.getElementById("hora-saida-intervalo").textContent = jornadaPadrao?.saida_intervalo ?? "--:--";
+        document.getElementById("hora-volta-intervalo").textContent = jornadaPadrao?.volta_intervalo ?? "--:--";
+        document.getElementById("hora-saida").textContent = jornadaPadrao?.saida ?? "--:--";
+    } catch (erro) {
+        console.error("Falha ao carregar jornada:", erro);
     }
+}
 
-    jornadaPadrao = await resp.json();
-
-    document.getElementById("hora-entrada").textContent =
-      jornadaPadrao.entrada ?? "--:--";
-    document.getElementById("hora-saida-intervalo").textContent =
-      jornadaPadrao.saida_intervalo ?? "--:--";
-    document.getElementById("hora-volta-intervalo").textContent =
-      jornadaPadrao.volta_intervalo ?? "--:--";
-    document.getElementById("hora-saida").textContent =
-      jornadaPadrao.saida ?? "--:--";
-  } catch (erro) {
-    console.error("Falha ao carregar jornada:", erro);
-  }
+async function carregarFuncionarios() {
+    const select = document.getElementById("filtroUsuario");
+    if (!select) return;
+    const resp = await fetch("/api/gestao/funcionarios");
+    if (!resp.ok) throw new Error("Erro ao carregar funcionários");
+    const funcionarios = await resp.json();
+    select.innerHTML = '<option value="">Selecione</option>' + funcionarios.map(item =>
+        `<option value="${item.funcionario_id}">${item.nome}${item.matricula ? ` - ${item.matricula}` : ""}</option>`
+    ).join("");
 }
 
 async function carregarTabelaPontos() {
     const tbody = document.getElementById("tabela-pontos-body");
-
     try {
         const dataInicio = document.getElementById("dataInicio").value;
         const dataFim = document.getElementById("dataFim").value;
-        const usuarioId = document.getElementById("filtroUsuario")?.value || "";
+        const funcionarioId = document.getElementById("filtroUsuario")?.value || "";
 
-        const params = new URLSearchParams();
-
-        if (dataInicio) {
-            params.append("inicio", converterDataParaIso(dataInicio));
-        }
-
-        if (dataFim) {
-            params.append("fim", converterDataParaIso(dataFim));
-        }
-
-        if (usuarioId) {
-            params.append("usuario_id", usuarioId);
-        }
-
-        let url = "/pontos";
-
-        if (params.toString()) {
-            url += `?${params.toString()}`;
-        }
-
-        const resp = await fetch(url);
-
-        if (!resp.ok) {
-            throw new Error("Erro ao buscar dados");
-        }
-
-        const dados = await resp.json();
-
-        if (!dados.length) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="6" style="text-align:center;">Nenhum registro encontrado.</td>
-                </tr>
-            `;
+        if (document.getElementById("filtroUsuario") && !funcionarioId) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Selecione um funcionário.</td></tr>';
             return;
         }
 
-        const hoje = new Date().toISOString().split("T")[0];
+        const params = new URLSearchParams();
+        params.append("funcionario_id", funcionarioId);
+        if (dataInicio) params.append("inicio", converterDataParaIso(dataInicio));
+        if (dataFim) params.append("fim", converterDataParaIso(dataFim));
 
+        const resp = await fetch(`/api/gestao/pontos?${params.toString()}`);
+        if (!resp.ok) throw new Error("Erro ao buscar dados");
+        const dados = await resp.json();
+
+        if (!dados.length) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Nenhum registro encontrado.</td></tr>';
+            return;
+        }
+
+        const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
         tbody.innerHTML = dados.map(item => {
             const ehHoje = item.data === hoje;
-
-            return `
-                <tr class="${ehHoje ? 'hoje' : ''}">
-                    <td>
-                        <span class="dia-label">${item.dia}</span>
-                        ${ehHoje ? '<span class="hoje-badge">Hoje</span>' : ''}
-                        <br>
-                        <small>${formatarDataBR(item.data)}</small>
-                    </td>
-
-                    <td>${criarCelulaHora(item.entrada, "entrada")}</td>
-                    <td>${criarCelulaHora(item.saida_intervalo, "saida_intervalo")}</td>
-                    <td>${criarCelulaHora(item.volta_intervalo, "volta_intervalo")}</td>
-                    <td>${criarCelulaHora(item.saida, "saida")}</td>
-
-                    <td><span class="total-horas">${item.total}</span></td>
-                </tr>
-            `;
+            return `<tr class="${ehHoje ? "hoje" : ""}">
+                <td><span class="dia-label">${item.dia}</span>${ehHoje ? '<span class="hoje-badge">Hoje</span>' : ""}<br><small>${formatarDataBR(item.data)}</small></td>
+                <td>${criarCelulaHora(item.entrada, "entrada")}</td>
+                <td>${criarCelulaHora(item.saida_intervalo, "saida_intervalo")}</td>
+                <td>${criarCelulaHora(item.volta_intervalo, "volta_intervalo")}</td>
+                <td>${criarCelulaHora(item.saida, "saida")}</td>
+                <td><span class="total-horas">${item.total}</span></td>
+            </tr>`;
         }).join("");
-
     } catch (erro) {
         console.error(erro);
-
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="6" style="text-align:center;">Erro ao carregar dados.</td>
-            </tr>
-        `;
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Erro ao carregar dados.</td></tr>';
     }
 }
 
 function exportarPontos() {
-    const formato = document.getElementById("exportFormat").value;
-    const dataInicio = document.getElementById("dataInicio").value;
-    const dataFim = document.getElementById("dataFim").value;
-    const usuarioId = document.getElementById("filtroUsuario")?.value || "";
-
-    if (!formato) {
-        alert("Selecione um formato para exportação.");
-        return;
-    }
-
-    const params = new URLSearchParams();
-    params.append("formato", formato);
-
-    if (dataInicio) {
-        params.append("inicio", converterDataParaIso(dataInicio));
-    }
-
-    if (dataFim) {
-        params.append("fim", converterDataParaIso(dataFim));
-    }
-
-    if (usuarioId) {
-        params.append("usuario_id", usuarioId);
-    }
-
-    window.location.href = `/exportar-pontos?${params.toString()}`;
+    alert("A exportação ainda usa o fluxo legado e será migrada em uma próxima etapa.");
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  await carregarJornadaPadrao();
-  await carregarTabelaPontos();
+    try { await carregarFuncionarios(); } catch (erro) { console.error(erro); }
+    const select = document.getElementById("filtroUsuario");
+    if (!select) await carregarJornadaPadrao();
+    await carregarTabelaPontos();
 
-  const btnPesquisar = document.getElementById("btnPesquisar");
-  if (btnPesquisar) {
-    btnPesquisar.addEventListener("click", async () => {
-      const userId = document.getElementById("filtroUsuario")?.value || null;
-      await carregarJornadaPadrao(userId);
-      await carregarTabelaPontos();
-    });
-  }
-
-  const btnExportar = document.querySelector(".btn-export");
-  if (btnExportar) {
-    btnExportar.addEventListener("click", exportarPontos);
-  }
+    const btnPesquisar = document.getElementById("btnPesquisar");
+    if (btnPesquisar) {
+        btnPesquisar.addEventListener("click", async () => {
+            const funcionarioId = document.getElementById("filtroUsuario")?.value || null;
+            if (funcionarioId) await carregarJornadaPadrao(funcionarioId);
+            await carregarTabelaPontos();
+        });
+    }
+    const btnExportar = document.querySelector(".btn-export");
+    if (btnExportar) btnExportar.addEventListener("click", exportarPontos);
 });
