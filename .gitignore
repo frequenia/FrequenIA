@@ -5,9 +5,22 @@ venv
 !.env.example
 __pycache__/
 *.pyc
-mobile/
 .codex-worktrees/
 AGENTS.md
+.pytest_cache/
+.coverage
+htmlcov/
+temp_cadastros/
+.dart_tool/
+.flutter-plugins*
+mobile/build/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/.env*
+supabase/.temp/
+*.keystore
+*.jks
+service-account*.json
 
 # Local credentials and private keys
 .secrets/
