@@ -1,17 +1,33 @@
-# mobile
+# FrequenIA Mobile
 
-A new Flutter project.
+Fundação Flutter do aplicativo FrequenIA. Nesta fase, o app oferece login,
+restauração segura da sessão, refresh token rotativo, `/auth/me`, logout,
+navegação autenticada e consulta da própria jornada em `/api/jornada`.
 
-## Getting Started
+## Configuração da API
 
-This project is a starting point for a Flutter application.
+A URL do Flask é definida em compilação por `BASE_URL`; o ambiente pode ser
+identificado por `APP_ENV`:
 
-A few resources to get you started if this is your first Flutter project:
+```powershell
+flutter run --dart-define=APP_ENV=development --dart-define=BASE_URL=http://10.0.2.2:5007
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- Emulador Android: `10.0.2.2` aponta para o computador host.
+- Celular físico: informe o IP alcançável do computador na mesma rede, sem
+  gravá-lo no código.
+- Homologação/produção: informe a URL HTTPS correspondente no comando de build.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+HTTP sem TLS é aceito apenas pelo manifesto Android de `debug`. Builds de
+produção não recebem essa liberação.
+
+## Verificação
+
+```powershell
+flutter pub get
+flutter analyze
+flutter test
+```
+
+O aplicativo não acessa o Supabase diretamente e não deve receber credenciais
+do banco, `service_role`, chaves JWT ou segredos Flask.
