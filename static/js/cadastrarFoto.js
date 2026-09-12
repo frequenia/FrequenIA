@@ -6,13 +6,15 @@ const btnFecharModal = document.getElementById("btnFecharModal");
 const modal = document.getElementById("modal-instrucoes");
 const contador = document.getElementById("contador");
 const barra = document.getElementById("barra");
+const btnFinalizar = document.getElementById("btnFinalizar");
 
-let fotosCapturadas = 0;
+const minFotos = 3;
 const maxFotos = 5;
+let imagensCapturadas = [];
 let processando = false;
-let cadastroIniciado = false;
-let nomeGlobal = "";
 let streamAtivo = null;
+let funcionarioCapturaId = null;
+let nomeCaptura = "";
 
 // =========================
 // CARREGAR USUÁRIOS
@@ -20,14 +22,21 @@ let streamAtivo = null;
 async function carregarUsuarios() {
     try {
         const res = await fetch("/listar_usuarios_select");
-        const usuarios = await res.json();
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(data.erro || "Erro ao carregar lista de funcionários.");
+        }
 
         const select = document.getElementById("nome");
 
-        usuarios.forEach((u) => {
+        data.forEach((funcionario) => {
             const option = document.createElement("option");
-            option.value = u.id;
-            option.textContent = u.nome;
+            option.value = funcionario.funcionario_id;
+            option.dataset.nome = funcionario.nome;
+            option.textContent = funcionario.possui_biometria_ativa
+                ? `${funcionario.nome} — biometria ativa (recadastro)`
+                : funcionario.nome;
             select.appendChild(option);
         });
     } catch (error) {
@@ -89,7 +98,7 @@ function desligarCamera() {
 // CAPTURA IMAGEM
 // =========================
 function capturarImagem() {
-    if (!video || video.videoWidth === 0) return null;
+    if (!video || video.videoWidth === 0) return Promise.resolve(null);
 
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
@@ -98,26 +107,40 @@ function capturarImagem() {
     const ctx = canvas.getContext("2d");
     ctx.drawImage(video, 0, 0);
 
-    return canvas.toDataURL("image/jpeg", 0.95);
+    return new Promise((resolve) => {
+        canvas.toBlob(resolve, "image/jpeg", 0.95);
+    });
 }
 
 // =========================
 // CADASTRO
 // =========================
+function atualizarProgresso() {
+    const total = imagensCapturadas.length;
+    contador.innerText = `Foto ${total} de ${maxFotos}`;
+    barra.style.width = `${(total / maxFotos) * 100}%`;
+    barra.style.background = total >= minFotos ? "#2ecc71" : "#f1c40f";
+    btnFinalizar.disabled = total < minFotos || processando;
+    btnCapturar.disabled = total >= maxFotos || processando;
+    btnCapturar.innerText = total >= maxFotos ? "Limite de fotos atingido" : "Capturar Foto";
+}
+
 async function cadastrar() {
     if (processando) return;
     processando = true;
 
     const select = document.getElementById("nome");
-    const nome = select.options[select.selectedIndex].text;
+    const funcionarioId = select.value;
+    const selectedOption = select.options[select.selectedIndex];
+    const nome = selectedOption?.dataset.nome || "";
 
-    if (!nome || nome === "Selecione um usuário") {
+    if (!funcionarioId || !nome) {
         mostrarPopupErro("Selecione um usuário!");
         processando = false;
         return;
     }
 
-    if (fotosCapturadas >= maxFotos) {
+    if (imagensCapturadas.length >= maxFotos) {
         processando = false;
         return;
     }
@@ -136,96 +159,76 @@ async function cadastrar() {
         }
     }
 
-    const imagemBase64 = capturarImagem();
-    if (!imagemBase64) {
+    const imagem = await capturarImagem();
+    if (!imagem) {
         mostrarPopupErro("Erro ao capturar imagem.");
         processando = false;
         return;
     }
 
+    if (!funcionarioCapturaId) {
+        funcionarioCapturaId = funcionarioId;
+        nomeCaptura = nome;
+        select.disabled = true;
+    }
+
     btnCapturar.disabled = true;
-    btnCapturar.innerText = "Salvando...";
+    btnCapturar.innerText = "Capturando...";
 
     try {
-        if (!cadastroIniciado) {
-            const resInicio = await fetch("/iniciar_cadastro", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ nome })
-            });
+        imagensCapturadas.push(imagem);
+        atualizarProgresso();
+    } catch (error) {
+        console.error(error);
+        mostrarPopupErro("Não foi possível manter a imagem capturada.");
+    } finally {
+        processando = false;
+        atualizarProgresso();
+    }
+}
 
-            const dataInicio = await resInicio.json();
+async function finalizarCadastro() {
+    if (processando) return;
+    if (imagensCapturadas.length < minFotos || imagensCapturadas.length > maxFotos) {
+        mostrarPopupErro("Capture entre 3 e 5 fotos antes de finalizar.");
+        return;
+    }
 
-            if (!resInicio.ok) {
-                throw new Error(dataInicio.erro || "Erro ao iniciar cadastro");
-            }
+    processando = true;
+    btnCapturar.disabled = true;
+    btnFinalizar.disabled = true;
+    btnFinalizar.innerText = "Processando cadastro...";
 
-            cadastroIniciado = true;
-            nomeGlobal = nome;
-        }
-
-        const resFoto = await fetch("/adicionar_foto", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                nome: nomeGlobal,
-                imagem: imagemBase64
-            })
+    try {
+        const formData = new FormData();
+        imagensCapturadas.forEach((imagem, index) => {
+            formData.append("imagem", imagem, `captura-${index + 1}.jpg`);
         });
 
-        const dataFoto = await resFoto.json();
-
-        if (!resFoto.ok) {
-            throw new Error(dataFoto.erro || "Erro ao salvar foto");
-        }
-
-        fotosCapturadas++;
-        contador.innerText = `Foto ${fotosCapturadas} de ${maxFotos}`;
-
-        const progresso = (fotosCapturadas / maxFotos) * 100;
-        barra.style.width = progresso + "%";
-
-        const cores = ["#e74c3c", "orange", "#f1c40f", "#9acd32", "#2ecc71"];
-        barra.style.background = cores[fotosCapturadas - 1];
-
-        if (fotosCapturadas === maxFotos) {
-            desligarCamera();
-
-            btnCapturar.disabled = true;
-            btnCapturar.innerText = "Processando cadastro...";
-
-            const resFinal = await fetch("/finalizar_cadastro", {
+        const resposta = await fetch(
+            `/api/admin/funcionarios/${encodeURIComponent(funcionarioCapturaId)}/biometria`,
+            {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ nome: nomeGlobal })
-            });
-
-            const dataFinal = await resFinal.json();
-
-            if (!resFinal.ok) {
-                let mensagemErro = dataFinal.erro || "Erro ao finalizar cadastro";
-
-                if (dataFinal.erros && dataFinal.erros.length > 0) {
-                    mensagemErro += "\n\nDetalhes:\n" + dataFinal.erros.join("\n");
-                }
-
-                throw new Error(mensagemErro);
+                body: formData
             }
+        );
+        const data = await resposta.json();
 
-            // ← Sem setTimeout, popup fica aberto até o usuário confirmar
-            mostrarPopupSucesso(nomeGlobal, fotosCapturadas);
-            return;
+        if (!resposta.ok) {
+            throw new Error(data.erro || "Erro ao cadastrar biometria.");
         }
 
+        const totalEnviado = imagensCapturadas.length;
+        desligarCamera();
+        imagensCapturadas = [];
+        mostrarPopupSucesso(nomeCaptura, totalEnviado);
     } catch (error) {
         console.error(error);
         mostrarPopupErro(error.message);
     } finally {
-        if (fotosCapturadas < maxFotos) {
-            btnCapturar.disabled = false;
-            btnCapturar.innerText = "Capturar Foto";
-        }
         processando = false;
+        btnFinalizar.innerText = "Finalizar cadastro";
+        atualizarProgresso();
     }
 }
 
@@ -262,11 +265,12 @@ function fecharPopupSucesso() {
     document.getElementById("popup-ponto").classList.remove("ativo");
 
     // ← Reset e reload só acontecem quando o usuário clica em Confirmar
-    fotosCapturadas = 0;
-    cadastroIniciado = false;
-    nomeGlobal = "";
+    imagensCapturadas = [];
+    funcionarioCapturaId = null;
+    nomeCaptura = "";
     contador.innerText = "Foto 0 de 5";
     barra.style.width = "0%";
+    document.getElementById("nome").disabled = false;
     document.getElementById("nome").selectedIndex = 0;
 
     window.location.reload();
@@ -291,6 +295,7 @@ document.getElementById("popup-erro").addEventListener('click', function (event)
 
 // Event Listeners
 if (btnCapturar) btnCapturar.addEventListener('click', cadastrar);
+if (btnFinalizar) btnFinalizar.addEventListener('click', finalizarCadastro);
 if (btnInstrucoes) btnInstrucoes.addEventListener('click', abrirInstrucoes);
 
 const btnVoltar = document.getElementById('btnVoltar');

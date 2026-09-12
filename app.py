@@ -10,9 +10,7 @@ APP_ENV = os.getenv("APP_ENV", "production").strip().lower()
 VALID_APP_ENVIRONMENTS = {"development", "homologation", "production"}
 
 if APP_ENV not in VALID_APP_ENVIRONMENTS:
-    raise RuntimeError(
-        "APP_ENV must be one of: development, homologation, production."
-    )
+    raise RuntimeError("APP_ENV must be one of: development, homologation, production.")
 
 secret_key = os.getenv("FLASK_SECRET_KEY")
 if not secret_key:
@@ -41,10 +39,40 @@ if jwt_refresh_token_days <= 0:
 try:
     password_reset_token_minutes = int(os.getenv("PASSWORD_RESET_TOKEN_MINUTES", "30"))
 except ValueError as exc:
-    raise RuntimeError("PASSWORD_RESET_TOKEN_MINUTES must be a positive integer.") from exc
+    raise RuntimeError(
+        "PASSWORD_RESET_TOKEN_MINUTES must be a positive integer."
+    ) from exc
 
 if password_reset_token_minutes <= 0:
     raise RuntimeError("PASSWORD_RESET_TOKEN_MINUTES must be a positive integer.")
+
+try:
+    face_verification_max_cosine_distance = float(
+        os.getenv("FACE_VERIFICATION_MAX_COSINE_DISTANCE", "0.68")
+    )
+except ValueError as exc:
+    raise RuntimeError(
+        "FACE_VERIFICATION_MAX_COSINE_DISTANCE must be a number between 0 and 2."
+    ) from exc
+
+if not 0 < face_verification_max_cosine_distance <= 2:
+    raise RuntimeError(
+        "FACE_VERIFICATION_MAX_COSINE_DISTANCE must be a number between 0 and 2."
+    )
+
+try:
+    facial_attempt_max_age_seconds = int(
+        os.getenv("FACIAL_ATTEMPT_MAX_AGE_SECONDS", "120")
+    )
+except ValueError as exc:
+    raise RuntimeError(
+        "FACIAL_ATTEMPT_MAX_AGE_SECONDS must be a positive integer."
+    ) from exc
+
+if facial_attempt_max_age_seconds <= 0:
+    raise RuntimeError(
+        "FACIAL_ATTEMPT_MAX_AGE_SECONDS must be a positive integer."
+    )
 
 password_reset_test_key = os.getenv("PASSWORD_RESET_TEST_KEY", "")
 if APP_ENV == "production" and password_reset_test_key:
@@ -68,6 +96,10 @@ app.config["JWT_REFRESH_TOKEN_DAYS"] = jwt_refresh_token_days
 app.config["REFRESH_COOKIE_SECURE"] = APP_ENV == "production"
 app.config["PASSWORD_RESET_TOKEN_MINUTES"] = password_reset_token_minutes
 app.config["PASSWORD_RESET_TEST_KEY"] = password_reset_test_key
+app.config["FACE_VERIFICATION_MAX_COSINE_DISTANCE"] = (
+    face_verification_max_cosine_distance
+)
+app.config["FACIAL_ATTEMPT_MAX_AGE_SECONDS"] = facial_attempt_max_age_seconds
 
 if cors_origins:
     CORS(app, origins=cors_origins, supports_credentials=True)
@@ -80,9 +112,11 @@ def health():
 
 from routes.views import views_bp
 from routes.face import face_bp
+from routes.biometrics import biometrics_bp
 
 app.register_blueprint(views_bp)
 app.register_blueprint(face_bp)
+app.register_blueprint(biometrics_bp)
 
 if __name__ == "__main__":
     app.run(

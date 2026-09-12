@@ -1,3 +1,5 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+
 absl-py==2.4.0
 astunparse==1.6.3
 beautifulsoup4==4.14.3
@@ -74,6 +76,7 @@ termcolor==3.3.0
 tf_keras==2.20.1
 tomli==2.4.0
 tqdm==4.67.3
+torch==2.14.0+cpu
 typing_extensions==4.15.0
 tzdata==2025.3
 urllib3==2.6.3

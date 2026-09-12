@@ -1,8 +1,13 @@
+"""Rotas faciais legadas.
+
+Novas funcionalidades biometricas devem ser adicionadas em ``routes.biometrics``
+e em servicos proprios, nunca neste modulo ou em ``routes.views``.
+"""
+
 from flask import Blueprint, request, jsonify
 from db import conectar_bd
 import cloudinary
 import cloudinary.uploader
-from deepface import DeepFace
 import base64
 import os
 import shutil
@@ -11,15 +16,20 @@ import cv2
 from datetime import datetime
 from dotenv import load_dotenv
 from pgvector.psycopg2 import register_vector
+from services.face_service import (
+    FaceServiceUnavailableError,
+    extract_faces,
+    generate_arcface_embedding,
+)
 
 load_dotenv()
 
 face_bp = Blueprint("face", __name__)
 
 cloudinary.config(
-    cloud_name=os.getenv("CLOUD_NAME"),
-    api_key=os.getenv("CLOUD_KEY"),
-    api_secret=os.getenv("CLOUD_SECRET"),
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
 )
 
 MODEL_NAME = "ArcFace"
@@ -31,11 +41,6 @@ LIMIAR_RECONHECIMENTO = 0.84
 CONFIANCA_MINIMA = 0.30
 MARGEM_MINIMA = 0.1
 PASTA_TEMP = "temp_cadastros"
-INTERVALO_MINIMO_PRESENCA_SEGUNDOS = 60
-
-print("Carregando modelo...")
-DeepFace.build_model(MODEL_NAME)
-print("Modelo carregado!")
 
 
 # =========================
@@ -76,9 +81,7 @@ def imagem_nitida(img, limite=40):
 
 
 def detectar_rosto_unico(img, detector, align=True):
-    faces = DeepFace.extract_faces(
-        img_path=img, detector_backend=detector, enforce_detection=False, align=align
-    )
+    faces = extract_faces(img, detector, align=align)
 
     if len(faces) != 1:
         return None, "A imagem deve conter exatamente 1 rosto."
@@ -97,57 +100,7 @@ def detectar_rosto_unico(img, detector, align=True):
 
 
 def gerar_embedding(face_img):
-    rep = DeepFace.represent(
-        img_path=face_img,
-        model_name=MODEL_NAME,
-        detector_backend="skip",
-        enforce_detection=False,
-    )
-
-    embedding = np.array(rep[0]["embedding"], dtype=np.float32)
-
-    if len(embedding) != 512:
-        raise ValueError(
-            f"Embedding ArcFace com dimensão inesperada: {len(embedding)}"
-        )
-
-    norma = np.linalg.norm(embedding)
-
-    if norma == 0:
-        raise ValueError("Não foi possível normalizar o embedding.")
-
-    embedding = embedding / norma
-
-    return embedding.tolist()
-
-
-def pode_registrar_presenca(cursor, usuario_id, agora):
-    cursor.execute(
-        """
-        SELECT data_registro, horario_registro
-        FROM ponto
-        WHERE usuario_id = %s
-        ORDER BY data_registro DESC NULLS LAST, horario_registro DESC NULLS LAST
-        LIMIT 1
-    """,
-        (usuario_id,),
-    )
-
-    ultima = cursor.fetchone()
-
-    if not ultima:
-        return True
-
-    data_ultima = ultima[0]
-    hora_ultima = ultima[1]
-
-    if data_ultima is None or hora_ultima is None:
-        return True
-
-    dt_ultima = datetime.combine(data_ultima, hora_ultima)
-    diferenca = (agora - dt_ultima).total_seconds()
-
-    return diferenca >= INTERVALO_MINIMO_PRESENCA_SEGUNDOS
+    return generate_arcface_embedding(face_img)
 
 
 def reconhecer_uma_imagem(cursor, imagem_base64):
@@ -302,6 +255,8 @@ def adicionar_foto():
 # =========================
 @face_bp.route("/finalizar_cadastro", methods=["POST"])
 def finalizar_cadastro():
+    conn = None
+    cursor = None
     try:
         dados = request.get_json()
         nome = dados.get("nome")
@@ -395,6 +350,8 @@ def finalizar_cadastro():
                 if os.path.exists(caminho_face):
                     os.remove(caminho_face)
 
+            except FaceServiceUnavailableError:
+                raise
             except Exception as e:
                 erros.append(f"{arquivo}: {str(e)}")
 
@@ -421,6 +378,14 @@ def finalizar_cadastro():
             200,
         )
 
+    except FaceServiceUnavailableError:
+        if conn:
+            conn.rollback()
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+        return jsonify({"erro": "Servico facial temporariamente indisponivel."}), 503
     except Exception as e:
         return jsonify({"erro": str(e)}), 500
 
@@ -430,6 +395,8 @@ def finalizar_cadastro():
 # =========================
 @face_bp.route("/reconhecer", methods=["POST"])
 def reconhecer():
+    conn = None
+    cursor = None
     try:
         dados = request.get_json()
         imagem = dados.get("imagem")
@@ -514,6 +481,12 @@ def reconhecer():
             "aguardando_confirmacao": True
         }), 200
 
+    except FaceServiceUnavailableError:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+        return jsonify({"erro": "Servico facial temporariamente indisponivel."}), 503
     except Exception as e:
         return jsonify({"erro": str(e)}), 500
 
@@ -523,43 +496,14 @@ def reconhecer():
 # =========================
 @face_bp.route("/confirmar_ponto", methods=["POST"])
 def confirmar_ponto():
-    try:
-        dados = request.get_json()
-        usuario_id = dados.get("usuario_id")
-        nome = dados.get("nome")
-
-        if not usuario_id:
-            return jsonify({"erro": "Dados inválidos."}), 400
-
-        conn = conectar_bd()
-        register_vector(conn)
-        cursor = conn.cursor()
-
-        agora = datetime.now()
-
-        if pode_registrar_presenca(cursor, usuario_id, agora):
-            cursor.execute("""
-                INSERT INTO ponto (usuario_id, data_registro, horario_registro)
-                VALUES (%s, %s, %s)
-            """, (usuario_id, agora.date(), agora.time().replace(microsecond=0)))
-            conn.commit()
-
-            cursor.close()
-            conn.close()
-
-            return jsonify({
-                "nome": nome,
-                "data": agora.strftime("%d/%m/%Y"),
-                "horario": agora.strftime("%H:%M:%S"),
-                "registrado": True
-            }), 200
-        else:
-            cursor.close()
-            conn.close()
-            return jsonify({
-                "erro": "Ponto já registrado recentemente.",
-                "registrado": False
-            }), 429
-
-    except Exception as e:
-        return jsonify({"erro": str(e)}), 500
+    return (
+        jsonify(
+            {
+                "erro": (
+                    "Fluxo legado de confirmacao de ponto desativado. "
+                    "Utilize a API oficial de marcacoes."
+                )
+            }
+        ),
+        410,
+    )

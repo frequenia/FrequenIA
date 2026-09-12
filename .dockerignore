@@ -2,6 +2,10 @@
 .gitignore
 .env
 .env.*
+.secrets
+credentials.local.*
+*.pem
+*.key
 .codex-worktrees
 .pytest_cache
 __pycache__

@@ -35,7 +35,6 @@ from db import (
     buscar_vinculos_ativos,
     conectar_bd,
 )
-from routes.face import pasta_usuario
 from collections import defaultdict
 import os
 import csv
@@ -483,7 +482,7 @@ def reconhecimento_facial():
 
 
 @views_bp.route("/cadastrarFoto")
-@login_required
+@require_roles("administrador")
 def cadastrar_foto():
     return render_template("cadastrarFoto.html")
 
@@ -1611,34 +1610,62 @@ def resetar_senha():
 
 
 # ==================================================================================================
-# FUNÇÃO - LISTAGEM DE USUÁRIOS NO CADASTRO DE FOTOS (APENAS USUÁRIOS SEM FOTO)
+# FUNÇÃO - LISTAGEM DE FUNCIONÁRIOS PARA CADASTRO BIOMÉTRICO
 # ==================================================================================================
 @views_bp.route("/listar_usuarios_select", methods=["GET"])
+@require_roles("administrador")
 def listar_usuarios_select():
+    conn = None
+    cursor = None
     try:
         conn = conectar_bd()
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        cursor.execute("""
-            SELECT u.id, u.nome
-            FROM usuarios u
-            WHERE NOT EXISTS (
-                SELECT 1 FROM fotos f WHERE f.nome = u.nome
-            )
-            """)
+        cursor.execute(
+            """
+            SELECT
+                f.id AS funcionario_id,
+                u.nome,
+                EXISTS (
+                    SELECT 1
+                    FROM biometrias b
+                    WHERE b.empresa_id = f.empresa_id
+                      AND b.funcionario_id = f.id
+                      AND b.status = 'ativa'
+                ) AS possui_biometria_ativa
+            FROM funcionarios f
+            INNER JOIN usuarios u ON u.id = f.usuario_id
+            WHERE f.empresa_id = %s
+              AND f.status = 'ativo'
+              AND u.status = 'ativo'
+            ORDER BY u.nome, f.id
+            """,
+            (g.auth_context["empresa_id"],),
+        )
 
         usuarios = cursor.fetchall()
-
-        lista = [{"id": u[0], "nome": u[1]} for u in usuarios]
-
-        cursor.close()
-        conn.close()
-
-        return jsonify(lista)
-
-    except Exception as e:
-        print("ERRO:", e)
-        return jsonify([])
+        return jsonify(
+            [
+                {
+                    "funcionario_id": str(usuario["funcionario_id"]),
+                    "nome": usuario["nome"],
+                    "possui_biometria_ativa": bool(
+                        usuario["possui_biometria_ativa"]
+                    ),
+                }
+                for usuario in usuarios
+            ]
+        )
+    except Exception:
+        current_app.logger.exception(
+            "Falha ao listar funcionarios para cadastro biometrico."
+        )
+        return jsonify({"erro": "Não foi possível carregar os funcionários."}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 # ==================================================================================================
@@ -1938,7 +1965,7 @@ def get_jornada():
 
 
 def serializar_marcacao(marcacao):
-    return {
+    payload = {
         "id": str(marcacao["id"]),
         "tipo": marcacao["tipo"],
         "origem": marcacao["origem"],
@@ -1946,6 +1973,12 @@ def serializar_marcacao(marcacao):
         "instante": marcacao["instante"].isoformat(),
         "chave_idempotencia": str(marcacao["chave_idempotencia"]),
     }
+    if (
+        "tentativa_facial_id" in marcacao
+        and marcacao["tentativa_facial_id"] is not None
+    ):
+        payload["tentativa_facial_id"] = str(marcacao["tentativa_facial_id"])
+    return payload
 
 
 def validar_identidade_ausente(dados=None):
@@ -1967,14 +2000,51 @@ def chave_idempotencia_requisicao():
 def buscar_marcacao_por_idempotencia(cursor, empresa_id, chave_idempotencia):
     cursor.execute(
         """
-        SELECT id, funcionario_id, tipo, origem, estado, instante,
-               chave_idempotencia
+        SELECT id, funcionario_id, tentativa_facial_id, tipo, origem, estado,
+               instante, chave_idempotencia
         FROM marcacoes
         WHERE empresa_id = %s AND chave_idempotencia = %s
         """,
         (empresa_id, chave_idempotencia),
     )
     return cursor.fetchone()
+
+
+def bloquear_funcionario_para_marcacao(cursor, empresa_id, funcionario_id):
+    cursor.execute(
+        "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+        (f"{empresa_id}:{funcionario_id}",),
+    )
+
+
+def buscar_marcacao_recente(cursor, empresa_id, funcionario_id):
+    cursor.execute(
+        """
+        SELECT id, tentativa_facial_id, tipo, origem, estado, instante,
+               chave_idempotencia
+        FROM marcacoes
+        WHERE empresa_id = %s
+          AND funcionario_id = %s
+          AND instante >= clock_timestamp() - (%s * interval '1 second')
+        ORDER BY instante DESC, id DESC
+        LIMIT 1
+        """,
+        (empresa_id, funcionario_id, CLOCK_EVENT_MINIMUM_INTERVAL_SECONDS),
+    )
+    return cursor.fetchone()
+
+
+def resposta_marcacao_recente(marcacao):
+    return (
+        jsonify(
+            {
+                "erro": "Já existe uma marcação registrada recentemente.",
+                "codigo": "marcacao_recente",
+                "marcacao": serializar_marcacao(marcacao),
+            }
+        ),
+        409,
+    )
 
 
 def listar_marcacoes_funcionario(cursor, empresa_id, funcionario_id):
@@ -2028,10 +2098,7 @@ def marcacoes_proprias():
             raise ValueError("Tipo de marcação inválido.")
         chave_idempotencia = chave_idempotencia_requisicao()
 
-        cursor.execute(
-            "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
-            (f"{empresa_id}:{funcionario_id}",),
-        )
+        bloquear_funcionario_para_marcacao(cursor, empresa_id, funcionario_id)
         existente = buscar_marcacao_por_idempotencia(
             cursor, empresa_id, chave_idempotencia
         )
@@ -2043,35 +2110,10 @@ def marcacoes_proprias():
                 {"marcacao": serializar_marcacao(existente), "reutilizada": True}
             ), 200
 
-        cursor.execute(
-            """
-            SELECT id, tipo, origem, estado, instante, chave_idempotencia
-            FROM marcacoes
-            WHERE empresa_id = %s
-              AND funcionario_id = %s
-              AND instante >= clock_timestamp() - (%s * interval '1 second')
-            ORDER BY instante DESC, id DESC
-            LIMIT 1
-            """,
-            (
-                empresa_id,
-                funcionario_id,
-                CLOCK_EVENT_MINIMUM_INTERVAL_SECONDS,
-            ),
-        )
-        recente = cursor.fetchone()
+        recente = buscar_marcacao_recente(cursor, empresa_id, funcionario_id)
         if recente:
             conn.rollback()
-            return (
-                jsonify(
-                    {
-                        "erro": "Já existe uma marcação registrada recentemente.",
-                        "codigo": "marcacao_recente",
-                        "marcacao": serializar_marcacao(recente),
-                    }
-                ),
-                409,
-            )
+            return resposta_marcacao_recente(recente)
 
         cursor.execute(
             """
@@ -2084,6 +2126,167 @@ def marcacoes_proprias():
             RETURNING id, tipo, origem, estado, instante, chave_idempotencia
             """,
             (empresa_id, funcionario_id, tipo, chave_idempotencia),
+        )
+        marcacao = cursor.fetchone()
+        conn.commit()
+        return jsonify({"marcacao": serializar_marcacao(marcacao)}), 201
+    except ValueError as exc:
+        if conn:
+            conn.rollback()
+        return jsonify({"erro": str(exc)}), 400
+    except psycopg2.errors.UniqueViolation:
+        if conn:
+            conn.rollback()
+        return jsonify({"erro": "Não foi possível repetir esta marcação."}), 409
+    except Exception:
+        if conn:
+            conn.rollback()
+        return jsonify({"erro": "Não foi possível processar a marcação."}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+
+@views_bp.post("/api/marcacoes/facial")
+@require_roles("administrador", "funcionario", "gestor", "rh")
+def criar_marcacao_facial():
+    conn = None
+    cursor = None
+    try:
+        dados = request.get_json(silent=True) or {}
+        validar_identidade_ausente(dados)
+        campos_permitidos = {"tipo", "tentativa_facial_id"}
+        if set(dados) - campos_permitidos:
+            raise ValueError("A requisição contém campos não permitidos.")
+
+        tipo = str(dados.get("tipo") or "").strip()
+        if tipo not in ALLOWED_CLOCK_EVENT_TYPES:
+            raise ValueError("Tipo de marcação inválido.")
+        tentativa_facial_id = uuid_obrigatorio(
+            dados.get("tentativa_facial_id"), "Tentativa facial"
+        )
+        chave_idempotencia = chave_idempotencia_requisicao()
+        empresa_id = g.auth_context["empresa_id"]
+        funcionario_id = g.auth_funcionario_id
+
+        conn = conectar_bd()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        bloquear_funcionario_para_marcacao(cursor, empresa_id, funcionario_id)
+
+        existente = buscar_marcacao_por_idempotencia(
+            cursor, empresa_id, chave_idempotencia
+        )
+        if existente:
+            conn.rollback()
+            mesma_operacao = (
+                str(existente["funcionario_id"]) == str(funcionario_id)
+                and existente["origem"] == "facial"
+                and str(existente["tentativa_facial_id"]) == tentativa_facial_id
+                and existente["tipo"] == tipo
+            )
+            if not mesma_operacao:
+                return jsonify({"erro": "Chave de idempotência indisponível."}), 409
+            return jsonify(
+                {"marcacao": serializar_marcacao(existente), "reutilizada": True}
+            ), 200
+
+        cursor.execute(
+            """
+            SELECT id, resultado, motivo_codigo, instante,
+                   instante <= clock_timestamp()
+                   AND instante >= clock_timestamp()
+                       - (%s * interval '1 second') AS dentro_da_janela
+            FROM tentativas_faciais
+            WHERE id = %s
+              AND empresa_id = %s
+              AND funcionario_id = %s
+            FOR UPDATE
+            """,
+            (
+                current_app.config["FACIAL_ATTEMPT_MAX_AGE_SECONDS"],
+                tentativa_facial_id,
+                empresa_id,
+                funcionario_id,
+            ),
+        )
+        tentativa = cursor.fetchone()
+        if not tentativa:
+            conn.rollback()
+            return jsonify({"erro": "Tentativa facial não encontrada."}), 404
+        if (
+            tentativa["resultado"] != "sucesso"
+            or tentativa["motivo_codigo"] != "match"
+        ):
+            conn.rollback()
+            return (
+                jsonify(
+                    {
+                        "erro": "A tentativa facial não autoriza uma marcação.",
+                        "codigo": "tentativa_facial_invalida",
+                    }
+                ),
+                409,
+            )
+        if not tentativa["dentro_da_janela"]:
+            conn.rollback()
+            return (
+                jsonify(
+                    {
+                        "erro": "A tentativa facial expirou.",
+                        "codigo": "tentativa_facial_expirada",
+                    }
+                ),
+                409,
+            )
+
+        cursor.execute(
+            """
+            SELECT id, tentativa_facial_id, tipo, origem, estado, instante,
+                   chave_idempotencia
+            FROM marcacoes
+            WHERE tentativa_facial_id = %s
+            LIMIT 1
+            """,
+            (tentativa_facial_id,),
+        )
+        consumida = cursor.fetchone()
+        if consumida:
+            conn.rollback()
+            return (
+                jsonify(
+                    {
+                        "erro": "A tentativa facial já foi utilizada.",
+                        "codigo": "tentativa_facial_utilizada",
+                    }
+                ),
+                409,
+            )
+
+        recente = buscar_marcacao_recente(cursor, empresa_id, funcionario_id)
+        if recente:
+            conn.rollback()
+            return resposta_marcacao_recente(recente)
+
+        cursor.execute(
+            """
+            INSERT INTO marcacoes (
+                empresa_id, funcionario_id, tentativa_facial_id,
+                instante, tipo, origem, estado, chave_idempotencia
+            )
+            VALUES (%s, %s, %s, clock_timestamp(), %s, 'facial',
+                    'confirmada', %s)
+            RETURNING id, tentativa_facial_id, tipo, origem, estado, instante,
+                      chave_idempotencia
+            """,
+            (
+                empresa_id,
+                funcionario_id,
+                tentativa_facial_id,
+                tipo,
+                chave_idempotencia,
+            ),
         )
         marcacao = cursor.fetchone()
         conn.commit()

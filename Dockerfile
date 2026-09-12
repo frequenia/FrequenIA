@@ -18,6 +18,11 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
+# Baixa somente os pesos do anti-spoofing durante o build. O modelo continua
+# sendo instanciado de forma lazy no primeiro uso e o ArcFace nao e carregado.
+RUN mkdir -p /root/.deepface/weights \
+    && python -c "from deepface.modules import modeling; modeling.build_model(task='spoofing', model_name='Fasnet')"
+
 COPY . .
 
 EXPOSE 5000

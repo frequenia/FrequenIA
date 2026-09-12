@@ -191,6 +191,7 @@ finally:
         with connection:
             with connection.cursor() as cursor:
                 cursor.execute("DELETE FROM password_reset_tokens WHERE usuario_id = %s", (USER_ID,))
+                cursor.execute("DELETE FROM auth_sessions WHERE usuario_id = %s", (USER_ID,))
                 cursor.execute("DELETE FROM funcionarios WHERE usuario_id = %s", (USER_ID,))
                 cursor.execute("DELETE FROM usuarios WHERE id = %s", (USER_ID,))
         print("isolated_fixture_cleanup=ok")
