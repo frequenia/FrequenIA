@@ -35,16 +35,20 @@ function converterDataParaIso(dataBr) {
     return `${ano}-${mes}-${dia}`;
 }
 
-async function carregarJornadaPadrao() {
-    jornadaPadrao = null;
-    document.getElementById("hora-entrada").textContent = "--:--";
-    document.getElementById("hora-saida-intervalo").textContent = "--:--";
-    document.getElementById("hora-volta-intervalo").textContent = "--:--";
-    document.getElementById("hora-saida").textContent = "--:--";
+function garantirFiltroFuncionario() {
+    let select = document.getElementById("filtroUsuario");
+    if (select) return select;
+    const filtroLinha = document.querySelector(".filtro-linha");
+    if (!filtroLinha) return null;
+    const wrapper = document.createElement("div");
+    wrapper.className = "input-group group-usuario";
+    wrapper.innerHTML = '<label for="filtroUsuario">Funcionário</label><select id="filtroUsuario" class="data"><option value="">Selecione</option></select>';
+    filtroLinha.prepend(wrapper);
+    return document.getElementById("filtroUsuario");
 }
 
 async function carregarFuncionarios() {
-    const select = document.getElementById("filtroUsuario");
+    const select = garantirFiltroFuncionario();
     if (!select) return;
     const resp = await fetch("/api/gestao/funcionarios");
     if (!resp.ok) throw new Error("Erro ao carregar funcionários");
@@ -102,8 +106,8 @@ function exportarPontos() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+    jornadaPadrao = null;
     try { await carregarFuncionarios(); } catch (erro) { console.error(erro); }
-    await carregarJornadaPadrao();
     await carregarTabelaPontos();
 
     const btnPesquisar = document.getElementById("btnPesquisar");
