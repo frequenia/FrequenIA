@@ -35,38 +35,12 @@ function converterDataParaIso(dataBr) {
     return `${ano}-${mes}-${dia}`;
 }
 
-function jornadaLegadaDaApi(payload) {
-    const periodos = payload?.jornada?.periodos || [];
-    const hoje = new Date();
-    const diaSemana = (hoje.getDay() + 6) % 7;
-    const doDia = periodos.filter(p => p.dia_semana === diaSemana).sort((a, b) => a.ordem - b.ordem);
-    if (!doDia.length) return null;
-    return {
-        entrada: doDia[0]?.inicio?.slice(0, 5) || "--:--",
-        saida_intervalo: doDia[0]?.fim?.slice(0, 5) || "--:--",
-        volta_intervalo: doDia[1]?.inicio?.slice(0, 5) || "--:--",
-        saida: doDia[doDia.length - 1]?.fim?.slice(0, 5) || "--:--"
-    };
-}
-
-async function carregarJornadaPadrao(funcionarioId = null) {
-    try {
-        const url = funcionarioId
-            ? `/api/admin/funcionarios/${funcionarioId}/jornada`
-            : "/api/jornada";
-        const resp = await fetch(url);
-        if (!resp.ok) {
-            jornadaPadrao = null;
-            return;
-        }
-        jornadaPadrao = jornadaLegadaDaApi(await resp.json());
-        document.getElementById("hora-entrada").textContent = jornadaPadrao?.entrada ?? "--:--";
-        document.getElementById("hora-saida-intervalo").textContent = jornadaPadrao?.saida_intervalo ?? "--:--";
-        document.getElementById("hora-volta-intervalo").textContent = jornadaPadrao?.volta_intervalo ?? "--:--";
-        document.getElementById("hora-saida").textContent = jornadaPadrao?.saida ?? "--:--";
-    } catch (erro) {
-        console.error("Falha ao carregar jornada:", erro);
-    }
+async function carregarJornadaPadrao() {
+    jornadaPadrao = null;
+    document.getElementById("hora-entrada").textContent = "--:--";
+    document.getElementById("hora-saida-intervalo").textContent = "--:--";
+    document.getElementById("hora-volta-intervalo").textContent = "--:--";
+    document.getElementById("hora-saida").textContent = "--:--";
 }
 
 async function carregarFuncionarios() {
@@ -87,13 +61,12 @@ async function carregarTabelaPontos() {
         const dataFim = document.getElementById("dataFim").value;
         const funcionarioId = document.getElementById("filtroUsuario")?.value || "";
 
-        if (document.getElementById("filtroUsuario") && !funcionarioId) {
+        if (!funcionarioId) {
             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Selecione um funcionário.</td></tr>';
             return;
         }
 
-        const params = new URLSearchParams();
-        params.append("funcionario_id", funcionarioId);
+        const params = new URLSearchParams({ funcionario_id: funcionarioId });
         if (dataInicio) params.append("inicio", converterDataParaIso(dataInicio));
         if (dataFim) params.append("fim", converterDataParaIso(dataFim));
 
@@ -130,18 +103,11 @@ function exportarPontos() {
 
 document.addEventListener("DOMContentLoaded", async () => {
     try { await carregarFuncionarios(); } catch (erro) { console.error(erro); }
-    const select = document.getElementById("filtroUsuario");
-    if (!select) await carregarJornadaPadrao();
+    await carregarJornadaPadrao();
     await carregarTabelaPontos();
 
     const btnPesquisar = document.getElementById("btnPesquisar");
-    if (btnPesquisar) {
-        btnPesquisar.addEventListener("click", async () => {
-            const funcionarioId = document.getElementById("filtroUsuario")?.value || null;
-            if (funcionarioId) await carregarJornadaPadrao(funcionarioId);
-            await carregarTabelaPontos();
-        });
-    }
+    if (btnPesquisar) btnPesquisar.addEventListener("click", carregarTabelaPontos);
     const btnExportar = document.querySelector(".btn-export");
     if (btnExportar) btnExportar.addEventListener("click", exportarPontos);
 });
