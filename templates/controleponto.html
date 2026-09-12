@@ -62,18 +62,12 @@
             <!-- FILTRO -->
             <section class="card filtro">
                 <div class="filtro-linha">
-                    {% if session.get('tipo') == 'admin' %}
                     <div class="input-group group-usuario">
                         <label for="filtroUsuario">Funcionário</label>
                         <select id="filtroUsuario" class="data">
                             <option value="">Selecione</option>
-                            {% for user in usuarios %}
-                            <option value="{{ user.id }}">{{ user.nome }}</option>
-                            {% endfor %}
-                            
                         </select>
                     </div>
-                    {% endif %}
                     <div class="input-group group-data">
                         <label for="dataInicio">De</label>
                         <input type="text" id="dataInicio" class="data" placeholder="dd/mm/aaaa">
@@ -139,37 +133,8 @@
         </div>
     </div>
 
-    <script>
-        async function carregarJornada(userId = null) {
-            try {
-                const url = userId ? `/jornada?user_id=${userId}` : '/jornada';
-                const resp = await fetch(url);
-                if (!resp.ok) {
-                    console.error('Erro ao buscar jornada:', resp.status);
-                    return;
-                }
-                const dados = await resp.json();
-                document.getElementById('hora-entrada').textContent = dados.entrada ?? '--:--';
-                document.getElementById('hora-saida-intervalo').textContent = dados.saida_intervalo ?? '--:--';
-                document.getElementById('hora-volta-intervalo').textContent = dados.volta_intervalo ?? '--:--';
-                document.getElementById('hora-saida').textContent = dados.saida ?? '--:--';
-            } catch (err) {
-                console.error('Falha na requisição de jornada:', err);
-            }
-        }
-        carregarJornada();
-    </script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://npmcdn.com/flatpickr/dist/l10n/pt.js"></script>
-    <script>
-        const fpConfig = {
-            dateFormat: "d/m/Y",
-            locale: "pt",
-            disableMobile: true
-        };
-        flatpickr("#dataInicio", fpConfig);
-        flatpickr("#dataFim", fpConfig);
-    </script>
     <!-- JS separado da tela -->
     <script src="{{ url_for('static', filename='js/controleponto.js') }}"></script>
 </body>

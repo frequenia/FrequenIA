@@ -10,7 +10,6 @@ from flask import (
     jsonify,
     session,
     request,
-    send_file,
 )
 from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal, InvalidOperation
@@ -35,14 +34,7 @@ from db import (
     buscar_vinculos_ativos,
     conectar_bd,
 )
-from collections import defaultdict
 import os
-import csv
-import io
-
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from docx import Document
 
 views_bp = Blueprint("views", __name__)
 
@@ -443,26 +435,9 @@ def home():
 # RENDERIZAÇÃO - PÁGINAS DO SISTEMA
 # ==================================================================================================
 @views_bp.route("/controleponto")
-@login_required
+@require_roles("administrador", "gestor", "rh")
 def controle_ponto():
-    usuarios = []
-
-    if session.get("tipo") == "admin":
-        conn = conectar_bd()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
-        cursor.execute("""
-            SELECT id, nome
-            FROM usuarios
-            ORDER BY nome
-        """)
-
-        usuarios = cursor.fetchall()
-
-        cursor.close()
-        conn.close()
-
-    return render_template("controleponto.html", usuarios=usuarios)
+    return render_template("controleponto.html")
 
 
 @views_bp.route("/inicio")
@@ -651,10 +626,9 @@ def auth_refresh():
             response = jsonify({"erro": "Refresh token inválido."})
             return limpar_cookie_refresh(response), 401
 
-        if (
-            current_session["revoked_at"] is not None
-            or current_session["expires_at"] <= datetime.now(timezone.utc)
-        ):
+        if current_session["revoked_at"] is not None or current_session[
+            "expires_at"
+        ] <= datetime.now(timezone.utc):
             conn.rollback()
             response = jsonify({"erro": "Refresh token inválido."})
             return limpar_cookie_refresh(response), 401
@@ -838,7 +812,10 @@ def cadastrar_usuario():
 
         conn.commit()
 
-        return jsonify({"status": "ok", "mensagem": "Usuário cadastrado com sucesso."}), 201
+        return (
+            jsonify({"status": "ok", "mensagem": "Usuário cadastrado com sucesso."}),
+            201,
+        )
 
     except PermissionError as exc:
         if conn:
@@ -851,11 +828,24 @@ def cadastrar_usuario():
     except psycopg2.errors.UniqueViolation:
         if conn:
             conn.rollback()
-        return jsonify({"status": "erro", "mensagem": "CPF, e-mail ou matrícula já cadastrado."}), 409
+        return (
+            jsonify(
+                {
+                    "status": "erro",
+                    "mensagem": "CPF, e-mail ou matrícula já cadastrado.",
+                }
+            ),
+            409,
+        )
     except Exception:
         if conn:
             conn.rollback()
-        return jsonify({"status": "erro", "mensagem": "Não foi possível cadastrar o usuário."}), 500
+        return (
+            jsonify(
+                {"status": "erro", "mensagem": "Não foi possível cadastrar o usuário."}
+            ),
+            500,
+        )
 
     finally:
         if cursor:
@@ -1048,8 +1038,7 @@ def listar_usuarios():
             LEFT JOIN cargos c ON c.id = f.cargo_id
             WHERE f.empresa_id = %s
             ORDER BY u.nome, e.nome
-            """
-            ,
+            """,
             (g.auth_context["empresa_id"],),
         )
 
@@ -1121,7 +1110,10 @@ def atualizar_usuario():
         funcionario = cursor.fetchone()
         if not funcionario:
             conn.rollback()
-            return jsonify({"status": "erro", "mensagem": "Funcionário não encontrado."}), 404
+            return (
+                jsonify({"status": "erro", "mensagem": "Funcionário não encontrado."}),
+                404,
+            )
 
         user_id = funcionario["usuario_id"]
         cursor.execute(
@@ -1197,11 +1189,24 @@ def atualizar_usuario():
     except psycopg2.errors.UniqueViolation:
         if conn:
             conn.rollback()
-        return jsonify({"status": "erro", "mensagem": "CPF, e-mail ou matrícula já cadastrado."}), 409
+        return (
+            jsonify(
+                {
+                    "status": "erro",
+                    "mensagem": "CPF, e-mail ou matrícula já cadastrado.",
+                }
+            ),
+            409,
+        )
     except Exception:
         if conn:
             conn.rollback()
-        return jsonify({"status": "erro", "mensagem": "Não foi possível atualizar o usuário."}), 500
+        return (
+            jsonify(
+                {"status": "erro", "mensagem": "Não foi possível atualizar o usuário."}
+            ),
+            500,
+        )
     finally:
         if cursor:
             cursor.close()
@@ -1275,9 +1280,7 @@ def turnos_administrativos():
             ),
         )
         turno_id = cursor.fetchone()["id"]
-        inserir_periodos_turno(
-            cursor, empresa_id, turno_id, turno_data["periodos"]
-        )
+        inserir_periodos_turno(cursor, empresa_id, turno_id, turno_data["periodos"])
         turno = buscar_turno(cursor, empresa_id, turno_id)
         conn.commit()
         return jsonify({"turno": serializar_turno(turno)}), 201
@@ -1369,9 +1372,7 @@ def turno_administrativo(turno_id):
                 "DELETE FROM periodos_turno WHERE turno_id = %s AND empresa_id = %s",
                 (turno_id, empresa_id),
             )
-            inserir_periodos_turno(
-                cursor, empresa_id, turno_id, turno_data["periodos"]
-            )
+            inserir_periodos_turno(cursor, empresa_id, turno_id, turno_data["periodos"])
         updated = buscar_turno(cursor, empresa_id, turno_id)
         conn.commit()
         return jsonify({"turno": serializar_turno(updated)}), 200
@@ -1401,9 +1402,7 @@ def turno_administrativo(turno_id):
 # ==================================================================================================
 # FUNÇÕES - ENVIO E VALIDAÇÃO DE TOKEN PARA RECUPERAÇÃO DE SENHA
 # ==================================================================================================
-PASSWORD_RESET_PUBLIC_MESSAGE = (
-    "Se os dados corresponderem a uma conta elegível, as instruções de redefinição serão disponibilizadas."
-)
+PASSWORD_RESET_PUBLIC_MESSAGE = "Se os dados corresponderem a uma conta elegível, as instruções de redefinição serão disponibilizadas."
 PASSWORD_RESET_INVALID_MESSAGE = "Token inválido ou expirado."
 
 
@@ -1649,9 +1648,7 @@ def listar_usuarios_select():
                 {
                     "funcionario_id": str(usuario["funcionario_id"]),
                     "nome": usuario["nome"],
-                    "possui_biometria_ativa": bool(
-                        usuario["possui_biometria_ativa"]
-                    ),
+                    "possui_biometria_ativa": bool(usuario["possui_biometria_ativa"]),
                 }
                 for usuario in usuarios
             ]
@@ -1806,14 +1803,19 @@ def turnos_funcionario_administrativo(funcionario_id):
                 vigencia_fim is None or inicio_existente <= vigencia_fim
             ):
                 return (
-                    jsonify({"erro": "A vigência informada sobrepõe atribuição futura."}),
+                    jsonify(
+                        {"erro": "A vigência informada sobrepõe atribuição futura."}
+                    ),
                     409,
                 )
             if inicio_existente < vigencia_inicio and (
                 fim_existente is None or fim_existente >= vigencia_inicio
             ):
                 if anterior:
-                    return jsonify({"erro": "O histórico atual possui sobreposição."}), 409
+                    return (
+                        jsonify({"erro": "O histórico atual possui sobreposição."}),
+                        409,
+                    )
                 anterior = atribuicao
 
         if anterior:
@@ -1884,10 +1886,8 @@ def turnos_funcionario_administrativo(funcionario_id):
             conn.close()
 
 
-@views_bp.route(
-    "/api/admin/funcionarios/<funcionario_id>/jornada", methods=["GET"]
-)
-@require_roles("administrador")
+@views_bp.route("/api/admin/funcionarios/<funcionario_id>/jornada", methods=["GET"])
+@require_roles("administrador", "gestor", "rh")
 def jornada_funcionario_administrativo(funcionario_id):
     conn = None
     cursor = None
@@ -1899,7 +1899,7 @@ def jornada_funcionario_administrativo(funcionario_id):
         data_consulta = (
             parse_iso_date(request.args["data"], "Data")
             if request.args.get("data")
-            else date.today()
+            else datetime.now(ZoneInfo("America/Sao_Paulo")).date()
         )
         conn = conectar_bd()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -1909,9 +1909,7 @@ def jornada_funcionario_administrativo(funcionario_id):
         )
         if not cursor.fetchone():
             return jsonify({"erro": "Funcionário não encontrado."}), 404
-        jornada = buscar_jornada_data(
-            cursor, empresa_id, funcionario_id, data_consulta
-        )
+        jornada = buscar_jornada_data(cursor, empresa_id, funcionario_id, data_consulta)
         return jsonify({"data": data_consulta.isoformat(), "jornada": jornada}), 200
     except PermissionError as exc:
         return jsonify({"erro": str(exc)}), 403
@@ -1940,7 +1938,7 @@ def get_jornada():
         data_consulta = (
             parse_iso_date(request.args["data"], "Data")
             if request.args.get("data")
-            else date.today()
+            else datetime.now(ZoneInfo("America/Sao_Paulo")).date()
         )
         conn = conectar_bd()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -2075,13 +2073,16 @@ def marcacoes_proprias():
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
         if request.method == "GET":
-            return jsonify(
-                {
-                    "marcacoes": listar_marcacoes_funcionario(
-                        cursor, empresa_id, funcionario_id
-                    )
-                }
-            ), 200
+            return (
+                jsonify(
+                    {
+                        "marcacoes": listar_marcacoes_funcionario(
+                            cursor, empresa_id, funcionario_id
+                        )
+                    }
+                ),
+                200,
+            )
 
         campos_controlados = (
             "instante",
@@ -2106,9 +2107,12 @@ def marcacoes_proprias():
             conn.rollback()
             if str(existente["funcionario_id"]) != str(funcionario_id):
                 return jsonify({"erro": "Chave de idempotência indisponível."}), 409
-            return jsonify(
-                {"marcacao": serializar_marcacao(existente), "reutilizada": True}
-            ), 200
+            return (
+                jsonify(
+                    {"marcacao": serializar_marcacao(existente), "reutilizada": True}
+                ),
+                200,
+            )
 
         recente = buscar_marcacao_recente(cursor, empresa_id, funcionario_id)
         if recente:
@@ -2188,9 +2192,12 @@ def criar_marcacao_facial():
             )
             if not mesma_operacao:
                 return jsonify({"erro": "Chave de idempotência indisponível."}), 409
-            return jsonify(
-                {"marcacao": serializar_marcacao(existente), "reutilizada": True}
-            ), 200
+            return (
+                jsonify(
+                    {"marcacao": serializar_marcacao(existente), "reutilizada": True}
+                ),
+                200,
+            )
 
         cursor.execute(
             """
@@ -2215,10 +2222,7 @@ def criar_marcacao_facial():
         if not tentativa:
             conn.rollback()
             return jsonify({"erro": "Tentativa facial não encontrada."}), 404
-        if (
-            tentativa["resultado"] != "sucesso"
-            or tentativa["motivo_codigo"] != "match"
-        ):
+        if tentativa["resultado"] != "sucesso" or tentativa["motivo_codigo"] != "match":
             conn.rollback()
             return (
                 jsonify(
@@ -2310,9 +2314,7 @@ def criar_marcacao_facial():
             conn.close()
 
 
-@views_bp.route(
-    "/api/admin/funcionarios/<funcionario_id>/marcacoes", methods=["GET"]
-)
+@views_bp.route("/api/admin/funcionarios/<funcionario_id>/marcacoes", methods=["GET"])
 @require_roles("administrador")
 def marcacoes_funcionario_administrativo(funcionario_id):
     conn = None
@@ -2332,13 +2334,16 @@ def marcacoes_funcionario_administrativo(funcionario_id):
         if not cursor.fetchone():
             return jsonify({"erro": "Funcionário não encontrado."}), 404
 
-        return jsonify(
-            {
-                "marcacoes": listar_marcacoes_funcionario(
-                    cursor, empresa_id, funcionario_id
-                )
-            }
-        ), 200
+        return (
+            jsonify(
+                {
+                    "marcacoes": listar_marcacoes_funcionario(
+                        cursor, empresa_id, funcionario_id
+                    )
+                }
+            ),
+            200,
+        )
     except PermissionError as exc:
         return jsonify({"erro": str(exc)}), 403
     except ValueError as exc:
@@ -2352,304 +2357,10 @@ def marcacoes_funcionario_administrativo(funcionario_id):
             conn.close()
 
 
-def formatar_hora(hora):
-    return hora.strftime("%H:%M") if hora else "--:--"
-
-
-def calcular_total(entrada, saida, saida_intervalo=None, volta_intervalo=None):
-    try:
-        if not entrada or not saida:
-            return "--"
-
-        dt_entrada = datetime.combine(date.today(), entrada)
-        dt_saida = datetime.combine(date.today(), saida)
-
-        total = dt_saida - dt_entrada
-
-        if saida_intervalo and volta_intervalo:
-            dt_saida_intervalo = datetime.combine(date.today(), saida_intervalo)
-            dt_volta_intervalo = datetime.combine(date.today(), volta_intervalo)
-            total -= dt_volta_intervalo - dt_saida_intervalo
-
-        total_segundos = int(total.total_seconds())
-
-        if total_segundos < 0:
-            return "--"
-
-        horas_total = total_segundos // 3600
-        minutos_total = (total_segundos % 3600) // 60
-
-        return f"{horas_total}h{minutos_total:02d}"
-    except Exception:
-        return "--"
-
-
-def montar_registros_ponto(
-    user_id, data_inicio=None, data_fim=None, formato_data="iso"
-):
-    conn = None
-    cursor = None
-
-    try:
-        conn = conectar_bd()
-        cursor = conn.cursor()
-
-        query = """
-            SELECT data_registro, horario_registro
-            FROM ponto
-            WHERE usuario_id = %s
-        """
-        params = [user_id]
-
-        if data_inicio:
-            query += " AND data_registro >= %s"
-            params.append(data_inicio)
-
-        if data_fim:
-            query += " AND data_registro <= %s"
-            params.append(data_fim)
-
-        query += " ORDER BY data_registro ASC, horario_registro ASC"
-
-        cursor.execute(query, tuple(params))
-        registros = cursor.fetchall()
-
-        dias = defaultdict(list)
-
-        for data_registro, horario_registro in registros:
-            dias[data_registro].append(horario_registro)
-
-        mapa_dias = {
-            "Monday": "Segunda",
-            "Tuesday": "Terça",
-            "Wednesday": "Quarta",
-            "Thursday": "Quinta",
-            "Friday": "Sexta",
-            "Saturday": "Sábado",
-            "Sunday": "Domingo",
-        }
-
-        resultado = []
-
-        for data_registro in sorted(dias.keys()):
-            horarios = dias[data_registro]
-
-            entrada = None
-            saida_intervalo = None
-            volta_intervalo = None
-            saida = None
-
-            if len(horarios) == 1:
-                entrada = horarios[0]
-            elif len(horarios) == 2:
-                entrada = horarios[0]
-                saida = horarios[1]
-            elif len(horarios) == 3:
-                entrada = horarios[0]
-                saida_intervalo = horarios[1]
-                saida = horarios[2]
-            elif len(horarios) >= 4:
-                entrada = horarios[0]
-                saida_intervalo = horarios[1]
-                volta_intervalo = horarios[2]
-                saida = horarios[3]
-
-            nome_dia_en = data_registro.strftime("%A")
-
-            if formato_data == "br":
-                data_formatada = data_registro.strftime("%d/%m/%Y")
-            else:
-                data_formatada = data_registro.strftime("%Y-%m-%d")
-
-            resultado.append(
-                {
-                    "data": data_formatada,
-                    "dia": mapa_dias.get(nome_dia_en, nome_dia_en),
-                    "entrada": formatar_hora(entrada),
-                    "saida_intervalo": formatar_hora(saida_intervalo),
-                    "volta_intervalo": formatar_hora(volta_intervalo),
-                    "saida": formatar_hora(saida),
-                    "total": calcular_total(
-                        entrada,
-                        saida,
-                        saida_intervalo,
-                        volta_intervalo,
-                    ),
-                }
-            )
-
-        return resultado
-
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
-
-
 @views_bp.route("/pontos", methods=["GET"])
-@login_required
+@require_roles("administrador", "gestor", "rh")
 def listar_pontos():
-    try:
-        usuario_id = request.args.get("usuario_id")
-        data_inicio = request.args.get("inicio")
-        data_fim = request.args.get("fim")
-
-        # se for administrador e escolheu alguém, usa o usuário escolhido
-        if session.get("tipo") == "admin" and usuario_id:
-            user_id = usuario_id
-        else:
-            user_id = session["user_id"]
-
-        resultado = montar_registros_ponto(
-            user_id=user_id,
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            formato_data="iso",
-        )
-
-        return jsonify(resultado), 200
-
-    except Exception as e:
-        return jsonify({"erro": str(e)}), 500
-
-
-@views_bp.route("/exportar-pontos", methods=["GET"])
-@login_required
-def exportar_pontos():
-    user_id = session["user_id"]
-
-    formato = request.args.get("formato", "").lower()
-    data_inicio = request.args.get("inicio")
-    data_fim = request.args.get("fim")
-
-    registros = montar_registros_ponto(
-        user_id=user_id,
-        data_inicio=data_inicio,
-        data_fim=data_fim,
-        formato_data="br",
-    )
-
-    if not registros:
-        return jsonify({"erro": "Nenhum registro encontrado para exportação."}), 404
-
-    if formato == "csv":
-        output = io.StringIO()
-        writer = csv.writer(output, delimiter=";")
-        writer.writerow(
-            ["Dia", "Data", "Entrada", "Saída Int.", "Volta Int.", "Saída", "Total"]
-        )
-
-        for item in registros:
-            writer.writerow(
-                [
-                    item["dia"],
-                    item["data"],
-                    item["entrada"],
-                    item["saida_intervalo"],
-                    item["volta_intervalo"],
-                    item["saida"],
-                    item["total"],
-                ]
-            )
-
-        mem = io.BytesIO()
-        mem.write(output.getvalue().encode("utf-8-sig"))
-        mem.seek(0)
-
-        return send_file(
-            mem,
-            as_attachment=True,
-            download_name="controle_ponto.csv",
-            mimetype="text/csv",
-        )
-
-    elif formato == "pdf":
-        mem = io.BytesIO()
-        pdf = canvas.Canvas(mem, pagesize=A4)
-        largura, altura = A4
-
-        y = altura - 40
-        pdf.setFont("Helvetica-Bold", 14)
-        pdf.drawString(40, y, "Relatório de Controle de Ponto")
-
-        y -= 30
-        pdf.setFont("Helvetica", 9)
-        pdf.drawString(40, y, "Dia")
-        pdf.drawString(95, y, "Data")
-        pdf.drawString(160, y, "Entrada")
-        pdf.drawString(220, y, "Saída Int.")
-        pdf.drawString(295, y, "Volta Int.")
-        pdf.drawString(370, y, "Saída")
-        pdf.drawString(430, y, "Total")
-
-        y -= 15
-        pdf.line(40, y, 550, y)
-
-        for item in registros:
-            y -= 18
-
-            if y < 50:
-                pdf.showPage()
-                y = altura - 40
-                pdf.setFont("Helvetica", 9)
-
-            pdf.drawString(40, y, str(item["dia"]))
-            pdf.drawString(95, y, str(item["data"]))
-            pdf.drawString(160, y, str(item["entrada"]))
-            pdf.drawString(220, y, str(item["saida_intervalo"]))
-            pdf.drawString(295, y, str(item["volta_intervalo"]))
-            pdf.drawString(370, y, str(item["saida"]))
-            pdf.drawString(430, y, str(item["total"]))
-
-        pdf.save()
-        mem.seek(0)
-
-        return send_file(
-            mem,
-            as_attachment=True,
-            download_name="controle_ponto.pdf",
-            mimetype="application/pdf",
-        )
-
-    elif formato in ["word", "doc"]:
-        doc = Document()
-        doc.add_heading("Relatório de Controle de Ponto", level=1)
-
-        table = doc.add_table(rows=1, cols=7)
-        table.style = "Table Grid"
-
-        hdr = table.rows[0].cells
-        hdr[0].text = "Dia"
-        hdr[1].text = "Data"
-        hdr[2].text = "Entrada"
-        hdr[3].text = "Saída Int."
-        hdr[4].text = "Volta Int."
-        hdr[5].text = "Saída"
-        hdr[6].text = "Total"
-
-        for item in registros:
-            row = table.add_row().cells
-            row[0].text = item["dia"]
-            row[1].text = item["data"]
-            row[2].text = item["entrada"]
-            row[3].text = item["saida_intervalo"]
-            row[4].text = item["volta_intervalo"]
-            row[5].text = item["saida"]
-            row[6].text = item["total"]
-
-        mem = io.BytesIO()
-        doc.save(mem)
-        mem.seek(0)
-
-        return send_file(
-            mem,
-            as_attachment=True,
-            download_name="controle_ponto.docx",
-            mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        )
-
-    return jsonify({"erro": "Formato inválido."}), 400
+    return jsonify({"erro": "Fluxo legado desativado. Use /api/gestao/pontos."}), 410
 
 
 # ==================================================================================================
@@ -2849,7 +2560,10 @@ def deletar_usuario():
         funcionario = cursor.fetchone()
         if not funcionario:
             conn.rollback()
-            return jsonify({"status": "erro", "mensagem": "Funcionário não encontrado."}), 404
+            return (
+                jsonify({"status": "erro", "mensagem": "Funcionário não encontrado."}),
+                404,
+            )
 
         cursor.execute(
             "UPDATE funcionarios SET status = 'desligado', updated_at = now() WHERE id = %s AND empresa_id = %s",
@@ -2875,16 +2589,17 @@ def deletar_usuario():
     except Exception:
         if conn:
             conn.rollback()
-        return jsonify({"status": "erro", "mensagem": "Não foi possível desativar o vínculo."}), 500
+        return (
+            jsonify(
+                {"status": "erro", "mensagem": "Não foi possível desativar o vínculo."}
+            ),
+            500,
+        )
     finally:
         if cursor:
             cursor.close()
         if conn:
             conn.close()
-
-
-
-
 
 
 @views_bp.route("/atualizar_status_usuario", methods=["POST"])
@@ -2896,7 +2611,15 @@ def atualizar_status_usuario():
         dados = request.get_json(silent=True) or {}
         funcionario_id = uuid_obrigatorio(dados.get("funcionario_id"), "Funcionário")
         if str(funcionario_id) == str(session.get("funcionario_id")):
-            return jsonify({"status": "erro", "mensagem": "Você não pode alterar seu próprio vínculo."}), 403
+            return (
+                jsonify(
+                    {
+                        "status": "erro",
+                        "mensagem": "Você não pode alterar seu próprio vínculo.",
+                    }
+                ),
+                403,
+            )
 
         conn = conectar_bd()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -2907,7 +2630,10 @@ def atualizar_status_usuario():
         funcionario = cursor.fetchone()
         if not funcionario:
             conn.rollback()
-            return jsonify({"status": "erro", "mensagem": "Funcionário não encontrado."}), 404
+            return (
+                jsonify({"status": "erro", "mensagem": "Funcionário não encontrado."}),
+                404,
+            )
 
         novo_status = "desligado" if funcionario["status"] == "ativo" else "ativo"
         cursor.execute(
@@ -2932,10 +2658,7 @@ def atualizar_status_usuario():
 
         conn.commit()
 
-        return jsonify({
-            "status": "ok",
-            "novo_status": novo_status
-        })
+        return jsonify({"status": "ok", "novo_status": novo_status})
 
     except ValueError as exc:
         if conn:
@@ -2944,12 +2667,18 @@ def atualizar_status_usuario():
     except Exception:
         if conn:
             conn.rollback()
-        return jsonify({"status": "erro", "mensagem": "Não foi possível atualizar o status."}), 500
+        return (
+            jsonify(
+                {"status": "erro", "mensagem": "Não foi possível atualizar o status."}
+            ),
+            500,
+        )
     finally:
         if cursor:
             cursor.close()
         if conn:
             conn.close()
+
 
 # =========================
 # STATUS (MOCK)

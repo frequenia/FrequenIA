@@ -54,15 +54,13 @@
     <!-- SIDEBAR (Menu Lateral) -->
     <aside class="sidebar">
       <ul>
+      {% if tipo in ['admin', 'administrador', 'gestor', 'rh'] %}
         <li>
           <a href="/controleponto" target="conteudo">
-            {% if tipo in ['admin', 'administrador'] %}
             Controle de Pontos
-            {% else %}
-            Meu Ponto
-            {% endif %}
           </a>
         </li>
+      {% endif %}
         <!-- <li><a href="/inicio" >Registro de ponto</a></li> -->
       {% if tipo in ['admin', 'administrador'] %}
         <li class="divider"></li>
@@ -83,7 +81,7 @@
 
     <!-- CONTEÚDO PRINCIPAL -->
     <main class="content">
-      <iframe src="/controleponto" name="conteudo" class="iframe-content"></iframe>
+      <iframe src="{% if tipo in ['admin', 'administrador', 'gestor', 'rh'] %}/controleponto{% else %}/perfil{% endif %}" name="conteudo" class="iframe-content"></iframe>
     </main>
 
   </div>
