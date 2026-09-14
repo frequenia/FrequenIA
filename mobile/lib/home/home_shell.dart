@@ -22,7 +22,7 @@ class _HomeShellState extends State<HomeShell> {
     final pages = [
       _AuthenticatedHome(controller: widget.controller),
       SchedulePage(api: widget.controller.api),
-      ProfilePage(controller: widget.controller),
+      ProfilePage(controller: widget.controller, active: index == 2),
     ];
 
     return Scaffold(

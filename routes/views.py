@@ -944,9 +944,8 @@ def logout():
 # ==================================================================================================
 # FUNÇÃO - MEU PERFIL
 # ==================================================================================================
-@views_bp.route("/perfil")
-@require_roles("administrador", "funcionario", "gestor", "rh")
-def perfil():
+def _buscar_perfil_autenticado():
+    """Consulta apenas o vínculo de usuário, funcionário e empresa da sessão."""
     conn = conectar_bd()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     try:
@@ -998,6 +997,39 @@ def perfil():
         cursor.close()
         conn.close()
 
+    return user
+
+
+def _mascarar_cpf(cpf):
+    digitos = "".join(caractere for caractere in str(cpf or "") if caractere.isdigit())
+    return f"***.***.***-{digitos[-2:]}" if len(digitos) == 11 else None
+
+
+@views_bp.get("/api/perfil")
+@access_token_required
+def api_perfil():
+    user = _buscar_perfil_autenticado()
+    if not user:
+        return jsonify({"erro": "Perfil não encontrado."}), 404
+
+    return jsonify({
+        "nome": user["nome"],
+        "cpf_mascarado": _mascarar_cpf(user.get("cpf")),
+        "telefone": user.get("telefone"),
+        "email": user.get("email"),
+        "matricula": user.get("matricula"),
+        "perfil": user.get("perfil"),
+        "empresa": user.get("empresa_nome"),
+        "unidade": user.get("unidade_nome"),
+        "equipe": user.get("equipe_nome"),
+        "cargo": user.get("cargo_nome"),
+    }), 200
+
+
+@views_bp.route("/perfil")
+@require_roles("administrador", "funcionario", "gestor", "rh")
+def perfil():
+    user = _buscar_perfil_autenticado()
     if not user:
         return "Perfil não encontrado", 404
 
