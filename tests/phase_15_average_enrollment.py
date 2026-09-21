@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 
 os.environ.setdefault("APP_ENV", "development")
-os.environ.setdefault("FLASK_SECRET_KEY", "phase-15-test-flask-key")
+os.environ.setdefault("FLASK_SECRET_KEY", "x" * 32)
 os.environ.setdefault("JWT_SECRET_KEY", "phase-15-test-jwt-key")
 
 import app

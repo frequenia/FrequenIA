@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch
 
 os.environ.setdefault("APP_ENV", "development")
-os.environ.setdefault("FLASK_SECRET_KEY", "phase-11-route-test-flask-key")
+os.environ.setdefault("FLASK_SECRET_KEY", "x" * 32)
 os.environ.setdefault("JWT_SECRET_KEY", "phase-11-route-test-jwt-key")
 
 import app

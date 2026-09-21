@@ -7,7 +7,7 @@ from flask import Flask, g, session
 
 
 os.environ.setdefault("APP_ENV", "development")
-os.environ.setdefault("FLASK_SECRET_KEY", "hotfix-14c1-test-flask-key")
+os.environ.setdefault("FLASK_SECRET_KEY", "x" * 32)
 os.environ.setdefault("JWT_SECRET_KEY", "hotfix-14c1-test-jwt-key")
 
 from routes.views import listar_usuarios_select

@@ -13,12 +13,21 @@ if APP_ENV not in VALID_APP_ENVIRONMENTS:
     raise RuntimeError("APP_ENV must be one of: development, homologation, production.")
 
 secret_key = os.getenv("FLASK_SECRET_KEY")
-if not secret_key:
-    raise RuntimeError("FLASK_SECRET_KEY is required to start the application.")
+if (
+    not secret_key
+    or len(secret_key.encode("utf-8")) < 32
+    or secret_key == "CHANGE_ME_WITH_A_RANDOM_SECRET"
+):
+    raise RuntimeError(
+        "FLASK_SECRET_KEY must be a configured, non-placeholder secret "
+        "of at least 32 bytes."
+    )
 
 jwt_secret_key = os.getenv("JWT_SECRET_KEY")
 if not jwt_secret_key:
     raise RuntimeError("JWT_SECRET_KEY is required to start the application.")
+if secret_key == jwt_secret_key:
+    raise RuntimeError("FLASK_SECRET_KEY and JWT_SECRET_KEY must be different.")
 
 try:
     jwt_access_token_minutes = int(os.getenv("JWT_ACCESS_TOKEN_MINUTES", "15"))

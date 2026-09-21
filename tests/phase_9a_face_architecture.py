@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 os.environ.setdefault("APP_ENV", "development")
-os.environ.setdefault("FLASK_SECRET_KEY", "phase-9a-test-flask-key")
+os.environ.setdefault("FLASK_SECRET_KEY", "x" * 32)
 os.environ.setdefault("JWT_SECRET_KEY", "phase-9a-test-jwt-key")
 
 from services import face_service
@@ -89,7 +89,7 @@ class ApplicationArchitectureTests(unittest.TestCase):
 import os
 import sys
 os.environ['APP_ENV'] = 'development'
-os.environ['FLASK_SECRET_KEY'] = 'phase-9a-subprocess-flask-key'
+os.environ['FLASK_SECRET_KEY'] = 'x' * 32
 os.environ['JWT_SECRET_KEY'] = 'phase-9a-subprocess-jwt-key'
 import app
 from services.face_service import is_arcface_model_loaded
@@ -111,42 +111,13 @@ assert not is_arcface_model_loaded()
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    def test_model_failure_returns_503_and_health_remains_available(self):
+    def test_legacy_recognition_is_disabled_and_health_remains_available(self):
         import app
-        import routes.face as legacy_face
+        client = app.app.test_client()
+        facial_response = client.post("/reconhecer", json={"imagem": "fake"})
+        health_response = client.get("/health")
 
-        class FakeCursor:
-            def close(self):
-                pass
-
-        class FakeConnection:
-            def cursor(self):
-                return FakeCursor()
-
-            def rollback(self):
-                pass
-
-            def close(self):
-                pass
-
-        with (
-            patch.object(legacy_face, "conectar_bd", return_value=FakeConnection()),
-            patch.object(legacy_face, "register_vector"),
-            patch.object(
-                legacy_face,
-                "reconhecer_uma_imagem",
-                side_effect=face_service.FaceServiceUnavailableError(),
-            ),
-        ):
-            client = app.app.test_client()
-            facial_response = client.post("/reconhecer", json={"imagem": "fake"})
-            health_response = client.get("/health")
-
-        self.assertEqual(facial_response.status_code, 503)
-        self.assertEqual(
-            facial_response.get_json(),
-            {"erro": "Servico facial temporariamente indisponivel."},
-        )
+        self.assertEqual(facial_response.status_code, 410)
         self.assertEqual(health_response.status_code, 200)
 
     def test_legacy_clock_write_is_explicitly_disabled(self):

@@ -5,7 +5,7 @@ from unittest.mock import patch
 from flask import Flask, jsonify
 
 os.environ.setdefault("APP_ENV", "development")
-os.environ.setdefault("FLASK_SECRET_KEY", "mobile-profile-test-flask-key")
+os.environ.setdefault("FLASK_SECRET_KEY", "x" * 32)
 os.environ.setdefault("JWT_SECRET_KEY", "mobile-profile-test-jwt-key")
 
 from routes.views import views_bp

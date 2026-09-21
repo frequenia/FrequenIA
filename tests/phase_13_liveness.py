@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 
 os.environ.setdefault("APP_ENV", "development")
-os.environ.setdefault("FLASK_SECRET_KEY", "phase-13-test-flask-key")
+os.environ.setdefault("FLASK_SECRET_KEY", "x" * 32)
 os.environ.setdefault("JWT_SECRET_KEY", "phase-13-test-jwt-key")
 
 from services import face_service

@@ -6,7 +6,7 @@ from flask import Flask, g
 
 
 os.environ.setdefault("APP_ENV", "development")
-os.environ.setdefault("FLASK_SECRET_KEY", "phase-14-test-flask-key")
+os.environ.setdefault("FLASK_SECRET_KEY", "x" * 32)
 os.environ.setdefault("JWT_SECRET_KEY", "phase-14-test-jwt-key")
 
 from routes.views import criar_marcacao_facial
