@@ -1,9 +1,11 @@
 """Validação integrada controlada da Fase 16 no PostgreSQL configurado."""
 
+import io
 import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 from uuid import uuid4
 from unittest.mock import patch
 
@@ -11,9 +13,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from flask import Flask
 import psycopg2.extras
+from docx import Document
+from pypdf import PdfReader
 
 from db import conectar_bd
 from routes.occurrences import occurrences_bp
+from routes.timekeeping import timekeeping_bp
 from services.effective_timekeeping import fetch_effective_events
 
 
@@ -24,8 +29,14 @@ def expect(response, status, label):
 
 
 def main():
+    database_url = os.environ.get("DATABASE_URL")
+    target = urlparse(database_url or "")
+    if (target.hostname not in {"localhost", "127.0.0.1", "::1"}
+            or target.port != 55432
+            or target.path != "/frequenia_phase16_test"):
+        raise RuntimeError("Este teste requer o banco PostgreSQL local descartável explícito.")
     suffix = uuid4().hex[:10]
-    ids = {key: str(uuid4()) for key in ("company", "unit", "user", "employee", "manager_user", "manager", "marking", "foreign_company", "foreign_unit", "foreign_user", "foreign_employee", "foreign_marking")}
+    ids = {key: str(uuid4()) for key in ("company", "unit", "user", "employee", "manager_user", "manager", "marking", "marking_exit", "foreign_company", "foreign_unit", "foreign_user", "foreign_employee", "foreign_marking")}
     conn = conectar_bd()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     created_corrections = []
@@ -43,10 +54,13 @@ def main():
             cursor.execute("""INSERT INTO marcacoes (id,empresa_id,funcionario_id,instante,tipo,origem,estado,chave_idempotencia)
                 VALUES (%s,%s,%s,%s,'entrada','manual','confirmada',%s)""",
                 (ids[prefix+"marking"], ids[prefix+"company"], ids[prefix+"employee"], datetime(2026,9,12,11,17,tzinfo=timezone.utc), str(uuid4())))
+        cursor.execute("""INSERT INTO marcacoes (id,empresa_id,funcionario_id,instante,tipo,origem,estado,chave_idempotencia)
+            VALUES (%s,%s,%s,%s,'saida','manual','confirmada',%s)""",
+            (ids["marking_exit"], ids["company"], ids["employee"], datetime(2026,9,12,20,0,tzinfo=timezone.utc), str(uuid4())))
         conn.commit()
 
         app = Flask(__name__); app.config.update(TESTING=True, SECRET_KEY="fixture")
-        app.register_blueprint(occurrences_bp); client = app.test_client()
+        app.register_blueprint(occurrences_bp); app.register_blueprint(timekeeping_bp); client = app.test_client()
         personal = {"user_id":ids["user"],"funcionario_id":ids["employee"],"empresa_id":ids["company"],"session_id":str(uuid4()),"familia_id":str(uuid4()),"perfil":"funcionario"}
         manager = {"user_id":ids["manager_user"],"funcionario_id":ids["manager"],"empresa_id":ids["company"],"session_id":str(uuid4()),"familia_id":str(uuid4()),"perfil":"gestor"}
 
@@ -54,17 +68,38 @@ def main():
             correction = expect(client.post("/api/ocorrencias",headers={"Authorization":"Bearer fixture"},json={"tipo":"horario_incorreto","marcacao_id":ids["marking"],"motivo":"Horário correto validado","instante_solicitado":"2026-09-12T08:02:00-03:00"}),201,"create")
             created_corrections.append(correction["id"])
             expect(client.post("/api/ocorrencias",headers={"Authorization":"Bearer fixture"},json={"tipo":"horario_incorreto","marcacao_id":ids["foreign_marking"],"motivo":"Não permitido","instante_solicitado":"2026-09-12T08:02:00-03:00"}),404,"foreign")
+            rejected = expect(client.post("/api/ocorrencias",headers={"Authorization":"Bearer fixture"},json={"tipo":"tipo_incorreto","marcacao_id":ids["marking"],"motivo":"Teste de rejeição","tipo_marcacao_solicitado":"saida"}),201,"create rejected")
+            created_corrections.append(rejected["id"])
         with patch("utils.auth_decorator._load_persistent_authentication", return_value=(manager,None)):
             expect(client.post(f"/api/gestao/ocorrencias/{correction['id']}/aprovar",headers={"Authorization":"Bearer fixture"},json={"observacao":"Validado pela liderança"}),200,"approve")
             expect(client.post(f"/api/gestao/ocorrencias/{correction['id']}/rejeitar",headers={"Authorization":"Bearer fixture"},json={"observacao":"segunda decisão"}),409,"second decision")
+            expect(client.post(f"/api/gestao/ocorrencias/{rejected['id']}/rejeitar",headers={"Authorization":"Bearer fixture"},json={"observacao":"Teste de rejeição"}),200,"reject")
+            expect(client.post(f"/api/gestao/ocorrencias/{rejected['id']}/aprovar",headers={"Authorization":"Bearer fixture"},json={}),409,"second rejection decision")
+            params = {"funcionario_id":ids["employee"],"inicio":"2026-09-12","fim":"2026-09-12"}
+            headers = {"Authorization":"Bearer fixture"}
+            records = expect(client.get("/api/gestao/pontos",headers=headers,query_string=params),200,"management timekeeping")
+            assert len(records)==1 and records[0]["entrada"]=="08:02" and records[0]["saida"]=="17:00"
+            assert records[0]["total"]=="8h58" and records[0]["ajustada"]
+            expect(client.get("/api/gestao/pontos",headers=headers,query_string={"funcionario_id":ids["foreign_employee"]}),404,"foreign management timekeeping")
+            csv_response = client.get("/exportar-pontos",headers=headers,query_string={**params,"formato":"csv"})
+            assert csv_response.status_code==200 and b"08:02" in csv_response.data and b"17:00" in csv_response.data
+            pdf_response = client.get("/exportar-pontos",headers=headers,query_string={**params,"formato":"pdf"})
+            assert pdf_response.status_code==200
+            pdf_text = " ".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(pdf_response.data)).pages)
+            assert "08:02" in pdf_text and "17:00" in pdf_text
+            docx_response = client.get("/exportar-pontos",headers=headers,query_string={**params,"formato":"docx"})
+            assert docx_response.status_code==200
+            docx_text = " ".join(cell.text for table in Document(io.BytesIO(docx_response.data)).tables for row in table.rows for cell in row.cells)
+            assert "08:02" in docx_text and "17:00" in docx_text
 
         cursor.execute("SELECT instante,tipo,origem FROM marcacoes WHERE id=%s",(ids["marking"],)); original=cursor.fetchone()
         assert original == {"instante":datetime(2026,9,12,11,17,tzinfo=timezone.utc),"tipo":"entrada","origem":"manual"}
         effective = fetch_effective_events(cursor,ids["company"],ids["employee"])
-        assert len(effective)==1 and effective[0]["instante"]==datetime(2026,9,12,11,2,tzinfo=timezone.utc) and effective[0]["ajustada"]
+        assert len(effective)==2 and effective[0]["instante"]==datetime(2026,9,12,11,2,tzinfo=timezone.utc) and effective[0]["ajustada"]
         cursor.execute("SELECT ocorrencia_id FROM correcoes WHERE id=%s",(correction["id"],)); occurrence_id=str(cursor.fetchone()["ocorrencia_id"]);created_occurrences.append(occurrence_id)
         cursor.execute("SELECT count(*) AS n FROM auditoria WHERE entidade_id=%s",(correction["id"],)); assert cursor.fetchone()["n"]==2
-        cursor.execute("SELECT count(*) AS n FROM notificacoes WHERE usuario_id=%s AND tipo='correcao'",(ids["user"],)); assert cursor.fetchone()["n"]==1
+        cursor.execute("SELECT count(*) AS n FROM auditoria WHERE entidade_id=%s",(rejected["id"],)); assert cursor.fetchone()["n"]==2
+        cursor.execute("SELECT count(*) AS n FROM notificacoes WHERE usuario_id=%s AND tipo='correcao'",(ids["user"],)); assert cursor.fetchone()["n"]==2
         print("phase16_integration=success")
     finally:
         conn.rollback()
