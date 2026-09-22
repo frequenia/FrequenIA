@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../auth/auth_controller.dart';
 import '../clock/clock_page.dart';
 import '../profile/profile_page.dart';
+import '../requests/requests_page.dart';
 import '../schedule/schedule_page.dart';
 
 class HomeShell extends StatefulWidget {
@@ -22,7 +23,8 @@ class _HomeShellState extends State<HomeShell> {
     final pages = [
       _AuthenticatedHome(controller: widget.controller),
       SchedulePage(api: widget.controller.api),
-      ProfilePage(controller: widget.controller, active: index == 2),
+      RequestsPage(api: widget.controller.api, active: index == 2),
+      ProfilePage(controller: widget.controller, active: index == 3),
     ];
 
     return Scaffold(
@@ -46,6 +48,11 @@ class _HomeShellState extends State<HomeShell> {
             icon: Icon(Icons.calendar_month_outlined),
             selectedIcon: Icon(Icons.calendar_month),
             label: 'Jornada',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.assignment_outlined),
+            selectedIcon: Icon(Icons.assignment),
+            label: 'Solicitações',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),

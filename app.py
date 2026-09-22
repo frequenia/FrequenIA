@@ -123,11 +123,13 @@ from routes.views import views_bp
 from routes.face import face_bp
 from routes.biometrics import biometrics_bp
 from routes.timekeeping import timekeeping_bp
+from routes.occurrences import occurrences_bp
 
 app.register_blueprint(views_bp)
 app.register_blueprint(face_bp)
 app.register_blueprint(biometrics_bp)
 app.register_blueprint(timekeeping_bp)
+app.register_blueprint(occurrences_bp)
 
 if __name__ == "__main__":
     app.run(

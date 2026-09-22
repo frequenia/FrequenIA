@@ -5,52 +5,44 @@ import '../core/api_client.dart';
 import '../core/widgets.dart';
 
 class RequestsPage extends StatefulWidget {
-  const RequestsPage({super.key, required this.api});
+  const RequestsPage({super.key, required this.api, this.active = true});
   final ApiClient api;
+  final bool active;
   @override
   State<RequestsPage> createState() => _RequestsPageState();
 }
 
-class _RequestsPageState extends State<RequestsPage>
-    with SingleTickerProviderStateMixin {
-  late final TabController tabs;
-  List<Map<String, dynamic>> requests = [];
-  List<Map<String, dynamic>> occurrences = [];
-  bool loading = true;
+class _RequestsPageState extends State<RequestsPage> {
+  List<Map<String, dynamic>> rows = [];
+  bool loading = false;
   String? failure;
 
   @override
   void initState() {
     super.initState();
-    tabs = TabController(length: 2, vsync: this);
-    load();
+    if (widget.active) load();
   }
 
   @override
-  void dispose() {
-    tabs.dispose();
-    super.dispose();
+  void didUpdateWidget(covariant RequestsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.active && !oldWidget.active && rows.isEmpty && !loading) load();
   }
 
   Future<void> load() async {
+    if (loading) return;
     setState(() {
       loading = true;
       failure = null;
     });
     try {
-      final values = await Future.wait([
-        widget.api.get('/solicitacoes'),
-        widget.api.get('/ocorrencias'),
-      ]);
+      final result = await widget.api.get('/api/ocorrencias');
       if (mounted) {
-        setState(() {
-          requests = List<Map<String, dynamic>>.from(
-            values[0]['solicitacoes'] ?? [],
-          );
-          occurrences = List<Map<String, dynamic>>.from(
-            values[1]['ocorrencias'] ?? [],
-          );
-        });
+        setState(
+          () => rows = List<Map<String, dynamic>>.from(
+            result['ocorrencias'] ?? [],
+          ),
+        );
       }
     } on ApiException catch (error) {
       if (mounted) setState(() => failure = error.message);
@@ -59,18 +51,38 @@ class _RequestsPageState extends State<RequestsPage>
     }
   }
 
+  String _withOffset(DateTime value) {
+    final local = value.toLocal(), offset = value.toLocal().timeZoneOffset;
+    final sign = offset.isNegative ? '-' : '+';
+    String two(int number) => number.toString().padLeft(2, '0');
+    return '${DateFormat("yyyy-MM-dd'T'HH:mm:ss").format(local)}$sign${two(offset.abs().inHours)}:${two(offset.abs().inMinutes.remainder(60))}';
+  }
+
   Future<void> createRequest() async {
-    final formKey = GlobalKey<FormState>();
-    final description = TextEditingController();
-    final requestedTime = TextEditingController();
-    String reason = 'esquecimento';
+    List<Map<String, dynamic>> markings = [];
+    try {
+      final result = await widget.api.get('/api/marcacoes');
+      markings = List<Map<String, dynamic>>.from(result['marcacoes'] ?? []);
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+      return;
+    }
+    if (!mounted) return;
+    final key = GlobalKey<FormState>();
+    final reason = TextEditingController(),
+        requestedTime = TextEditingController(text: '08:00');
+    String category = 'esquecimento_marcacao', markingType = 'entrada';
+    String? markingId;
     DateTime day = DateTime.now();
     final created = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (context) => StatefulBuilder(
-        builder: (context, setSheetState) => Padding(
+        builder: (context, update) => Padding(
           padding: EdgeInsets.fromLTRB(
             22,
             8,
@@ -78,99 +90,169 @@ class _RequestsPageState extends State<RequestsPage>
             MediaQuery.viewInsetsOf(context).bottom + 24,
           ),
           child: Form(
-            key: formKey,
+            key: key,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Solicitar correção',
+                    'Nova solicitação',
                     style: Theme.of(context).textTheme.headlineSmall
                         ?.copyWith(fontWeight: FontWeight.w800),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    initialValue: reason,
-                    decoration: const InputDecoration(labelText: 'Motivo'),
+                    initialValue: category,
+                    decoration: const InputDecoration(labelText: 'Categoria'),
                     items:
                         const {
-                              'esquecimento': 'Esquecimento',
-                              'reconhecimento': 'Reconhecimento facial',
-                              'internet': 'Internet',
+                              'esquecimento_marcacao':
+                                  'Esquecimento de marcação',
                               'horario_incorreto': 'Horário incorreto',
+                              'tipo_incorreto': 'Tipo incorreto',
+                              'justificativa': 'Justificativa',
                               'outro': 'Outro',
                             }.entries
                             .map(
-                              (item) => DropdownMenuItem(
-                                value: item.key,
-                                child: Text(item.value),
+                              (e) => DropdownMenuItem(
+                                value: e.key,
+                                child: Text(e.value),
                               ),
                             )
                             .toList(),
-                    onChanged: (value) => reason = value!,
+                    onChanged: (value) => update(() => category = value!),
                   ),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      final selected = await showDatePicker(
-                        context: context,
-                        firstDate: DateTime.now().subtract(
-                          const Duration(days: 90),
-                        ),
-                        lastDate: DateTime.now(),
-                        initialDate: day,
-                      );
-                      if (selected != null) setSheetState(() => day = selected);
-                    },
-                    icon: const Icon(Icons.calendar_today_outlined),
-                    label: Text(DateFormat('dd/MM/yyyy').format(day)),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: requestedTime,
-                    keyboardType: TextInputType.datetime,
-                    decoration: const InputDecoration(
-                      labelText: 'Horário desejado (opcional)',
-                      hintText: '08:00',
+                  if (category == 'horario_incorreto' ||
+                      category == 'tipo_incorreto') ...[
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: 'Marcação original',
+                      ),
+                      items: markings
+                          .map(
+                            (item) => DropdownMenuItem(
+                              value: item['id'].toString(),
+                              child: Text(
+                                '${_labelMarking(item['tipo'])} · ${_dateLabel(item['instante'])}',
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) => markingId = value,
+                      validator: (value) => value == null
+                          ? 'Selecione a marcação original'
+                          : null,
                     ),
-                  ),
+                  ],
+                  if (category == 'esquecimento_marcacao' ||
+                      category == 'horario_incorreto') ...[
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final selected = await showDatePicker(
+                          context: context,
+                          firstDate: DateTime.now().subtract(
+                            const Duration(days: 90),
+                          ),
+                          lastDate: DateTime.now(),
+                          initialDate: day,
+                        );
+                        if (selected != null) update(() => day = selected);
+                      },
+                      icon: const Icon(Icons.calendar_today),
+                      label: Text(DateFormat('dd/MM/yyyy').format(day)),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: requestedTime,
+                      decoration: const InputDecoration(
+                        labelText: 'Horário (HH:mm)',
+                      ),
+                      validator: (value) =>
+                          RegExp(r'^(?:[01]\d|2[0-3]):[0-5]\d$')
+                              .hasMatch(value ?? '')
+                          ? null
+                          : 'Informe HH:mm',
+                    ),
+                  ],
+                  if (category == 'esquecimento_marcacao' ||
+                      category == 'tipo_incorreto') ...[
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: markingType,
+                      decoration: const InputDecoration(
+                        labelText: 'Tipo da marcação',
+                      ),
+                      items:
+                          const {
+                                'entrada': 'Entrada',
+                                'saida_intervalo': 'Saída para intervalo',
+                                'retorno_intervalo': 'Retorno do intervalo',
+                                'saida': 'Saída',
+                              }.entries
+                              .map(
+                                (e) => DropdownMenuItem(
+                                  value: e.key,
+                                  child: Text(e.value),
+                                ),
+                              )
+                              .toList(),
+                      onChanged: (value) => markingType = value!,
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   TextFormField(
-                    controller: description,
+                    controller: reason,
                     minLines: 3,
                     maxLines: 5,
-                    decoration: const InputDecoration(
-                      labelText: 'Conte o que aconteceu',
-                    ),
-                    validator: (value) => (value ?? '').trim().length < 5
-                        ? 'Descreva a situação'
+                    decoration: const InputDecoration(labelText: 'Motivo'),
+                    validator: (value) => (value ?? '').trim().isEmpty
+                        ? 'Informe o motivo'
                         : null,
                   ),
                   const SizedBox(height: 18),
                   FilledButton(
                     onPressed: () async {
-                      if (!formKey.currentState!.validate()) return;
-                      String? timestamp;
-                      final parts = requestedTime.text.split(':');
-                      if (parts.length == 2) {
-                        timestamp = DateTime(
-                          day.year,
-                          day.month,
-                          day.day,
-                          int.tryParse(parts[0]) ?? 0,
-                          int.tryParse(parts[1]) ?? 0,
-                        ).toIso8601String();
+                      if (!key.currentState!.validate()) return;
+                      final body = <String, dynamic>{
+                        'tipo': category,
+                        'motivo': reason.text.trim(),
+                      };
+                      if (category == 'esquecimento_marcacao') {
+                        final parts = requestedTime.text.split(':');
+                        body['instante_solicitado'] = _withOffset(
+                          DateTime(
+                            day.year,
+                            day.month,
+                            day.day,
+                            int.parse(parts[0]),
+                            int.parse(parts[1]),
+                          ),
+                        );
+                        body['tipo_marcacao_solicitado'] = markingType;
+                      } else if (category == 'horario_incorreto') {
+                        final parts = requestedTime.text.split(':');
+                        body['marcacao_id'] = markingId;
+                        body['instante_solicitado'] = _withOffset(
+                          DateTime(
+                            day.year,
+                            day.month,
+                            day.day,
+                            int.parse(parts[0]),
+                            int.parse(parts[1]),
+                          ),
+                        );
+                      } else if (category == 'tipo_incorreto') {
+                        body['marcacao_id'] = markingId;
+                        body['tipo_marcacao_solicitado'] = markingType;
                       }
                       try {
-                        await widget.api.post('/solicitacoes', {
-                          'data_referencia': DateFormat('yyyy-MM-dd')
-                              .format(day),
-                          'motivo': reason,
-                          'descricao': description.text.trim(),
-                          'horario_solicitado': timestamp,
-                        });
-                        if (context.mounted) Navigator.pop(context, true);
+                        await widget.api.post('/api/ocorrencias', body);
+                        if (context.mounted) {
+                          Navigator.pop(context, true);
+                        }
                       } on ApiException catch (error) {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -188,24 +270,59 @@ class _RequestsPageState extends State<RequestsPage>
         ),
       ),
     );
+    reason.dispose();
+    requestedTime.dispose();
     if (created == true) load();
   }
 
-  Widget listFor(List<Map<String, dynamic>> rows, bool correction) {
-    if (rows.isEmpty) {
-      return EmptyState(
-        icon: correction
-            ? Icons.assignment_outlined
-            : Icons.fact_check_outlined,
-        title: correction ? 'Nenhuma solicitação' : 'Nenhuma ocorrência',
-        message: correction
-            ? 'Quando precisar, solicite uma correção pelo botão abaixo.'
-            : 'Ocorrências que precisem de análise aparecerão aqui.',
-      );
+  Future<void> cancel(String id) async {
+    try {
+      await widget.api.post('/api/ocorrencias/$id/cancelar');
+      await load();
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
     }
-    return Column(
-      children: rows
-          .map(
+  }
+
+  @override
+  Widget build(BuildContext context) => RefreshIndicator(
+    onRefresh: load,
+    child: ListView(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 30),
+      children: [
+        PageHeading(
+          'Solicitações',
+          subtitle: 'Acompanhe suas correções de ponto',
+          trailing: IconButton.filled(
+            onPressed: loading ? null : createRequest,
+            tooltip: 'Nova solicitação',
+            icon: const Icon(Icons.add),
+          ),
+        ),
+        const SizedBox(height: 18),
+        if (loading && rows.isEmpty)
+          const Center(child: CircularProgressIndicator())
+        else if (failure != null)
+          EmptyState(
+            icon: Icons.cloud_off,
+            title: 'Não foi possível carregar',
+            message: failure!,
+            action: FilledButton(
+              onPressed: load,
+              child: const Text('Tentar novamente'),
+            ),
+          )
+        else if (rows.isEmpty)
+          const EmptyState(
+            icon: Icons.assignment_outlined,
+            title: 'Nenhuma solicitação',
+            message: 'Suas solicitações de correção aparecerão aqui.',
+          )
+        else
+          ...rows.map(
             (item) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: Card(
@@ -218,106 +335,63 @@ class _RequestsPageState extends State<RequestsPage>
                         children: [
                           Expanded(
                             child: Text(
-                              correction
-                                  ? item['motivo'].toString().replaceAll(
-                                      '_',
-                                      ' ',
-                                    )
-                                  : item['tipo'].toString().replaceAll(
-                                      '_',
-                                      ' ',
-                                    ),
+                              _label(item['tipo']),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w800,
-                                fontSize: 16,
                               ),
                             ),
                           ),
-                          StatusPill(item['estado']?.toString() ?? ''),
+                          StatusPill(item['status']?.toString() ?? ''),
                         ],
                       ),
-                      const SizedBox(height: 10),
-                      Text(item['descricao']?.toString() ?? 'Em análise'),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
+                      Text(item['motivo']?.toString() ?? 'Não informado'),
+                      const SizedBox(height: 8),
                       Text(
-                        item['criada_em']?.toString().substring(0, 10) ?? '',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontSize: 12,
-                        ),
+                        _dateLabel(item['criada_em']),
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
+                      if (item['status'] == 'pendente')
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () => cancel(item['id'].toString()),
+                            child: const Text('Cancelar'),
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ),
             ),
-          )
-          .toList(),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        PageHeading(
-          'Solicitações',
-          subtitle: 'Acompanhe correções e ocorrências',
-          trailing: IconButton.filled(
-            onPressed: createRequest,
-            tooltip: 'Nova correção',
-            icon: const Icon(Icons.add),
           ),
-        ),
-        const SizedBox(height: 16),
-        TabBar(
-          controller: tabs,
-          tabs: const [
-            Tab(text: 'Correções'),
-            Tab(text: 'Ocorrências'),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Expanded(
-          child: loading
-              ? const Center(child: CircularProgressIndicator())
-              : failure != null
-              ? EmptyState(
-                  icon: Icons.cloud_off,
-                  title: 'Não foi possível carregar',
-                  message: failure!,
-                  action: FilledButton(
-                    onPressed: load,
-                    child: const Text('Tentar novamente'),
-                  ),
-                )
-              : TabBarView(
-                  controller: tabs,
-                  children: [
-                    RefreshIndicator(
-                      onRefresh: load,
-                      child: ListView(
-                        children: [
-                          listFor(requests, true),
-                          const SizedBox(height: 24),
-                        ],
-                      ),
-                    ),
-                    RefreshIndicator(
-                      onRefresh: load,
-                      child: ListView(
-                        children: [
-                          listFor(occurrences, false),
-                          const SizedBox(height: 24),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-        ),
       ],
     ),
   );
+}
+
+String _label(dynamic value) =>
+    const {
+      'esquecimento_marcacao': 'Esquecimento de marcação',
+      'horario_incorreto': 'Horário incorreto',
+      'tipo_incorreto': 'Tipo incorreto',
+      'justificativa': 'Justificativa',
+      'outro': 'Outro',
+    }[value] ??
+    value?.toString() ??
+    'Ocorrência';
+String _labelMarking(dynamic value) =>
+    const {
+      'entrada': 'Entrada',
+      'saida_intervalo': 'Saída para intervalo',
+      'retorno_intervalo': 'Retorno do intervalo',
+      'saida': 'Saída',
+    }[value] ??
+    value?.toString() ??
+    'Marcação';
+String _dateLabel(dynamic value) {
+  final parsed = DateTime.tryParse(value?.toString() ?? '');
+  return parsed == null
+      ? 'Data não informada'
+      : DateFormat('dd/MM/yyyy HH:mm').format(parsed.toLocal());
 }

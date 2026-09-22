@@ -220,7 +220,7 @@ async function carregarTabelaPontos() {
             const ehHoje = item.data === hoje;
             const retorno = item.retorno_intervalo || item.volta_intervalo;
             return `<tr class="${ehHoje ? "hoje" : ""}">
-                <td><span class="dia-label">${item.dia}</span>${ehHoje ? '<span class="hoje-badge">Hoje</span>' : ""}<br><small>${formatarDataBR(item.data)}</small></td>
+                <td><span class="dia-label">${item.dia}</span>${ehHoje ? '<span class="hoje-badge">Hoje</span>' : ""}${item.ajustada ? '<span class="hoje-badge">Ajustado</span>' : ""}<br><small>${formatarDataBR(item.data)}</small></td>
                 <td>${criarCelulaHora(item.entrada, "entrada")}</td>
                 <td>${criarCelulaHora(item.saida_intervalo, "saida_intervalo")}</td>
                 <td>${criarCelulaHora(retorno, "retorno_intervalo")}</td>

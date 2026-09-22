@@ -18,6 +18,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
 from db import conectar_bd
+from services.effective_timekeeping import fetch_effective_events
 from utils.auth_decorator import require_roles
 
 timekeeping_bp = Blueprint("timekeeping", __name__)
@@ -115,14 +116,22 @@ def _serialize_daily_records(rows):
         local_date = local_instant.date()
         # Duplicatas: primeira marcação confirmada de cada tipo no dia local.
         # Nenhum registro histórico é apagado ou alterado.
-        grouped[local_date].setdefault(row["tipo"], local_instant)
+        grouped[local_date].setdefault(
+            row["tipo"],
+            {"instante": local_instant, "ajustada": bool(row.get("ajustada"))},
+        )
 
     result = []
     for local_date in sorted(grouped):
         events = grouped[local_date]
+        event_instants = {
+            event_type: events[event_type]["instante"]
+            for event_type in CLOCK_TYPES
+            if events.get(event_type)
+        }
         formatted = {
             event_type: (
-                events[event_type].strftime("%H:%M")
+                events[event_type]["instante"].strftime("%H:%M")
                 if events.get(event_type)
                 else "--:--"
             )
@@ -137,7 +146,13 @@ def _serialize_daily_records(rows):
                 "retorno_intervalo": formatted["retorno_intervalo"],
                 "volta_intervalo": formatted["retorno_intervalo"],
                 "saida": formatted["saida"],
-                "total": _daily_total(events),
+                "total": _daily_total(event_instants),
+                "ajustada": any(item["ajustada"] for item in events.values()),
+                "ajustes": [
+                    event_type
+                    for event_type in CLOCK_TYPES
+                    if events.get(event_type) and events[event_type]["ajustada"]
+                ],
             }
         )
     return result
@@ -158,23 +173,10 @@ def _fetch_employee_records(cursor, company_id, employee_id, start_date, end_dat
         return None, []
 
     start_utc, end_utc_exclusive = _utc_bounds(start_date, end_date)
-    query = """
-        SELECT id, tipo, instante
-        FROM marcacoes
-        WHERE empresa_id = %s
-          AND funcionario_id = %s
-          AND estado = 'confirmada'
-    """
-    params = [company_id, employee_id]
-    if start_utc:
-        query += " AND instante >= %s"
-        params.append(start_utc)
-    if end_utc_exclusive:
-        query += " AND instante < %s"
-        params.append(end_utc_exclusive)
-    query += " ORDER BY instante ASC, id ASC"
-    cursor.execute(query, tuple(params))
-    return employee, _serialize_daily_records(cursor.fetchall())
+    rows = fetch_effective_events(
+        cursor, company_id, employee_id, start_utc, end_utc_exclusive
+    )
+    return employee, _serialize_daily_records(rows)
 
 
 def _load_management_records(company_id, employee_id, start_date, end_date):
