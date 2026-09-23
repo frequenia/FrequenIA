@@ -91,10 +91,14 @@ def _validate_request(data):
     elif category == "horario_incorreto":
         if not marking_id or not proposed_instant:
             raise ValueError("Horário incorreto exige marcação e instante solicitado.")
+        if proposed_type:
+            raise ValueError("Horário incorreto não aceita tipo de marcação solicitado.")
         operation = "alteracao_instante"
     elif category == "tipo_incorreto":
         if not marking_id or not proposed_type:
             raise ValueError("Tipo incorreto exige marcação e tipo solicitado.")
+        if proposed_instant:
+            raise ValueError("Tipo incorreto não aceita instante solicitado.")
         operation = "alteracao_tipo"
     elif category == "justificativa":
         if proposed_instant or proposed_type:

@@ -64,6 +64,16 @@ def main():
         manager = {"user_id":ids["manager_user"],"funcionario_id":ids["manager"],"empresa_id":ids["company"],"session_id":str(uuid4()),"familia_id":str(uuid4()),"perfil":"gestor"}
 
         with patch("utils.auth_decorator._load_persistent_authentication", return_value=(personal,None)):
+            for invalid in (
+                {"tipo":"horario_incorreto","marcacao_id":ids["marking"],"motivo":"Inválido",
+                 "instante_solicitado":"2026-09-12T08:02:00-03:00","tipo_marcacao_solicitado":"entrada"},
+                {"tipo":"tipo_incorreto","marcacao_id":ids["marking"],"motivo":"Inválido",
+                 "tipo_marcacao_solicitado":"entrada","instante_solicitado":"2026-09-12T08:02:00-03:00"},
+            ):
+                expect(client.post("/api/ocorrencias",headers={"Authorization":"Bearer fixture"},json=invalid),400,"invalid combination")
+            for table in ("ocorrencias", "correcoes", "auditoria"):
+                cursor.execute(f"SELECT count(*) AS n FROM {table} WHERE empresa_id=%s",(ids["company"],))
+                assert cursor.fetchone()["n"] == 0, f"{table} gravada após HTTP 400"
             correction = expect(client.post("/api/ocorrencias",headers={"Authorization":"Bearer fixture"},json={"tipo":"horario_incorreto","marcacao_id":ids["marking"],"motivo":"Horário correto validado","instante_solicitado":"2026-09-12T08:02:00-03:00"}),201,"create")
             created_corrections.append(correction["id"])
             expect(client.post("/api/ocorrencias",headers={"Authorization":"Bearer fixture"},json={"tipo":"horario_incorreto","marcacao_id":ids["foreign_marking"],"motivo":"Não permitido","instante_solicitado":"2026-09-12T08:02:00-03:00"}),404,"foreign")

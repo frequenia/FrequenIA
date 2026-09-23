@@ -119,6 +119,22 @@ class ValidationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             _validate_request({"tipo": "tipo_incorreto", "motivo": "x", "tipo_marcacao_solicitado": "saida"})
 
+    def test_change_categories_reject_fields_that_would_not_be_applied(self):
+        valid_time = {
+            "tipo": "horario_incorreto", "motivo": "Ajuste", "marcacao_id": MARKING,
+            "instante_solicitado": "2026-09-12T08:00:00-03:00",
+        }
+        valid_type = {
+            "tipo": "tipo_incorreto", "motivo": "Ajuste", "marcacao_id": MARKING,
+            "tipo_marcacao_solicitado": "entrada",
+        }
+        self.assertEqual(_validate_request(valid_time)[1], "alteracao_instante")
+        self.assertEqual(_validate_request(valid_type)[1], "alteracao_tipo")
+        with self.assertRaisesRegex(ValueError, "não aceita tipo"):
+            _validate_request({**valid_time, "tipo_marcacao_solicitado": "entrada"})
+        with self.assertRaisesRegex(ValueError, "não aceita instante"):
+            _validate_request({**valid_type, "instante_solicitado": "2026-09-12T08:00:00-03:00"})
+
 
 class RouteTests(unittest.TestCase):
     def setUp(self):
@@ -149,6 +165,24 @@ class RouteTests(unittest.TestCase):
             response = self.client.post("/api/ocorrencias", headers={"Authorization":"Bearer x"}, json={"tipo":"justificativa","motivo":"x","empresa_id":COMPANY})
         self.assertEqual(response.status_code, 400)
         connect.assert_not_called()
+
+    def test_inapplicable_change_fields_return_400_before_any_persistence(self):
+        payloads = (
+            {"tipo": "horario_incorreto", "motivo": "Ajuste", "marcacao_id": MARKING,
+             "instante_solicitado": "2026-09-12T08:00:00-03:00",
+             "tipo_marcacao_solicitado": "entrada"},
+            {"tipo": "tipo_incorreto", "motivo": "Ajuste", "marcacao_id": MARKING,
+             "tipo_marcacao_solicitado": "entrada",
+             "instante_solicitado": "2026-09-12T08:00:00-03:00"},
+        )
+        for payload in payloads:
+            with self.subTest(category=payload["tipo"]), self.auth(), \
+                    patch("routes.occurrences.conectar_bd") as connect:
+                response = self.client.post(
+                    "/api/ocorrencias", headers={"Authorization": "Bearer x"}, json=payload,
+                )
+                self.assertEqual(response.status_code, 400)
+                connect.assert_not_called()
 
     def test_foreign_or_missing_marking_is_indistinguishable(self):
         connection = Connection(Cursor(one=[None]))
