@@ -10,7 +10,15 @@ String markingLabel(String? value) =>
     }[value] ??
     'Jornada concluída';
 
-String statusLabel(String? value) => (value ?? '').replaceAll('_', ' ');
+String statusLabel(String? value) =>
+    const {
+      'pendente_gestor': 'Pendente com gestor',
+      'encaminhada_rh': 'Encaminhada ao RH',
+      'aprovada': 'Aprovada',
+      'rejeitada': 'Rejeitada',
+      'cancelada': 'Cancelada',
+    }[value] ??
+    (value ?? '').replaceAll('_', ' ');
 
 class PageHeading extends StatelessWidget {
   const PageHeading(this.title, {super.key, this.subtitle, this.trailing});

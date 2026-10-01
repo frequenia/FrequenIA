@@ -351,7 +351,7 @@ class _RequestsPageState extends State<RequestsPage> {
                         _dateLabel(item['criada_em']),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
-                      if (item['status'] == 'pendente')
+                      if (item['status'] == 'pendente_gestor')
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(

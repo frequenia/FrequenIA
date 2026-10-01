@@ -28,7 +28,7 @@ void main() {
             {
               'id': '1',
               'tipo': 'horario_incorreto',
-              'status': 'pendente',
+              'status': 'pendente_gestor',
               'motivo': 'Aplicativo indisponível',
               'criada_em': '2026-09-12T12:00:00Z',
             },
@@ -46,6 +46,7 @@ void main() {
     expect(calls.single.url.path, '/api/ocorrencias');
     expect(find.text('Horário incorreto'), findsOneWidget);
     expect(find.text('Aplicativo indisponível'), findsOneWidget);
+    expect(find.text('Pendente com gestor'), findsOneWidget);
     expect(find.text('Cancelar'), findsOneWidget);
   });
 
@@ -63,7 +64,7 @@ void main() {
                   {
                     'id': 'abc',
                     'tipo': 'justificativa',
-                    'status': 'pendente',
+                    'status': 'pendente_gestor',
                     'motivo': 'Trânsito',
                     'criada_em': '2026-09-12T12:00:00Z',
                   },

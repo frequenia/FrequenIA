@@ -1,0 +1,40 @@
+.terminal-page {
+  min-height: 100vh;
+  padding: 32px 16px;
+  display: grid;
+  place-items: start center;
+}
+.terminal-panel {
+  width: min(100%, 720px);
+  padding: 32px;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
+.terminal-panel h1, .terminal-panel h2 { margin-bottom: 12px; }
+.terminal-panel p { margin-bottom: 20px; }
+.terminal-panel form { display: grid; gap: 12px; margin-bottom: 16px; }
+.terminal-panel input { width: 100%; }
+.terminal-panel button { width: fit-content; }
+.credential-panel {
+  padding: 20px;
+  margin: 24px 0;
+  border: 2px solid var(--color-primary);
+  border-radius: 8px;
+}
+.credential-panel[hidden] { display: none; }
+.credential-panel input { margin-bottom: 12px; font-family: monospace; }
+.terminal-list { display: grid; gap: 10px; }
+.terminal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid var(--color-border);
+  padding: 14px 0;
+}
+@media (max-width: 480px) {
+  .terminal-panel { padding: 20px; }
+  .terminal-row { align-items: flex-start; flex-direction: column; }
+}

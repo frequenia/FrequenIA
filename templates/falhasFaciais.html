@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ocorrências de falha facial</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ocorrencias.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/falhasFaciais.css') }}">
+</head>
+<body>
+  <main class="occurrences-page">
+    <section class="card filters">
+      <h1>Ocorrências de falha facial</h1>
+      <p class="intro">Acompanhamento dos ciclos automáticos gerados após cinco falhas faciais válidas.</p>
+      <div class="filter-grid">
+        <label>Funcionário ou matrícula<input id="search-text" maxlength="100" autocomplete="off"></label>
+        <label>Estado<select id="state"><option value="">Todos</option><option value="aberta">Aberta</option><option value="em_analise">Em análise</option><option value="resolvida">Resolvida</option><option value="descartada">Descartada</option></select></label>
+        <label>Unidade<select id="unit"><option value="">Todas</option></select></label>
+        <label>Equipe<select id="team"><option value="">Todas</option></select></label>
+        <label>De<input id="start" type="date"></label>
+        <label>Até<input id="end" type="date"></label>
+        <button id="search" class="btn-primary" type="button">Pesquisar</button>
+      </div>
+    </section>
+    <p id="page-error" class="page-error" role="alert" hidden></p>
+    <section class="card table-card">
+      <table>
+        <thead><tr><th>Funcionário</th><th>Unidade / equipe</th><th>Estado</th><th>Primeira tentativa</th><th>Criação</th><th></th></tr></thead>
+        <tbody id="facial-failure-rows"><tr><td colspan="6" class="empty">Carregando...</td></tr></tbody>
+      </table>
+    </section>
+  </main>
+  <dialog id="facial-failure-detail">
+    <form method="dialog" class="detail-card">
+      <button class="close" value="cancel" aria-label="Fechar">×</button>
+      <h2>Detalhes da ocorrência</h2>
+      <dl id="facial-failure-detail-content"></dl>
+      <h3>Auditoria</h3>
+      <ol id="facial-failure-audit" class="audit-list"></ol>
+      <div id="workflow-actions" class="actions">
+        <button id="start-review" type="button" class="btn-primary">Iniciar análise</button>
+        <button id="discard-occurrence" type="button" class="danger">Descartar</button>
+        <button id="resolve-occurrence" type="button" class="btn-primary">Resolver</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="decision-dialog">
+    <form method="dialog" class="detail-card" id="decision-form">
+      <button class="close" value="cancel" aria-label="Fechar">×</button>
+      <h2 id="decision-title">Concluir ocorrência</h2>
+      <label>Justificativa<textarea id="decision-justification" rows="5" maxlength="2000" required></textarea></label>
+      <p id="decision-error" class="error" role="alert"></p>
+      <div class="actions"><button value="cancel" type="submit">Cancelar</button><button id="confirm-decision" type="button" class="btn-primary">Confirmar</button></div>
+    </form>
+  </dialog>
+  <script src="{{ url_for('static', filename='js/falhasFaciais.js') }}"></script>
+</body>
+</html>

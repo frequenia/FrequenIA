@@ -1,0 +1,4 @@
+title = "FrequenIA secret scanning"
+
+[extend]
+useDefault = true

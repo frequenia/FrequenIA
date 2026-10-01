@@ -34,6 +34,8 @@ from db import (
     buscar_vinculos_ativos,
     conectar_bd,
 )
+from services.management_scope import employee_visibility_query
+from utils.terminal_auth import terminal_required
 import os
 
 views_bp = Blueprint("views", __name__)
@@ -452,6 +454,7 @@ def cadastro_usuario():
 
 
 @views_bp.route("/reconhecimentoFacial")
+@terminal_required
 def reconhecimento_facial():
     return render_template("reconhecimentoFacial.html")
 
@@ -1024,6 +1027,54 @@ def api_perfil():
         "equipe": user.get("equipe_nome"),
         "cargo": user.get("cargo_nome"),
     }), 200
+
+
+@views_bp.get("/api/notificacoes")
+@access_token_required
+def listar_notificacoes_api():
+    connection = conectar_bd()
+    cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cursor.execute(
+            """SELECT id, tipo, titulo, mensagem, created_at, read_at
+               FROM notificacoes
+               WHERE usuario_id=%s AND (empresa_id=%s OR empresa_id IS NULL)
+               ORDER BY created_at DESC, id DESC""",
+            (g.auth_context["user_id"], g.auth_context["empresa_id"]),
+        )
+        return jsonify({"notificacoes": [
+            {**row, "id": str(row["id"]), "created_at": row["created_at"].isoformat(),
+             "read_at": row["read_at"].isoformat() if row["read_at"] else None}
+            for row in cursor.fetchall()
+        ]})
+    finally:
+        cursor.close(); connection.close()
+
+
+@views_bp.post("/api/notificacoes/<notificacao_id>/ler")
+@access_token_required
+def ler_notificacao_api(notificacao_id):
+    connection = None
+    try:
+        identifier = uuid_obrigatorio(notificacao_id, "Notificação")
+        connection = conectar_bd()
+        with connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute(
+                """UPDATE notificacoes SET read_at=COALESCE(read_at, clock_timestamp())
+                   WHERE id=%s AND usuario_id=%s
+                     AND (empresa_id=%s OR empresa_id IS NULL)
+                   RETURNING id, read_at""",
+                (identifier, g.auth_context["user_id"], g.auth_context["empresa_id"]),
+            )
+            row = cursor.fetchone()
+        connection.commit()
+        if not row: return jsonify({"erro": "Notificação não encontrada."}), 404
+        return jsonify({"id": str(row["id"]), "read_at": row["read_at"].isoformat()}), 200
+    except ValueError as exc:
+        if connection: connection.rollback()
+        return jsonify({"erro": str(exc)}), 400
+    finally:
+        if connection: connection.close()
 
 
 @views_bp.route("/perfil")
@@ -1935,10 +1986,8 @@ def jornada_funcionario_administrativo(funcionario_id):
         )
         conn = conectar_bd()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cursor.execute(
-            "SELECT 1 FROM funcionarios WHERE id = %s AND empresa_id = %s",
-            (funcionario_id, empresa_id),
-        )
+        query, params = employee_visibility_query(g.auth_context, funcionario_id)
+        cursor.execute(query, params)
         if not cursor.fetchone():
             return jsonify({"erro": "Funcionário não encontrado."}), 404
         jornada = buscar_jornada_data(cursor, empresa_id, funcionario_id, data_consulta)

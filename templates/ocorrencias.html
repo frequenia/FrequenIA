@@ -14,7 +14,7 @@
       <h1>Ocorrências e correções</h1>
       <div class="filter-grid">
         <label>Funcionário<select id="employee"><option value="">Todos</option></select></label>
-        <label>Status<select id="status"><option value="">Todos</option><option value="pendente">Pendente</option><option value="aprovada">Aprovada</option><option value="rejeitada">Rejeitada</option><option value="cancelada">Cancelada</option></select></label>
+        <label>Status<select id="status"><option value="">Todos</option><option value="pendente_gestor">Pendente com gestor</option><option value="encaminhada_rh">Encaminhada ao RH</option><option value="aprovada">Aprovada</option><option value="rejeitada">Rejeitada</option><option value="cancelada">Cancelada</option></select></label>
         <label>Categoria<select id="type"><option value="">Todas</option><option value="esquecimento_marcacao">Esquecimento</option><option value="horario_incorreto">Horário incorreto</option><option value="tipo_incorreto">Tipo incorreto</option><option value="justificativa">Justificativa</option><option value="outro">Outro</option></select></label>
         <label>De<input id="start" type="date"></label>
         <label>Até<input id="end" type="date"></label>
@@ -30,9 +30,10 @@
       <button class="close" value="cancel" aria-label="Fechar">×</button>
       <h2>Detalhes da solicitação</h2>
       <dl id="detail-content"></dl>
-      <label>Observação<textarea id="observation" rows="3"></textarea></label>
+      <section class="timeline-section"><h3>Histórico</h3><ol id="timeline" class="timeline"></ol></section>
+      <label>Justificativa / observação<textarea id="observation" maxlength="1000" rows="3"></textarea></label>
       <p id="decision-error" class="error"></p>
-      <div class="actions"><button id="reject" type="button" class="danger">Rejeitar</button><button id="approve" type="button" class="btn-primary">Aprovar</button></div>
+      <div class="actions"><button id="forward" type="button">Encaminhar ao RH</button><button id="reject" type="button" class="danger">Rejeitar</button><button id="approve" type="button" class="btn-primary">Aprovar</button></div>
     </form>
   </dialog>
   <script src="{{ url_for('static', filename='js/ocorrencias.js') }}"></script>

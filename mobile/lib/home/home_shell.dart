@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../auth/auth_controller.dart';
 import '../clock/clock_page.dart';
+import '../history/history_page.dart';
+import '../notifications/notifications_page.dart';
 import '../profile/profile_page.dart';
 import '../requests/requests_page.dart';
 import '../schedule/schedule_page.dart';
@@ -23,8 +25,9 @@ class _HomeShellState extends State<HomeShell> {
     final pages = [
       _AuthenticatedHome(controller: widget.controller),
       SchedulePage(api: widget.controller.api),
-      RequestsPage(api: widget.controller.api, active: index == 2),
-      ProfilePage(controller: widget.controller, active: index == 3),
+      HistoryPage(api: widget.controller.api),
+      RequestsPage(api: widget.controller.api, active: index == 3),
+      ProfilePage(controller: widget.controller, active: index == 4),
     ];
 
     return Scaffold(
@@ -33,6 +36,18 @@ class _HomeShellState extends State<HomeShell> {
           'FrequenIA',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            tooltip: 'Notificações',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => NotificationsPage(api: widget.controller.api),
+              ),
+            ),
+          ),
+        ],
       ),
       body: IndexedStack(index: index, children: pages),
       bottomNavigationBar: NavigationBar(
@@ -48,6 +63,11 @@ class _HomeShellState extends State<HomeShell> {
             icon: Icon(Icons.calendar_month_outlined),
             selectedIcon: Icon(Icons.calendar_month),
             label: 'Jornada',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history),
+            label: 'Histórico',
           ),
           NavigationDestination(
             icon: Icon(Icons.assignment_outlined),
@@ -76,37 +96,16 @@ class _AuthenticatedHome extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       children: [
         Text(
-          'Sessão autenticada',
+          'Olá, ${controller.user?['nome']?.toString().split(' ').first ?? ''}',
           style: Theme.of(context).textTheme.headlineSmall
               ?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 8),
         Text(
-          'Seu acesso foi validado pelo servidor FrequenIA.',
+          'Consulte sua jornada, registros e solicitações.',
           style: Theme.of(context).textTheme.bodyLarge,
         ),
         const SizedBox(height: 24),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.verified_user_outlined, size: 32),
-                const SizedBox(height: 12),
-                Text(
-                  'Fundação mobile ativa',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'As demais funcionalidades serão adicionadas em fases futuras.',
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
         FilledButton.icon(
           onPressed: () async {
             final marked = await Navigator.push<bool>(

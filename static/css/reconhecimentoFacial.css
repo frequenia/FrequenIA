@@ -56,6 +56,42 @@
   transform: scaleX(-1);
 }
 
+.camera-video--active + .camera-overlay .camera-state {
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.camera-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.camera-state {
+  position: absolute;
+  bottom: 16px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
+  font-size: 14px;
+}
+
+#kiosk-status[data-state="success"] {
+  color: var(--color-success);
+}
+
+#kiosk-status[data-state="error"] {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}
+
+#btnTentarCamera[hidden] {
+  display: none;
+}
+
 .camera-placeholder {
   position: absolute;
   top: 0;

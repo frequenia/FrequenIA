@@ -134,7 +134,7 @@ class TimekeepingPureTests(unittest.TestCase):
             [],
         )
         employee, records = _fetch_employee_records(
-            cursor, COMPANY_ID, EMPLOYEE_ID, date(2026, 9, 12), date(2026, 9, 12)
+            cursor, auth_context("administrador"), EMPLOYEE_ID, date(2026, 9, 12), date(2026, 9, 12)
         )
         self.assertEqual(employee["funcionario_id"], EMPLOYEE_ID)
         self.assertEqual(records, [])
@@ -150,7 +150,7 @@ class TimekeepingPureTests(unittest.TestCase):
     def test_absent_employee_returns_no_records_without_querying_events(self):
         cursor = RecordingCursor(None, [])
         employee, records = _fetch_employee_records(
-            cursor, COMPANY_ID, FOREIGN_EMPLOYEE_ID, None, None
+            cursor, auth_context("administrador"), FOREIGN_EMPLOYEE_ID, None, None
         )
         self.assertIsNone(employee)
         self.assertEqual(records, [])
@@ -217,7 +217,7 @@ class TimekeepingRouteTests(unittest.TestCase):
                     role, f"/api/gestao/pontos?funcionario_id={EMPLOYEE_ID}"
                 )
                 self.assertEqual(response.status_code, 200)
-                self.assertEqual(loader.call_args.args[0], COMPANY_ID)
+                self.assertEqual(loader.call_args.args[0]["empresa_id"], COMPANY_ID)
 
     def test_employee_selector_is_scoped_to_authenticated_company(self):
         for role in ("administrador", "gestor", "rh"):
@@ -231,7 +231,7 @@ class TimekeepingRouteTests(unittest.TestCase):
                 response = self.request_as(role, "/api/gestao/funcionarios")
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.get_json()[0]["funcionario_id"], EMPLOYEE_ID)
-            self.assertEqual(cursor.execute.call_args.args[1], (COMPANY_ID,))
+            self.assertEqual(cursor.execute.call_args.args[1][0], COMPANY_ID)
 
     def test_regular_employee_is_forbidden(self):
         response = self.request_as(
@@ -286,7 +286,8 @@ class TimekeepingRouteTests(unittest.TestCase):
             )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.mimetype, "text/csv")
-        self.assertEqual(loader.call_args.args[0:2], (COMPANY_ID, EMPLOYEE_ID))
+        self.assertEqual(loader.call_args.args[0]["empresa_id"], COMPANY_ID)
+        self.assertEqual(loader.call_args.args[1], EMPLOYEE_ID)
         self.assertEqual(
             loader.call_args.args[2:], (date(2026, 9, 12), date(2026, 9, 12))
         )

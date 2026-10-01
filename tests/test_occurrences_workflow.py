@@ -36,7 +36,7 @@ def context(role="funcionario"):
     }
 
 
-def correction_row(state="solicitada", operation="alteracao_instante"):
+def correction_row(state="pendente_gestor", operation="alteracao_instante"):
     return {
         "id": CORRECTION,
         "empresa_id": COMPANY,
@@ -112,6 +112,10 @@ class ValidationTests(unittest.TestCase):
             _validate_request({"tipo": "esquecimento_marcacao", "motivo": "x", "instante_solicitado": "2026-09-12T08:00:00", "tipo_marcacao_solicitado": "entrada"})
         with self.assertRaises(ValueError):
             _validate_request({"tipo": "tipo_invalido", "motivo": "x"})
+        normalized = _validate_request({"tipo": "justificativa", "motivo": "  texto\n  normalizado "})
+        self.assertEqual(normalized[3], "texto normalizado")
+        with self.assertRaisesRegex(ValueError, "máximo"):
+            _validate_request({"tipo": "justificativa", "motivo": "x" * 1001})
 
     def test_each_change_category_requires_original_marking(self):
         with self.assertRaises(ValueError):
@@ -153,8 +157,10 @@ class RouteTests(unittest.TestCase):
         with self.auth(), patch("routes.occurrences.conectar_bd", return_value=connection):
             response = self.client.post("/api/ocorrencias", headers={"Authorization": "Bearer x"}, json={"tipo":"esquecimento_marcacao","motivo":"Esqueci","instante_solicitado":"2026-09-12T08:00:00-03:00","tipo_marcacao_solicitado":"entrada"})
         self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.get_json()["status"], "pendente_gestor")
         insert = connection.test_cursor.calls[1]
         self.assertIn("INSERT INTO correcoes", insert[0])
+        self.assertIn("'pendente_gestor'", insert[0])
         self.assertEqual(insert[1][0:2], (COMPANY, EMPLOYEE))
         self.assertEqual(insert[1][4], USER)
         self.assertTrue(any("INSERT INTO auditoria" in sql for sql, _ in connection.test_cursor.calls))
@@ -215,6 +221,23 @@ class RouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         connect.assert_not_called()
 
+    def test_forward_requires_observation_and_employee_cannot_decide(self):
+        with self.auth("gestor"), patch("routes.occurrences.conectar_bd") as connect:
+            response = self.client.post(
+                f"/api/gestao/ocorrencias/{CORRECTION}/encaminhar-rh",
+                headers={"Authorization": "Bearer x"},
+                json={"observacao": "   "},
+            )
+        self.assertEqual(response.status_code, 400)
+        connect.assert_not_called()
+        with self.auth("funcionario"):
+            response = self.client.post(
+                f"/api/gestao/ocorrencias/{CORRECTION}/aprovar",
+                headers={"Authorization": "Bearer x"},
+                json={},
+            )
+        self.assertEqual(response.status_code, 403)
+
 
 class TransitionAndEffectiveViewTests(unittest.TestCase):
     def setUp(self):
@@ -231,7 +254,7 @@ class TransitionAndEffectiveViewTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(body["status"], "aprovada")
         sql = " ".join(call[0] for call in cursor.calls)
-        self.assertIn("SELECT * FROM correcoes", sql)
+        self.assertIn("SELECT C.* FROM CORRECOES", sql.upper())
         self.assertIn("FOR UPDATE", sql)
         self.assertIn("clock_timestamp()", sql)
         self.assertIn("INSERT INTO auditoria", sql)
@@ -272,6 +295,11 @@ class TransitionAndEffectiveViewTests(unittest.TestCase):
         self.assertIn("create unique index", migration.lower())
         self.assertNotIn("update public.marcacoes", migration.lower())
         self.assertNotIn("delete from public.marcacoes", migration.lower())
+
+        phase_24 = (Path(__file__).parents[1] / "supabase/migrations/018_correction_manager_hr_workflow.sql").read_text(encoding="utf-8")
+        self.assertIn("pendente_gestor", phase_24)
+        self.assertIn("encaminhada_rh", phase_24)
+        self.assertNotIn("update public.marcacoes", phase_24.lower())
 
 
 if __name__ == "__main__":

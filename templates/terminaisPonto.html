@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terminais de ponto - FrequenIA</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/terminaisPonto.css') }}">
+</head>
+<body>
+  <main class="terminal-page">
+    <section class="terminal-panel">
+      <h1>Terminais de ponto</h1>
+      <p>Crie um terminal para cada computador de reconhecimento. Entregue a credencial diretamente à pessoa que vai ativá-lo.</p>
+      <form id="create-terminal-form">
+        <label for="terminal-name">Nome do computador</label>
+        <input id="terminal-name" name="name" type="text" maxlength="120" autocomplete="off" required placeholder="Ex.: Recepção">
+        <button id="create-terminal-button" class="btn-primary" type="submit">Criar terminal</button>
+      </form>
+      <p id="terminal-status" role="status" aria-live="polite"></p>
+      <div id="new-credential" class="credential-panel" hidden>
+        <h2>Credencial criada</h2>
+        <p>Copie agora. Por segurança, ela não aparecerá novamente.</p>
+        <label for="credential-value">Credencial</label>
+        <input id="credential-value" type="text" readonly autocomplete="off" spellcheck="false">
+        <button id="copy-credential" class="btn-secondary" type="button">Copiar credencial</button>
+      </div>
+      <h2>Terminais cadastrados</h2>
+      <div id="terminal-list" class="terminal-list"></div>
+    </section>
+  </main>
+  <script src="{{ url_for('static', filename='js/terminaisPonto.js') }}"></script>
+</body>
+</html>

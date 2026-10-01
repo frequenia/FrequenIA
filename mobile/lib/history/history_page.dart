@@ -28,7 +28,7 @@ class _HistoryPageState extends State<HistoryPage> {
       failure = null;
     });
     try {
-      final result = await widget.api.get('/marcacoes');
+      final result = await widget.api.get('/api/marcacoes');
       if (mounted) {
         setState(
           () => marks = List<Map<String, dynamic>>.from(
@@ -80,7 +80,7 @@ class _HistoryPageState extends State<HistoryPage> {
         else
           ...marks.map((mark) {
             final timestamp = DateTime.tryParse(
-              mark['registrado_em'].toString(),
+              mark['instante'].toString(),
             )?.toLocal();
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),

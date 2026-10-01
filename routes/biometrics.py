@@ -27,6 +27,10 @@ from services.face_service import (
     generate_biometric_embedding,
     verify_passive_liveness,
 )
+from services.facial_failure_occurrences import (
+    COUNTED_FAILURE_REASONS,
+    consume_facial_failure_cycle,
+)
 from utils.auth_decorator import require_roles
 
 LOGGER = logging.getLogger(__name__)
@@ -430,6 +434,8 @@ def _record_face_attempt(employee_id, company_id, result, reason, distance=None)
                 (company_id, employee_id, result, reason, distance),
             )
             attempt_id = cursor.fetchone()[0]
+            if result == "falha" and reason in COUNTED_FAILURE_REASONS:
+                consume_facial_failure_cycle(cursor, company_id, employee_id)
         connection.commit()
         return str(attempt_id)
     except Exception:

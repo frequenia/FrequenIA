@@ -103,6 +103,9 @@ app.config["JWT_SECRET_KEY"] = jwt_secret_key
 app.config["JWT_ACCESS_TOKEN_MINUTES"] = jwt_access_token_minutes
 app.config["JWT_REFRESH_TOKEN_DAYS"] = jwt_refresh_token_days
 app.config["REFRESH_COOKIE_SECURE"] = APP_ENV == "production"
+app.config["SESSION_COOKIE_SECURE"] = APP_ENV == "production"
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["PASSWORD_RESET_TOKEN_MINUTES"] = password_reset_token_minutes
 app.config["PASSWORD_RESET_TEST_KEY"] = password_reset_test_key
 app.config["FACE_VERIFICATION_MAX_COSINE_DISTANCE"] = (
@@ -124,12 +127,14 @@ from routes.face import face_bp
 from routes.biometrics import biometrics_bp
 from routes.timekeeping import timekeeping_bp
 from routes.occurrences import occurrences_bp
+from routes.kiosk import kiosk_bp
 
 app.register_blueprint(views_bp)
 app.register_blueprint(face_bp)
 app.register_blueprint(biometrics_bp)
 app.register_blueprint(timekeeping_bp)
 app.register_blueprint(occurrences_bp)
+app.register_blueprint(kiosk_bp)
 
 if __name__ == "__main__":
     app.run(

@@ -23,7 +23,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   Future<void> load() async {
     try {
-      final result = await widget.api.get('/notificacoes');
+      final result = await widget.api.get('/api/notificacoes');
       if (mounted) {
         setState(() {
           rows = List<Map<String, dynamic>>.from(result['notificacoes'] ?? []);
@@ -41,8 +41,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
   }
 
   Future<void> markRead(Map<String, dynamic> item) async {
-    if (item['lida_em'] != null) return;
-    await widget.api.post('/notificacoes/${item['id']}/ler');
+    if (item['read_at'] != null) return;
+    await widget.api.post('/api/notificacoes/${item['id']}/ler');
     load();
   }
 
@@ -75,7 +75,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
             separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
               final item = rows[index];
-              final date = DateTime.tryParse(item['criada_em'].toString())
+              final date = DateTime.tryParse(item['created_at'].toString())
                   ?.toLocal();
               return Card(
                 child: ListTile(
@@ -83,7 +83,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   contentPadding: const EdgeInsets.all(16),
                   leading: CircleAvatar(
                     child: Icon(
-                      item['lida_em'] == null
+                      item['read_at'] == null
                           ? Icons.notifications_active_outlined
                           : Icons.notifications_none,
                     ),

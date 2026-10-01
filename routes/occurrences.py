@@ -8,10 +8,24 @@ import psycopg2.extras
 from flask import Blueprint, g, jsonify, render_template, request
 
 from db import conectar_bd
+from services.correction_workflow import (
+    CorrectionWorkflowError,
+    FORWARDED_HR,
+    PENDING_MANAGER,
+    allowed_actions,
+    normalize_justification,
+    transition_correction,
+)
+from services.facial_failure_workflow import (
+    FacialFailureWorkflowError,
+    transition_facial_failure_occurrence,
+)
+from services.management_scope import employee_scope_clause
 from utils.auth_decorator import access_token_required, require_roles
 
 occurrences_bp = Blueprint("occurrences", __name__)
 MANAGEMENT_ROLES = ("administrador", "gestor", "rh")
+FACIAL_FAILURE_STATES = {"aberta", "em_analise", "resolvida", "descartada"}
 CATEGORIES = {
     "esquecimento_marcacao": "inclusao",
     "horario_incorreto": "alteracao_instante",
@@ -19,8 +33,15 @@ CATEGORIES = {
     "justificativa": "justificativa",
 }
 CLOCK_TYPES = {"entrada", "saida_intervalo", "retorno_intervalo", "saida"}
-PENDING_DB = "solicitada"
-STATUS_TO_DB = {"pendente": "solicitada", "aprovada": "aprovada", "rejeitada": "rejeitada", "cancelada": "cancelada"}
+MAX_REASON_LENGTH = 1000
+PENDING_DB = PENDING_MANAGER
+STATUS_TO_DB = {
+    "pendente_gestor": PENDING_MANAGER,
+    "encaminhada_rh": FORWARDED_HR,
+    "aprovada": "aprovada",
+    "rejeitada": "rejeitada",
+    "cancelada": "cancelada",
+}
 DB_TO_STATUS = {value: key for key, value in STATUS_TO_DB.items()}
 LOCAL_TIMEZONE = ZoneInfo("America/Sao_Paulo")
 CLIENT_FIELDS = {"tipo", "marcacao_id", "motivo", "instante_solicitado", "tipo_marcacao_solicitado"}
@@ -75,9 +96,11 @@ def _validate_request(data):
     category = str(data.get("tipo") or "").strip()
     if category not in {*CATEGORIES, "outro"}:
         raise ValueError("Tipo de ocorrência inválido.")
-    reason = str(data.get("motivo") or "").strip()
+    reason = " ".join(str(data.get("motivo") or "").split())
     if not reason:
         raise ValueError("Motivo é obrigatório.")
+    if len(reason) > MAX_REASON_LENGTH:
+        raise ValueError(f"Motivo deve ter no máximo {MAX_REASON_LENGTH} caracteres.")
     marking_id = _uuid(data["marcacao_id"], "Marcação") if data.get("marcacao_id") else None
     proposed_instant = _aware_datetime(data.get("instante_solicitado"))
     proposed_type = str(data.get("tipo_marcacao_solicitado") or "").strip() or None
@@ -118,11 +141,11 @@ def _validate_request(data):
     return category, operation, marking_id, reason, proposed_instant, proposed_type
 
 
-def _serialize(row):
+def _serialize(row, management=False):
     def iso(value):
         return value.isoformat() if value else None
 
-    return {
+    serialized = {
         "id": str(row["id"]),
         "tipo": row["categoria"],
         "status": DB_TO_STATUS.get(row["estado"], row["estado"]),
@@ -140,6 +163,10 @@ def _serialize(row):
         "solicitante": row.get("solicitante_nome"),
         "analisador": row.get("analisador_nome"),
     }
+    serialized["acoes_permitidas"] = allowed_actions(
+        g.auth_context["perfil"], row["estado"], own=not management
+    )
+    return serialized
 
 
 def _audit(cursor, action, correction_id, metadata=None):
@@ -179,6 +206,12 @@ def occurrences_page():
     return render_template("ocorrencias.html")
 
 
+@occurrences_bp.route("/ocorrencias/falhas-faciais")
+@require_roles(*MANAGEMENT_ROLES)
+def facial_failure_occurrences_page():
+    return render_template("falhasFaciais.html")
+
+
 @occurrences_bp.post("/api/ocorrencias")
 @access_token_required
 def create_occurrence():
@@ -208,13 +241,20 @@ def create_occurrence():
         cursor.execute(
             """INSERT INTO correcoes
                (empresa_id, funcionario_id, ocorrencia_id, marcacao_original_id, solicitante_usuario_id,
-                tipo, categoria, instante_proposto, tipo_marcacao_proposto, motivo)
-               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *""",
+                 tipo, categoria, instante_proposto, tipo_marcacao_proposto, motivo, estado)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'pendente_gestor') RETURNING *""",
             (g.auth_context["empresa_id"], g.auth_context["funcionario_id"], occurrence_id, marking_id,
              g.auth_context["user_id"], operation, category, instant, marking_type, reason),
         )
         row = cursor.fetchone()
-        _audit(cursor, "ocorrencia.criada", row["id"], {"categoria": category})
+        _audit(cursor, "correcao.criada", row["id"], {
+            "categoria": category,
+            "estado_anterior": None,
+            "estado_novo": PENDING_MANAGER,
+            "papel": g.auth_context["perfil"],
+            "empresa_id": str(g.auth_context["empresa_id"]),
+            "funcionario_id": str(g.auth_context["funcionario_id"]),
+        })
         connection.commit()
         return jsonify(_serialize(row)), 201
     except ValueError as exc:
@@ -255,6 +295,10 @@ def _list_rows(management=False):
     elif employee:
         conditions.append("c.funcionario_id = %s")
         params.append(employee)
+    if management:
+        scope_clause, scope_params = employee_scope_clause(g.auth_context, "f")
+        conditions.append("(" + scope_clause + ")")
+        params.extend(scope_params)
     for clause, value in (("c.estado = %s", status), ("c.categoria = %s", category), ("c.created_at >= %s", start), ("c.created_at < %s", end)):
         if value is not None:
             conditions.append(clause); params.append(value)
@@ -262,7 +306,7 @@ def _list_rows(management=False):
     cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     try:
         cursor.execute(DETAIL_SQL + " WHERE " + " AND ".join(conditions) + " ORDER BY c.created_at DESC, c.id DESC", tuple(params))
-        return [_serialize(row) for row in cursor.fetchall()]
+        return [_serialize(row, management=management) for row in cursor.fetchall()]
     finally:
         cursor.close(); connection.close()
 
@@ -287,9 +331,37 @@ def _detail(correction_id, management):
         if not management:
             conditions += ["c.funcionario_id = %s", "c.solicitante_usuario_id = %s"]
             params += [g.auth_context["funcionario_id"], g.auth_context["user_id"]]
+        else:
+            scope_clause, scope_params = employee_scope_clause(g.auth_context, "f")
+            conditions.append("(" + scope_clause + ")")
+            params.extend(scope_params)
         cursor.execute(DETAIL_SQL + " WHERE " + " AND ".join(conditions), tuple(params))
         row = cursor.fetchone()
-        return (_serialize(row), 200) if row else ({"erro": "Ocorrência não encontrada."}, 404)
+        if not row:
+            return {"erro": "Ocorrência não encontrada."}, 404
+        cursor.execute(
+            """SELECT a.acao, a.ocorrido_at, a.metadados, u.nome AS responsavel
+               FROM auditoria a
+               LEFT JOIN usuarios u ON u.id = a.ator_usuario_id
+               WHERE a.empresa_id = %s AND a.entidade_tipo = 'correcao'
+                 AND a.entidade_id = %s
+               ORDER BY a.ocorrido_at ASC, a.id ASC""",
+            (g.auth_context["empresa_id"], row["id"]),
+        )
+        body = _serialize(row, management=management)
+        body["historico"] = [
+            {
+                "acao": event["acao"],
+                "ocorrida_em": event["ocorrido_at"].isoformat(),
+                "responsavel": event.get("responsavel"),
+                "papel": event.get("metadados", {}).get("papel"),
+                "estado_anterior": event.get("metadados", {}).get("estado_anterior"),
+                "estado_novo": event.get("metadados", {}).get("estado_novo"),
+                "observacao": event.get("metadados", {}).get("justificativa"),
+            }
+            for event in cursor.fetchall()
+        ]
+        return body, 200
     finally:
         cursor.close(); connection.close()
 
@@ -316,6 +388,228 @@ def management_occurrences():
         return jsonify({"erro": "Não foi possível consultar as ocorrências."}), 500
 
 
+@occurrences_bp.get("/api/gestao/ocorrencias/falhas-faciais")
+@require_roles(*MANAGEMENT_ROLES)
+def management_facial_failure_occurrences():
+    connection = None
+    cursor = None
+    try:
+        allowed = {"estado", "busca", "unidade_id", "equipe_id", "inicio", "fim"}
+        if set(request.args) - allowed:
+            raise ValueError("Filtro não permitido.")
+        state = str(request.args.get("estado") or "").strip() or None
+        if state and state not in FACIAL_FAILURE_STATES:
+            raise ValueError("Estado inválido.")
+        search = str(request.args.get("busca") or "").strip() or None
+        if search and len(search) > 100:
+            raise ValueError("Busca inválida.")
+        unit_id = _uuid(request.args["unidade_id"], "Unidade") if request.args.get("unidade_id") else None
+        team_id = _uuid(request.args["equipe_id"], "Equipe") if request.args.get("equipe_id") else None
+        start = _date(request.args.get("inicio"), "Data inicial")
+        end = _date(request.args.get("fim"), "Data final")
+        if start and end and end < start:
+            raise ValueError("Data final não pode anteceder a inicial.")
+        start_utc, end_utc = _utc_bounds(start, end)
+
+        conditions = [
+            "o.empresa_id = %s",
+            "o.tipo = 'falha_facial'",
+            "o.ciclo_falha_facial_id IS NOT NULL",
+        ]
+        params = [g.auth_context["empresa_id"]]
+        scope_clause, scope_params = employee_scope_clause(g.auth_context, "f")
+        conditions.append("(" + scope_clause + ")")
+        params.extend(scope_params)
+        for clause, value in (
+            ("o.estado = %s", state),
+            ("f.unidade_id = %s", unit_id),
+            ("f.equipe_id = %s", team_id),
+            ("o.primeira_ocorrencia_at >= %s", start_utc),
+            ("o.primeira_ocorrencia_at < %s", end_utc),
+        ):
+            if value is not None:
+                conditions.append(clause)
+                params.append(value)
+        if search:
+            conditions.append("(u.nome ILIKE %s OR f.matricula ILIKE %s)")
+            params.extend((f"%{search}%", f"%{search}%"))
+
+        connection = conectar_bd()
+        cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute(
+            """SELECT o.id, o.funcionario_id, o.primeira_ocorrencia_at, o.estado,
+                      o.descricao, o.created_at, u.nome AS funcionario,
+                      f.matricula, f.unidade_id, un.nome AS unidade,
+                      f.equipe_id, eq.nome AS equipe
+               FROM ocorrencias o
+               INNER JOIN funcionarios f
+                 ON f.id = o.funcionario_id AND f.empresa_id = o.empresa_id
+               INNER JOIN usuarios u ON u.id = f.usuario_id
+               INNER JOIN unidades un
+                 ON un.id = f.unidade_id AND un.empresa_id = f.empresa_id
+               LEFT JOIN equipes eq
+                 ON eq.id = f.equipe_id AND eq.empresa_id = f.empresa_id
+                AND eq.unidade_id = f.unidade_id
+               WHERE """ + " AND ".join(conditions) + """
+               ORDER BY o.primeira_ocorrencia_at DESC, o.id DESC""",
+            tuple(params),
+        )
+        return jsonify({"ocorrencias": [
+            {
+                "id": str(row["id"]),
+                "funcionario_id": str(row["funcionario_id"]),
+                "funcionario": row["funcionario"],
+                "matricula": row["matricula"],
+                "unidade_id": str(row["unidade_id"]),
+                "unidade": row["unidade"],
+                "equipe_id": str(row["equipe_id"]) if row["equipe_id"] else None,
+                "equipe": row["equipe"],
+                "primeira_ocorrencia_at": row["primeira_ocorrencia_at"].isoformat(),
+                "estado": row["estado"],
+                "descricao": row["descricao"],
+                "created_at": row["created_at"].isoformat(),
+            }
+            for row in cursor.fetchall()
+        ]})
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 400
+    except Exception:
+        return jsonify({"erro": "Não foi possível consultar as ocorrências."}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+@occurrences_bp.get("/api/gestao/ocorrencias/falhas-faciais/<occurrence_id>")
+@require_roles(*MANAGEMENT_ROLES)
+def management_facial_failure_occurrence_detail(occurrence_id):
+    connection = None
+    cursor = None
+    try:
+        identifier = _uuid(occurrence_id, "Ocorrência")
+        connection = conectar_bd()
+        cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        scope_clause, scope_params = employee_scope_clause(g.auth_context, "f")
+        cursor.execute(
+            """SELECT o.id, o.funcionario_id, o.primeira_ocorrencia_at, o.estado,
+                      o.descricao, o.created_at, o.resolved_at, o.decisao,
+                      u.nome AS funcionario, f.matricula,
+                      un.nome AS unidade, eq.nome AS equipe,
+                      responsavel.nome AS responsavel
+               FROM ocorrencias o
+               INNER JOIN funcionarios f
+                 ON f.id = o.funcionario_id AND f.empresa_id = o.empresa_id
+               INNER JOIN usuarios u ON u.id = f.usuario_id
+               INNER JOIN unidades un
+                 ON un.id = f.unidade_id AND un.empresa_id = f.empresa_id
+               LEFT JOIN equipes eq
+                 ON eq.id = f.equipe_id AND eq.empresa_id = f.empresa_id
+                AND eq.unidade_id = f.unidade_id
+               LEFT JOIN usuarios responsavel ON responsavel.id = o.responsavel_usuario_id
+               WHERE o.id = %s AND o.empresa_id = %s
+                 AND o.tipo = 'falha_facial'
+                 AND o.ciclo_falha_facial_id IS NOT NULL
+                 AND (""" + scope_clause + """)""",
+            (identifier, g.auth_context["empresa_id"], *scope_params),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return jsonify({"erro": "Ocorrência não encontrada."}), 404
+        cursor.execute(
+            """SELECT a.acao, a.ocorrido_at, a.metadados, ator.nome AS ator
+               FROM auditoria a
+               LEFT JOIN usuarios ator ON ator.id = a.ator_usuario_id
+               WHERE a.empresa_id = %s AND a.entidade_tipo = 'ocorrencia'
+                 AND a.entidade_id = %s
+               ORDER BY a.ocorrido_at ASC, a.id ASC""",
+            (g.auth_context["empresa_id"], identifier),
+        )
+        audit = cursor.fetchall()
+        return jsonify({
+            "id": str(row["id"]), "funcionario_id": str(row["funcionario_id"]),
+            "funcionario": row["funcionario"], "matricula": row["matricula"],
+            "unidade": row["unidade"], "equipe": row["equipe"],
+            "primeira_ocorrencia_at": row["primeira_ocorrencia_at"].isoformat(),
+            "estado": row["estado"], "descricao": row["descricao"],
+            "created_at": row["created_at"].isoformat(),
+            "origem": "automatica_falha_facial",
+            "responsavel": row["responsavel"], "decisao": row["decisao"],
+            "resolved_at": row["resolved_at"].isoformat() if row["resolved_at"] else None,
+            "auditoria": [
+                {
+                    "acao": item["acao"],
+                    "ocorrido_at": item["ocorrido_at"].isoformat(),
+                    "ator": item["ator"],
+                    "estado_anterior": (item.get("metadados") or {}).get("estado_anterior"),
+                    "estado_novo": (item.get("metadados") or {}).get("estado_novo"),
+                    "justificativa": (item.get("metadados") or {}).get("justificativa"),
+                }
+                for item in audit
+            ],
+        })
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 400
+    except Exception:
+        return jsonify({"erro": "Não foi possível consultar a ocorrência."}), 500
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
+
+def _facial_failure_transition_payload(require_justification=False):
+    data = request.get_json(silent=True)
+    if data is None:
+        data = {}
+    if not isinstance(data, dict) or set(data) - {"justificativa"}:
+        raise ValueError("Payload administrativo inválido.")
+    justification = str(data.get("justificativa") or "").strip()
+    if require_justification and not justification:
+        raise ValueError("Justificativa é obrigatória para concluir a ocorrência.")
+    return justification or None
+
+
+def _facial_failure_transition_response(occurrence_id, target, require_justification=False):
+    try:
+        justification = _facial_failure_transition_payload(require_justification)
+        row = transition_facial_failure_occurrence(
+            g.auth_context, occurrence_id, target, justification
+        )
+        return jsonify({
+            "id": str(row["id"]),
+            "estado": row["estado"],
+            "responsavel_usuario_id": str(row["responsavel_usuario_id"]),
+            "decisao": row["decisao"],
+            "resolved_at": row["resolved_at"].isoformat() if row["resolved_at"] else None,
+            "updated_at": row["updated_at"].isoformat(),
+        }), 200
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 400
+    except FacialFailureWorkflowError as exc:
+        return jsonify({"erro": exc.message}), exc.status_code
+    except Exception:
+        return jsonify({"erro": "Não foi possível atualizar a ocorrência."}), 500
+
+
+@occurrences_bp.post("/api/gestao/ocorrencias/falhas-faciais/<occurrence_id>/iniciar-analise")
+@require_roles(*MANAGEMENT_ROLES)
+def start_facial_failure_occurrence_review(occurrence_id):
+    return _facial_failure_transition_response(occurrence_id, "em_analise")
+
+
+@occurrences_bp.post("/api/gestao/ocorrencias/falhas-faciais/<occurrence_id>/resolver")
+@require_roles(*MANAGEMENT_ROLES)
+def resolve_facial_failure_occurrence(occurrence_id):
+    return _facial_failure_transition_response(occurrence_id, "resolvida", True)
+
+
+@occurrences_bp.post("/api/gestao/ocorrencias/falhas-faciais/<occurrence_id>/descartar")
+@require_roles(*MANAGEMENT_ROLES)
+def discard_facial_failure_occurrence(occurrence_id):
+    return _facial_failure_transition_response(occurrence_id, "descartada", True)
+
+
 @occurrences_bp.get("/api/gestao/ocorrencias/<correction_id>")
 @require_roles(*MANAGEMENT_ROLES)
 def management_occurrence_detail(correction_id):
@@ -328,63 +622,23 @@ def management_occurrence_detail(correction_id):
 
 
 def _transition(correction_id, target, observation, own=False):
-    connection = conectar_bd(); cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     try:
-        conditions = ["id = %s", "empresa_id = %s"]
-        params = [_uuid(correction_id, "Ocorrência"), g.auth_context["empresa_id"]]
-        if own:
-            conditions += ["funcionario_id = %s", "solicitante_usuario_id = %s"]
-            params += [g.auth_context["funcionario_id"], g.auth_context["user_id"]]
-        cursor.execute("SELECT * FROM correcoes WHERE " + " AND ".join(conditions) + " FOR UPDATE", tuple(params))
-        row = cursor.fetchone()
-        if not row:
-            connection.rollback(); return {"erro": "Ocorrência não encontrada."}, 404
-        if row["estado"] != PENDING_DB:
-            connection.rollback(); return {"erro": "A ocorrência já foi decidida."}, 409
-        valid_shape = {
-            "inclusao": not row.get("marcacao_original_id") and row.get("instante_proposto") and row.get("tipo_marcacao_proposto"),
-            "alteracao_instante": row.get("marcacao_original_id") and row.get("instante_proposto"),
-            "alteracao_tipo": row.get("marcacao_original_id") and row.get("tipo_marcacao_proposto"),
-            "justificativa": True,
-        }.get(row.get("tipo"), False)
-        if target == "aprovada" and not valid_shape:
-            connection.rollback(); return {"erro": "A solicitação não possui dados válidos para aprovação."}, 409
-        if target == "aprovada" and row.get("marcacao_original_id"):
-            cursor.execute("SELECT id FROM marcacoes WHERE id=%s AND empresa_id=%s AND funcionario_id=%s AND estado='confirmada' FOR UPDATE", (row["marcacao_original_id"], g.auth_context["empresa_id"], row["funcionario_id"]))
-            if not cursor.fetchone():
-                connection.rollback(); return {"erro": "Marcação original não encontrada."}, 409
-        if own:
-            cursor.execute("UPDATE correcoes SET estado='cancelada', updated_at=clock_timestamp() WHERE id=%s RETURNING *", (row["id"],))
-            updated = cursor.fetchone()
-            if row.get("ocorrencia_id"):
-                cursor.execute("UPDATE ocorrencias SET estado='arquivada', updated_at=clock_timestamp() WHERE id=%s", (row["ocorrencia_id"],))
-            action, title, message = "ocorrencia.cancelada", None, None
-        else:
-            cursor.execute("""UPDATE correcoes SET estado=%s, responsavel_decisao_usuario_id=%s,
-                decisao=%s, decided_at=clock_timestamp(), updated_at=clock_timestamp()
-                WHERE id=%s RETURNING *""", (target, g.auth_context["user_id"], observation, row["id"]))
-            updated = cursor.fetchone()
-            if row.get("ocorrencia_id"):
-                cursor.execute("""UPDATE ocorrencias SET estado='resolvida', responsavel_usuario_id=%s,
-                    decisao=%s, resolved_at=clock_timestamp(), updated_at=clock_timestamp()
-                    WHERE id=%s""", (g.auth_context["user_id"], target, row["ocorrencia_id"]))
-            action = f"ocorrencia.{target}"
-            title = "Correção de ponto aprovada" if target == "aprovada" else "Correção de ponto rejeitada"
-            message = "Sua solicitação de correção de ponto foi aprovada." if target == "aprovada" else "Sua solicitação de correção de ponto foi rejeitada."
-        _audit(cursor, action, row["id"], {"categoria": row["categoria"], "estado": target})
-        if title:
-            _notify(cursor, row["solicitante_usuario_id"], title, message)
-        connection.commit()
-        return _serialize(updated), 200
+        identifier = _uuid(correction_id, "Ocorrência")
+        updated = transition_correction(
+            conectar_bd,
+            g.auth_context,
+            identifier,
+            target,
+            observation,
+            own=own,
+        )
+        return _serialize(updated, management=not own), 200
     except ValueError as exc:
-        connection.rollback(); return {"erro": str(exc)}, 400
-    except Exception as exc:
-        connection.rollback()
-        if getattr(exc, "pgcode", None) == "23505":
-            return {"erro": "Já existe correção aprovada para esta marcação."}, 409
+        return {"erro": str(exc)}, 400
+    except CorrectionWorkflowError as exc:
+        return {"erro": exc.message}, exc.status
+    except Exception:
         return {"erro": "Não foi possível concluir a decisão."}, 500
-    finally:
-        cursor.close(); connection.close()
 
 
 @occurrences_bp.post("/api/ocorrencias/<correction_id>/cancelar")
@@ -395,12 +649,14 @@ def cancel_occurrence(correction_id):
 
 def _decision_payload(require_observation=False):
     data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        raise ValueError("JSON administrativo inválido.")
     if set(data) - {"observacao"}:
         raise ValueError("Payload administrativo inválido.")
-    observation = str(data.get("observacao") or "").strip()
-    if require_observation and not observation:
-        raise ValueError("Observação é obrigatória para rejeição.")
-    return observation or None
+    try:
+        return normalize_justification(data.get("observacao"), require_observation)
+    except CorrectionWorkflowError as exc:
+        raise ValueError(exc.message) from exc
 
 
 @occurrences_bp.post("/api/gestao/ocorrencias/<correction_id>/aprovar")
@@ -421,3 +677,14 @@ def reject_occurrence(correction_id):
     except ValueError as exc:
         return jsonify({"erro": str(exc)}), 400
     body, status = _transition(correction_id, "rejeitada", observation); return jsonify(body), status
+
+
+@occurrences_bp.post("/api/gestao/ocorrencias/<correction_id>/encaminhar-rh")
+@require_roles(*MANAGEMENT_ROLES)
+def forward_occurrence_to_hr(correction_id):
+    try:
+        observation = _decision_payload(True)
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 400
+    body, status = _transition(correction_id, FORWARDED_HR, observation)
+    return jsonify(body), status

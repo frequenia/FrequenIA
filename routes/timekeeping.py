@@ -19,6 +19,7 @@ from reportlab.pdfgen import canvas
 
 from db import conectar_bd
 from services.effective_timekeeping import fetch_effective_events
+from services.management_scope import employee_scope_clause
 from utils.auth_decorator import require_roles
 
 timekeeping_bp = Blueprint("timekeeping", __name__)
@@ -158,15 +159,16 @@ def _serialize_daily_records(rows):
     return result
 
 
-def _fetch_employee_records(cursor, company_id, employee_id, start_date, end_date):
+def _fetch_employee_records(cursor, auth_context, employee_id, start_date, end_date):
+    scope_clause, scope_params = employee_scope_clause(auth_context, "f")
     cursor.execute(
         """
         SELECT f.id AS funcionario_id, u.nome, f.matricula
         FROM funcionarios f
         INNER JOIN usuarios u ON u.id = f.usuario_id
         WHERE f.id = %s AND f.empresa_id = %s
-        """,
-        (employee_id, company_id),
+        AND (""" + scope_clause + ")",
+        (employee_id, auth_context["empresa_id"], *scope_params),
     )
     employee = cursor.fetchone()
     if not employee:
@@ -174,17 +176,17 @@ def _fetch_employee_records(cursor, company_id, employee_id, start_date, end_dat
 
     start_utc, end_utc_exclusive = _utc_bounds(start_date, end_date)
     rows = fetch_effective_events(
-        cursor, company_id, employee_id, start_utc, end_utc_exclusive
+        cursor, auth_context["empresa_id"], employee_id, start_utc, end_utc_exclusive
     )
     return employee, _serialize_daily_records(rows)
 
 
-def _load_management_records(company_id, employee_id, start_date, end_date):
+def _load_management_records(auth_context, employee_id, start_date, end_date):
     connection = conectar_bd()
     cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     try:
         return _fetch_employee_records(
-            cursor, company_id, employee_id, start_date, end_date
+            cursor, auth_context, employee_id, start_date, end_date
         )
     finally:
         cursor.close()
@@ -290,6 +292,7 @@ def funcionarios_gestao():
     connection = conectar_bd()
     cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     try:
+        scope_clause, scope_params = employee_scope_clause(g.auth_context, "f")
         cursor.execute(
             """
             SELECT f.id AS funcionario_id, u.nome, f.matricula
@@ -298,9 +301,10 @@ def funcionarios_gestao():
             WHERE f.empresa_id = %s
               AND f.status = 'ativo'
               AND u.status = 'ativo'
+              AND (""" + scope_clause + """)
             ORDER BY u.nome, f.id
             """,
-            (g.auth_context["empresa_id"],),
+            (g.auth_context["empresa_id"], *scope_params),
         )
         return jsonify(
             [
@@ -325,7 +329,7 @@ def pontos_gestao():
     try:
         employee_id, start_date, end_date = _parse_filters(request.args)
         employee, records = _load_management_records(
-            g.auth_context["empresa_id"], employee_id, start_date, end_date
+            g.auth_context, employee_id, start_date, end_date
         )
         if not employee:
             return jsonify({"erro": "Funcionário não encontrado."}), 404
@@ -345,7 +349,7 @@ def exportar_pontos_gestao():
             return jsonify({"erro": "Formato inválido."}), 400
         employee_id, start_date, end_date = _parse_filters(request.args)
         employee, records = _load_management_records(
-            g.auth_context["empresa_id"], employee_id, start_date, end_date
+            g.auth_context, employee_id, start_date, end_date
         )
         if not employee:
             return jsonify({"erro": "Funcionário não encontrado."}), 404

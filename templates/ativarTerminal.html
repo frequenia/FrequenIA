@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ativar terminal - FrequenIA</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/terminaisPonto.css') }}">
+</head>
+<body>
+  <main class="terminal-page">
+    <section class="terminal-panel">
+      <h1>Ativar este computador</h1>
+      <p>Peça ao administrador a credencial do terminal. A ativação vale neste navegador até a sessão expirar ou o terminal ser revogado.</p>
+      <p>Use um navegador dedicado ao ponto. A ativação encerra um login administrativo existente nele.</p>
+      <form id="activation-form" autocomplete="off">
+        <label for="credential">Credencial do terminal</label>
+        <input id="credential" name="credential" type="password" minlength="32" maxlength="256" autocomplete="off" spellcheck="false" required>
+        <button id="activate-button" class="btn-primary" type="submit">Ativar e abrir reconhecimento</button>
+      </form>
+      <p id="activation-status" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+  <script src="{{ url_for('static', filename='js/ativarTerminal.js') }}"></script>
+</body>
+</html>
