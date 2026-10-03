@@ -6,6 +6,16 @@ from flask_cors import CORS
 
 load_dotenv()
 
+
+def positive_int_env(name, default):
+    try:
+        value = int(os.getenv(name, str(default)))
+    except ValueError as exc:
+        raise RuntimeError(f"{name} must be a positive integer.") from exc
+    if value <= 0:
+        raise RuntimeError(f"{name} must be a positive integer.")
+    return value
+
 APP_ENV = os.getenv("APP_ENV", "production").strip().lower()
 VALID_APP_ENVIRONMENTS = {"development", "homologation", "production"}
 
@@ -87,6 +97,8 @@ password_reset_test_key = os.getenv("PASSWORD_RESET_TEST_KEY", "")
 if APP_ENV == "production" and password_reset_test_key:
     raise RuntimeError("PASSWORD_RESET_TEST_KEY cannot be enabled in production.")
 
+emailjs_timeout_seconds = positive_int_env("EMAILJS_TIMEOUT_SECONDS", 10)
+
 cors_origins = [
     origin.strip()
     for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
@@ -108,6 +120,11 @@ app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["PASSWORD_RESET_TOKEN_MINUTES"] = password_reset_token_minutes
 app.config["PASSWORD_RESET_TEST_KEY"] = password_reset_test_key
+app.config["EMAILJS_SERVICE_ID"] = os.getenv("EMAILJS_SERVICE_ID", "").strip()
+app.config["EMAILJS_TEMPLATE_ID"] = os.getenv("EMAILJS_TEMPLATE_ID", "").strip()
+app.config["EMAILJS_PUBLIC_KEY"] = os.getenv("EMAILJS_PUBLIC_KEY", "").strip()
+app.config["EMAILJS_PRIVATE_KEY"] = os.getenv("EMAILJS_PRIVATE_KEY", "")
+app.config["EMAILJS_TIMEOUT_SECONDS"] = emailjs_timeout_seconds
 app.config["FACE_VERIFICATION_MAX_COSINE_DISTANCE"] = (
     face_verification_max_cosine_distance
 )

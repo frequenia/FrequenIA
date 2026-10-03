@@ -14,6 +14,7 @@ from flask import (
 from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 import hashlib
+import logging
 import re
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
@@ -35,10 +36,12 @@ from db import (
     conectar_bd,
 )
 from services.management_scope import employee_visibility_query
+from services.email_service import EmailDeliveryError, send_password_reset_email
 from utils.terminal_auth import terminal_required
 import os
 
 views_bp = Blueprint("views", __name__)
+LOGGER = logging.getLogger(__name__)
 
 JWT_ALGORITHM = "HS256"
 REFRESH_COOKIE_NAME = "frequenia_refresh_token"
@@ -1494,7 +1497,7 @@ def _password_reset_user(cursor, identifier):
     if "@" in identifier:
         cursor.execute(
             """
-            SELECT id, senha_hash, status
+            SELECT id, email, senha_hash, status
             FROM usuarios
             WHERE email = %s AND status IN ('ativo', 'bloqueado')
             """,
@@ -1506,7 +1509,7 @@ def _password_reset_user(cursor, identifier):
             return None
         cursor.execute(
             """
-            SELECT id, senha_hash, status
+            SELECT id, email, senha_hash, status
             FROM usuarios
             WHERE cpf = %s AND status IN ('ativo', 'bloqueado')
             """,
@@ -1563,15 +1566,55 @@ def enviar_token():
         cursor.close()
         conn.close()
 
-    response = {"ok": True, "mensagem": PASSWORD_RESET_PUBLIC_MESSAGE}
     configured_test_key = current_app.config.get("PASSWORD_RESET_TEST_KEY", "")
     supplied_test_key = request.headers.get("X-Password-Reset-Test-Key", "")
-    if (
+    controlled_test_request = (
         user
         and configured_test_key
         and supplied_test_key
         and secrets.compare_digest(configured_test_key, supplied_test_key)
-    ):
+    )
+
+    if user and not controlled_test_request:
+        try:
+            send_password_reset_email(
+                user["email"],
+                raw_token,
+                current_app.config["PASSWORD_RESET_TOKEN_MINUTES"],
+            )
+        except EmailDeliveryError:
+            LOGGER.exception(
+                "Não foi possível entregar o e-mail de recuperação para o usuário %s.",
+                user["id"],
+            )
+            revoke_conn = None
+            revoke_cursor = None
+            try:
+                revoke_conn = conectar_bd()
+                revoke_cursor = revoke_conn.cursor()
+                revoke_cursor.execute(
+                    """
+                    UPDATE password_reset_tokens
+                    SET revoked_at = now()
+                    WHERE token_hash = %s
+                      AND used_at IS NULL
+                      AND revoked_at IS NULL
+                    """,
+                    (token_hash,),
+                )
+                revoke_conn.commit()
+            except Exception:
+                if revoke_conn:
+                    revoke_conn.rollback()
+                LOGGER.exception("Não foi possível revogar o token não entregue.")
+            finally:
+                if revoke_cursor:
+                    revoke_cursor.close()
+                if revoke_conn:
+                    revoke_conn.close()
+
+    response = {"ok": True, "mensagem": PASSWORD_RESET_PUBLIC_MESSAGE}
+    if controlled_test_request:
         response["test_token"] = raw_token
     return jsonify(response), 200
 

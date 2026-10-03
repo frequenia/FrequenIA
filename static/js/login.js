@@ -118,14 +118,26 @@ function toggleSenha(el) {
 }
 
 async function enviarCodigo() {
-  const email = document.getElementById("email").value;
+  const email = document.getElementById("email").value.trim();
 
-  const response = await fetch("/auth/password/forgot", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ identifier: email }),
-  });
+  if (!email) {
+    alert("Informe seu e-mail.");
+    return;
+  }
 
-  const data = await response.json();
-  alert(data.mensagem || data.erro || "Não foi possível processar a solicitação.");
+  try {
+    const response = await fetch("/auth/password/forgot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: email }),
+    });
+
+    const data = await response.json();
+    alert(data.mensagem || data.erro || "Não foi possível processar a solicitação.");
+    if (response.ok) {
+      window.location.href = "/inserirToken";
+    }
+  } catch (error) {
+    alert("Erro ao conectar com o servidor.");
+  }
 }
