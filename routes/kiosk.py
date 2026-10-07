@@ -288,9 +288,11 @@ def create_kiosk_facial_clock():
         attempt_id = _record_attempt(cursor, company_id, employee_id, "sucesso", "match", distance)
         cursor.execute(
             """INSERT INTO marcacoes (empresa_id, funcionario_id, tentativa_facial_id,
-               instante, tipo, origem, estado, chave_idempotencia)
-               VALUES (%s, %s, %s, clock_timestamp(), %s, 'facial', 'confirmada', %s)
-               RETURNING id, tentativa_facial_id, tipo, origem, estado, instante, chave_idempotencia""",
+               instante, tipo, origem, estado, chave_idempotencia, canal)
+               VALUES (%s, %s, %s, clock_timestamp(), %s, 'facial', 'confirmada', %s, 'quiosque')
+               RETURNING id, tentativa_facial_id, tipo, origem, estado, instante,
+                         chave_idempotencia, canal, precisao_metros,
+                         distancia_unidade_metros""",
             (company_id, employee_id, attempt_id, clock_type, key),
         )
         marking = cursor.fetchone(); connection.commit()

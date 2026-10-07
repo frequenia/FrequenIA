@@ -98,6 +98,7 @@ if APP_ENV == "production" and password_reset_test_key:
     raise RuntimeError("PASSWORD_RESET_TEST_KEY cannot be enabled in production.")
 
 emailjs_timeout_seconds = positive_int_env("EMAILJS_TIMEOUT_SECONDS", 10)
+tomtom_timeout_seconds = positive_int_env("TOMTOM_TIMEOUT_SECONDS", 5)
 
 cors_origins = [
     origin.strip()
@@ -125,6 +126,8 @@ app.config["EMAILJS_TEMPLATE_ID"] = os.getenv("EMAILJS_TEMPLATE_ID", "").strip()
 app.config["EMAILJS_PUBLIC_KEY"] = os.getenv("EMAILJS_PUBLIC_KEY", "").strip()
 app.config["EMAILJS_PRIVATE_KEY"] = os.getenv("EMAILJS_PRIVATE_KEY", "")
 app.config["EMAILJS_TIMEOUT_SECONDS"] = emailjs_timeout_seconds
+app.config["TOMTOM_API_KEY"] = os.getenv("TOMTOM_API_KEY", "").strip()
+app.config["TOMTOM_TIMEOUT_SECONDS"] = tomtom_timeout_seconds
 app.config["FACE_VERIFICATION_MAX_COSINE_DISTANCE"] = (
     face_verification_max_cosine_distance
 )
@@ -145,6 +148,7 @@ from routes.biometrics import biometrics_bp
 from routes.timekeeping import timekeeping_bp
 from routes.occurrences import occurrences_bp
 from routes.kiosk import kiosk_bp
+from routes.mobile_location import mobile_location_bp
 
 app.register_blueprint(views_bp)
 app.register_blueprint(face_bp)
@@ -152,6 +156,7 @@ app.register_blueprint(biometrics_bp)
 app.register_blueprint(timekeeping_bp)
 app.register_blueprint(occurrences_bp)
 app.register_blueprint(kiosk_bp)
+app.register_blueprint(mobile_location_bp)
 
 if __name__ == "__main__":
     app.run(

@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import '../core/api_client.dart';
+import 'mobile_location_service.dart';
 
 enum ClockEventType {
   entrada('entrada', 'Entrada'),
@@ -18,11 +19,13 @@ class FaceClockOperation {
     required this.type,
     required this.attemptId,
     required this.idempotencyKey,
+    required this.location,
   });
 
   final ClockEventType type;
   final String attemptId;
   final String idempotencyKey;
+  final MobileLocationSnapshot location;
 }
 
 class FaceClockResult {
@@ -60,13 +63,14 @@ class FaceClockService {
     String? imagePath,
     required ClockEventType type,
     FaceClockOperation? retryOperation,
+    MobileLocationSnapshot? location,
   }) async {
     if (_busy) throw const FaceClockBusyException();
     _busy = true;
     try {
       var operation = retryOperation;
       if (operation == null) {
-        if (imagePath == null || imagePath.isEmpty) {
+        if (imagePath == null || imagePath.isEmpty || location == null) {
           throw const ApiException('Não foi possível capturar a imagem.');
         }
         final verification = await api.postMultipart(
@@ -89,6 +93,7 @@ class FaceClockService {
           type: type,
           attemptId: attemptId,
           idempotencyKey: _idempotencyKeyFactory(),
+          location: location,
         );
       }
 
@@ -98,6 +103,7 @@ class FaceClockService {
           {
             'tipo': operation.type.value,
             'tentativa_facial_id': operation.attemptId,
+            'localizacao': operation.location.toJson(),
           },
           {'Idempotency-Key': operation.idempotencyKey},
         );

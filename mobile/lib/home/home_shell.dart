@@ -118,8 +118,14 @@ class _AuthenticatedHome extends StatelessWidget {
               );
             }
           },
-          icon: const Icon(Icons.face_retouching_natural_rounded),
-          label: const Text('Registrar ponto facial'),
+          icon: const Icon(Icons.location_on_outlined),
+          label: const Text('Registrar ponto com localização'),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Se o celular estiver indisponível, use o quiosque da empresa.',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 12),
         OutlinedButton.icon(

@@ -142,6 +142,8 @@ void main() {
       MaterialApp(home: HomeShell(controller: controller)),
     );
     await tester.pumpAndSettle();
+    expect(find.text('Registrar ponto com localização'), findsOneWidget);
+    expect(find.textContaining('use o quiosque'), findsOneWidget);
     await tester.tap(find.byIcon(Icons.history_outlined));
     await tester.pumpAndSettle();
     expect(find.text('Histórico vazio'), findsOneWidget);

@@ -340,6 +340,45 @@ def pontos_gestao():
         return jsonify({"erro": "Não foi possível consultar as marcações."}), 500
 
 
+@timekeeping_bp.get("/api/gestao/marcacoes/<marking_id>/localizacao")
+@require_roles("administrador", "rh")
+def localizacao_marcacao(marking_id):
+    try:
+        identifier = _parse_uuid(marking_id, "Marcação")
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 400
+    connection = conectar_bd()
+    try:
+        with connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute(
+                """SELECT m.id,m.unidade_id,m.latitude,m.longitude,
+                          m.precisao_metros,m.distancia_unidade_metros,
+                          m.localizacao_capturada_at,m.endereco_localizacao,
+                          un.nome AS unidade
+                   FROM marcacoes m
+                   LEFT JOIN unidades un
+                     ON un.id=m.unidade_id AND un.empresa_id=m.empresa_id
+                   WHERE m.id=%s AND m.empresa_id=%s AND m.canal='mobile'""",
+                (identifier, g.auth_context["empresa_id"]),
+            )
+            item = cursor.fetchone()
+        if not item:
+            return jsonify({"erro": "Marcação não encontrada."}), 404
+        return jsonify({
+            "id": str(item["id"]),
+            "unidade_id": str(item["unidade_id"]),
+            "unidade": item["unidade"],
+            "latitude": item["latitude"],
+            "longitude": item["longitude"],
+            "precisao_metros": item["precisao_metros"],
+            "distancia_unidade_metros": item["distancia_unidade_metros"],
+            "capturada_em": item["localizacao_capturada_at"].isoformat(),
+            "endereco": item["endereco_localizacao"],
+        }), 200
+    finally:
+        connection.close()
+
+
 @timekeeping_bp.get("/exportar-pontos")
 @require_roles(*MANAGEMENT_ROLES)
 def exportar_pontos_gestao():

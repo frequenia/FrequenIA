@@ -8,6 +8,7 @@ import '../core/api_client.dart';
 import '../core/theme.dart';
 import '../core/widgets.dart';
 import 'face_clock_service.dart';
+import 'mobile_location_service.dart';
 
 class ClockPage extends StatefulWidget {
   const ClockPage({super.key, required this.api});
@@ -19,6 +20,7 @@ class ClockPage extends StatefulWidget {
 class _ClockPageState extends State<ClockPage> {
   CameraController? camera;
   late final FaceClockService service;
+  late final MobileLocationService locationService;
   bool busy = false;
   String instruction = 'Posicione seu rosto dentro da moldura';
   String? failure;
@@ -29,6 +31,7 @@ class _ClockPageState extends State<ClockPage> {
   void initState() {
     super.initState();
     service = FaceClockService(widget.api);
+    locationService = MobileLocationService(widget.api);
     initialize();
   }
 
@@ -81,10 +84,23 @@ class _ClockPageState extends State<ClockPage> {
     });
     XFile? captured;
     try {
+      setState(() => instruction = 'Validando sua localização...');
+      final location = await locationService.captureAndValidate();
+      if (!mounted || !await confirmLocation(location)) {
+        if (mounted) {
+          setState(() {
+            instruction = 'Posicione seu rosto dentro da moldura';
+            busy = false;
+          });
+        }
+        return;
+      }
+      setState(() => instruction = 'Capturando e verificando...');
       captured = await camera!.takePicture();
       final result = await service.submit(
         imagePath: captured.path,
         type: selectedType,
+        location: location.snapshot,
       );
       if (!mounted) return;
       if (!result.wasMarked) {
@@ -117,6 +133,14 @@ class _ClockPageState extends State<ClockPage> {
         setState(() {
           failure = _apiMessage(error);
           instruction = 'Vamos tentar novamente?';
+          busy = false;
+        });
+      }
+    } on LocationUnavailableException catch (error) {
+      if (mounted) {
+        setState(() {
+          failure = error.message;
+          instruction = 'Localização necessária para registrar o ponto';
           busy = false;
         });
       }
@@ -186,6 +210,14 @@ class _ClockPageState extends State<ClockPage> {
           : 'O servidor não conseguiu concluir a operação. Tente novamente.';
     }
     return switch (status) {
+      403 when error.code == 'fora_do_perimetro' =>
+        'Você está fora do perímetro permitido para sua unidade.',
+      403 when error.code == 'localizacao_simulada' =>
+        'Uma localização simulada foi detectada. A marcação foi bloqueada.',
+      403 when error.code == 'marcacao_mobile_desabilitada' => 'A marcação pelo celular não está habilitada para sua unidade. Use o quiosque.',
+      409 when error.code == 'localizacao_expirada' =>
+        'A localização expirou. Reinicie a marcação.',
+      422 when error.code == 'localizacao_imprecisa' => 'O sinal de GPS está impreciso. Vá para uma área aberta e tente novamente.',
       403 => 'Você não tem permissão para registrar este ponto.',
       409 when error.code == 'tentativa_facial_expirada' =>
         'A verificação facial expirou. Faça uma nova captura.',
@@ -199,6 +231,69 @@ class _ClockPageState extends State<ClockPage> {
       422 => 'Mantenha somente um rosto visível e tente novamente.',
       _ => error.message,
     };
+  }
+
+  Future<bool> confirmLocation(MobileLocationPreview preview) async {
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (preview.mapBytes != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.memory(
+                    preview.mapBytes!,
+                    height: 180,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                )
+              else
+                const Icon(Icons.location_on, size: 52),
+              const SizedBox(height: 14),
+              Text(
+                preview.unitName,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              if (preview.address != null)
+                Text(preview.address!, textAlign: TextAlign.center),
+              const SizedBox(height: 8),
+              Text(
+                '${preview.distanceMeters.toStringAsFixed(0)} m da unidade • '
+                'precisão ${preview.snapshot.accuracyMeters.toStringAsFixed(0)} m • '
+                'raio ${preview.radiusMeters} m',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancelar'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Continuar'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    return result == true;
   }
 
   Future<void> showReceipt(Map<String, dynamic> mark) =>

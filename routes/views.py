@@ -37,6 +37,11 @@ from db import (
 )
 from services.management_scope import employee_visibility_query
 from services.email_service import EmailDeliveryError, send_password_reset_email
+from services.mobile_location import (
+    LocationValidationError,
+    parse_location,
+    validate_geofence,
+)
 from utils.terminal_auth import terminal_required
 import os
 
@@ -494,7 +499,11 @@ def gerenciar_empresa():
 @views_bp.route("/configuracoes")
 @require_roles("administrador")
 def configuracoes():
-    return render_template("configuracoes.html")
+    response = current_app.make_response(
+        render_template("configuracoes.html", perfil=g.auth_context["perfil"])
+    )
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    return response
 
 
 @views_bp.route("/cadastroEmpresas")
@@ -2100,6 +2109,13 @@ def serializar_marcacao(marcacao):
         and marcacao["tentativa_facial_id"] is not None
     ):
         payload["tentativa_facial_id"] = str(marcacao["tentativa_facial_id"])
+    if marcacao.get("canal"):
+        payload["canal"] = marcacao["canal"]
+    if marcacao.get("distancia_unidade_metros") is not None:
+        payload["localizacao"] = {
+            "distancia_unidade_metros": float(marcacao["distancia_unidade_metros"]),
+            "precisao_metros": float(marcacao["precisao_metros"]),
+        }
     return payload
 
 
@@ -2123,7 +2139,8 @@ def buscar_marcacao_por_idempotencia(cursor, empresa_id, chave_idempotencia):
     cursor.execute(
         """
         SELECT id, funcionario_id, tentativa_facial_id, tipo, origem, estado,
-               instante, chave_idempotencia
+               instante, chave_idempotencia, canal, precisao_metros,
+               distancia_unidade_metros
         FROM marcacoes
         WHERE empresa_id = %s AND chave_idempotencia = %s
         """,
@@ -2143,7 +2160,8 @@ def buscar_marcacao_recente(cursor, empresa_id, funcionario_id):
     cursor.execute(
         """
         SELECT id, tentativa_facial_id, tipo, origem, estado, instante,
-               chave_idempotencia
+               chave_idempotencia, canal, precisao_metros,
+               distancia_unidade_metros
         FROM marcacoes
         WHERE empresa_id = %s
           AND funcionario_id = %s
@@ -2182,7 +2200,7 @@ def listar_marcacoes_funcionario(cursor, empresa_id, funcionario_id):
     return [serializar_marcacao(item) for item in cursor.fetchall()]
 
 
-@views_bp.route("/api/marcacoes", methods=["GET", "POST"])
+@views_bp.route("/api/marcacoes", methods=["GET"])
 @require_roles("administrador", "funcionario", "gestor", "rh")
 def marcacoes_proprias():
     conn = None
@@ -2196,68 +2214,16 @@ def marcacoes_proprias():
         conn = conectar_bd()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        if request.method == "GET":
-            return (
-                jsonify(
-                    {
-                        "marcacoes": listar_marcacoes_funcionario(
-                            cursor, empresa_id, funcionario_id
-                        )
-                    }
-                ),
-                200,
-            )
-
-        campos_controlados = (
-            "instante",
-            "origem",
-            "estado",
-            "tentativa_facial_id",
-            "chave_idempotencia",
+        return (
+            jsonify(
+                {
+                    "marcacoes": listar_marcacoes_funcionario(
+                        cursor, empresa_id, funcionario_id
+                    )
+                }
+            ),
+            200,
         )
-        if any(dados.get(campo) not in (None, "") for campo in campos_controlados):
-            raise ValueError("A requisição contém campos controlados pelo servidor.")
-
-        tipo = str(dados.get("tipo") or "").strip()
-        if tipo not in ALLOWED_CLOCK_EVENT_TYPES:
-            raise ValueError("Tipo de marcação inválido.")
-        chave_idempotencia = chave_idempotencia_requisicao()
-
-        bloquear_funcionario_para_marcacao(cursor, empresa_id, funcionario_id)
-        existente = buscar_marcacao_por_idempotencia(
-            cursor, empresa_id, chave_idempotencia
-        )
-        if existente:
-            conn.rollback()
-            if str(existente["funcionario_id"]) != str(funcionario_id):
-                return jsonify({"erro": "Chave de idempotência indisponível."}), 409
-            return (
-                jsonify(
-                    {"marcacao": serializar_marcacao(existente), "reutilizada": True}
-                ),
-                200,
-            )
-
-        recente = buscar_marcacao_recente(cursor, empresa_id, funcionario_id)
-        if recente:
-            conn.rollback()
-            return resposta_marcacao_recente(recente)
-
-        cursor.execute(
-            """
-            INSERT INTO marcacoes (
-                empresa_id, funcionario_id, tentativa_facial_id,
-                instante, tipo, origem, estado, chave_idempotencia
-            )
-            VALUES (%s, %s, NULL, clock_timestamp(), %s, 'manual',
-                    'confirmada', %s)
-            RETURNING id, tipo, origem, estado, instante, chave_idempotencia
-            """,
-            (empresa_id, funcionario_id, tipo, chave_idempotencia),
-        )
-        marcacao = cursor.fetchone()
-        conn.commit()
-        return jsonify({"marcacao": serializar_marcacao(marcacao)}), 201
     except ValueError as exc:
         if conn:
             conn.rollback()
@@ -2285,7 +2251,7 @@ def criar_marcacao_facial():
     try:
         dados = request.get_json(silent=True) or {}
         validar_identidade_ausente(dados)
-        campos_permitidos = {"tipo", "tentativa_facial_id"}
+        campos_permitidos = {"tipo", "tentativa_facial_id", "localizacao"}
         if set(dados) - campos_permitidos:
             raise ValueError("A requisição contém campos não permitidos.")
 
@@ -2313,34 +2279,36 @@ def criar_marcacao_facial():
                 and existente["origem"] == "facial"
                 and str(existente["tentativa_facial_id"]) == tentativa_facial_id
                 and existente["tipo"] == tipo
+                and existente.get("canal") == "mobile"
             )
             if not mesma_operacao:
                 return jsonify({"erro": "Chave de idempotência indisponível."}), 409
-            return (
-                jsonify(
-                    {"marcacao": serializar_marcacao(existente), "reutilizada": True}
-                ),
-                200,
-            )
+            return jsonify({"marcacao": serializar_marcacao(existente), "reutilizada": True}), 200
+
+        cursor.execute("SELECT clock_timestamp() AS agora")
+        location = parse_location(dados.get("localizacao"), now=cursor.fetchone()["agora"])
+        cursor.execute(
+            """SELECT un.id, un.nome, un.latitude, un.longitude,
+                      un.endereco_geocodificado, un.raio_metros,
+                      un.marcacao_mobile_ativa
+               FROM funcionarios f
+               INNER JOIN unidades un
+                 ON un.id=f.unidade_id AND un.empresa_id=f.empresa_id
+               WHERE f.id=%s AND f.empresa_id=%s AND f.status='ativo'
+                 AND un.status='ativa'""",
+            (funcionario_id, empresa_id),
+        )
+        unidade = cursor.fetchone()
+        distance = validate_geofence(location, unidade)
 
         cursor.execute(
-            """
-            SELECT id, resultado, motivo_codigo, instante,
-                   instante <= clock_timestamp()
-                   AND instante >= clock_timestamp()
-                       - (%s * interval '1 second') AS dentro_da_janela
-            FROM tentativas_faciais
-            WHERE id = %s
-              AND empresa_id = %s
-              AND funcionario_id = %s
-            FOR UPDATE
-            """,
-            (
-                current_app.config["FACIAL_ATTEMPT_MAX_AGE_SECONDS"],
-                tentativa_facial_id,
-                empresa_id,
-                funcionario_id,
-            ),
+            """SELECT id, resultado, motivo_codigo, instante,
+                      instante <= clock_timestamp()
+                      AND instante >= clock_timestamp() - (%s * interval '1 second') AS dentro_da_janela
+               FROM tentativas_faciais
+               WHERE id=%s AND empresa_id=%s AND funcionario_id=%s
+               FOR UPDATE""",
+            (current_app.config["FACIAL_ATTEMPT_MAX_AGE_SECONDS"], tentativa_facial_id, empresa_id, funcionario_id),
         )
         tentativa = cursor.fetchone()
         if not tentativa:
@@ -2348,77 +2316,71 @@ def criar_marcacao_facial():
             return jsonify({"erro": "Tentativa facial não encontrada."}), 404
         if tentativa["resultado"] != "sucesso" or tentativa["motivo_codigo"] != "match":
             conn.rollback()
-            return (
-                jsonify(
-                    {
-                        "erro": "A tentativa facial não autoriza uma marcação.",
-                        "codigo": "tentativa_facial_invalida",
-                    }
-                ),
-                409,
-            )
+            return jsonify({"erro": "A tentativa facial não autoriza uma marcação.", "codigo": "tentativa_facial_invalida"}), 409
         if not tentativa["dentro_da_janela"]:
             conn.rollback()
-            return (
-                jsonify(
-                    {
-                        "erro": "A tentativa facial expirou.",
-                        "codigo": "tentativa_facial_expirada",
-                    }
-                ),
-                409,
-            )
+            return jsonify({"erro": "A tentativa facial expirou.", "codigo": "tentativa_facial_expirada"}), 409
 
         cursor.execute(
-            """
-            SELECT id, tentativa_facial_id, tipo, origem, estado, instante,
-                   chave_idempotencia
-            FROM marcacoes
-            WHERE tentativa_facial_id = %s
-            LIMIT 1
-            """,
+            "SELECT id FROM marcacoes WHERE tentativa_facial_id=%s LIMIT 1",
             (tentativa_facial_id,),
         )
-        consumida = cursor.fetchone()
-        if consumida:
+        if cursor.fetchone():
             conn.rollback()
-            return (
-                jsonify(
-                    {
-                        "erro": "A tentativa facial já foi utilizada.",
-                        "codigo": "tentativa_facial_utilizada",
-                    }
-                ),
-                409,
-            )
-
+            return jsonify({"erro": "A tentativa facial já foi utilizada.", "codigo": "tentativa_facial_utilizada"}), 409
         recente = buscar_marcacao_recente(cursor, empresa_id, funcionario_id)
         if recente:
             conn.rollback()
             return resposta_marcacao_recente(recente)
 
         cursor.execute(
-            """
-            INSERT INTO marcacoes (
-                empresa_id, funcionario_id, tentativa_facial_id,
-                instante, tipo, origem, estado, chave_idempotencia
-            )
-            VALUES (%s, %s, %s, clock_timestamp(), %s, 'facial',
-                    'confirmada', %s)
-            RETURNING id, tentativa_facial_id, tipo, origem, estado, instante,
-                      chave_idempotencia
-            """,
-            (
-                empresa_id,
-                funcionario_id,
-                tentativa_facial_id,
-                tipo,
-                chave_idempotencia,
-            ),
+            """INSERT INTO marcacoes (
+                   empresa_id,funcionario_id,tentativa_facial_id,unidade_id,
+                   instante,tipo,origem,estado,chave_idempotencia,canal,
+                   latitude,longitude,precisao_metros,distancia_unidade_metros,
+                   localizacao_capturada_at,endereco_localizacao
+               ) VALUES (%s,%s,%s,%s,clock_timestamp(),%s,'facial','confirmada',
+                         %s,'mobile',%s,%s,%s,%s,%s,%s)
+               RETURNING id,tentativa_facial_id,tipo,origem,estado,instante,
+                         chave_idempotencia,canal,precisao_metros,
+                         distancia_unidade_metros""",
+            (empresa_id, funcionario_id, tentativa_facial_id, unidade["id"], tipo,
+             chave_idempotencia, location["latitude"], location["longitude"],
+             location["precisao_metros"], distance, location["capturada_at"],
+             None),
         )
         marcacao = cursor.fetchone()
+        cursor.execute(
+            """INSERT INTO auditoria (
+                   empresa_id,ator_usuario_id,acao,entidade_tipo,entidade_id,
+                   ocorrido_at,metadados
+               ) VALUES (%s,%s,'marcacao.mobile.criada','marcacao',%s,
+                         clock_timestamp(),%s)""",
+            (empresa_id, g.auth_context["user_id"], marcacao["id"],
+             psycopg2.extras.Json({"unidade_id": str(unidade["id"]), "distancia_metros": round(distance, 2), "precisao_metros": location["precisao_metros"]})),
+        )
         conn.commit()
         return jsonify({"marcacao": serializar_marcacao(marcacao)}), 201
+    except LocationValidationError as exc:
+        if conn:
+            conn.rollback()
+            try:
+                with conn.cursor() as audit_cursor:
+                    audit_cursor.execute(
+                        """INSERT INTO auditoria (
+                               empresa_id,ator_usuario_id,acao,entidade_tipo,
+                               entidade_id,ocorrido_at,metadados
+                           ) VALUES (%s,%s,'marcacao.mobile.localizacao_rejeitada',
+                                     'funcionario',%s,clock_timestamp(),%s)""",
+                        (g.auth_context["empresa_id"], g.auth_context["user_id"],
+                         g.auth_funcionario_id,
+                         psycopg2.extras.Json({"motivo": exc.code})),
+                    )
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                LOGGER.warning("Não foi possível auditar rejeição de localização.", exc_info=True)
+        return jsonify({"erro": str(exc), "codigo": exc.code}), exc.status
     except ValueError as exc:
         if conn:
             conn.rollback()
@@ -2430,6 +2392,7 @@ def criar_marcacao_facial():
     except Exception:
         if conn:
             conn.rollback()
+        LOGGER.exception("Falha ao registrar ponto facial mobile.")
         return jsonify({"erro": "Não foi possível processar a marcação."}), 500
     finally:
         if cursor:

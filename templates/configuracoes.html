@@ -42,6 +42,38 @@
       </div>
     </div>
   </div>
+
+  {% if perfil == 'administrador' %}
+  <div class="card" id="geofence-card">
+    <h3>Marcação mobile por localização</h3>
+    <p>Configure o perímetro da unidade. O quiosque continuará disponível como alternativa.</p>
+    <div class="setting-item">
+      <div class="setting-label"><label for="geofence-unidade"><strong>Unidade</strong></label></div>
+      <select id="geofence-unidade"><option value="">Selecione</option></select>
+    </div>
+    <div class="setting-item">
+      <div class="setting-label"><label for="geofence-busca"><strong>Buscar endereço</strong></label></div>
+      <div>
+        <input id="geofence-busca" maxlength="200" placeholder="Rua, número, cidade e estado">
+        <button class="btn btn-secondary" id="geofence-buscar" type="button">Buscar</button>
+      </div>
+    </div>
+    <div id="geofence-resultados" aria-live="polite"></div>
+    <div id="geofence-mapa-wrap" hidden>
+      <p>Clique no mapa para ajustar o centro da unidade.</p>
+      <img id="geofence-mapa" alt="Prévia TomTom da localização da unidade" style="width:100%;max-width:640px;cursor:crosshair">
+    </div>
+    <div class="setting-item">
+      <label>Latitude <input id="geofence-latitude" type="number" step="any"></label>
+      <label>Longitude <input id="geofence-longitude" type="number" step="any"></label>
+      <label>Raio (m) <input id="geofence-raio" type="number" min="25" max="1000" value="150"></label>
+    </div>
+    <label>Endereço confirmado <input id="geofence-endereco" maxlength="300"></label>
+    <label><input id="geofence-ativa" type="checkbox"> Habilitar marcação pelo celular nesta unidade</label>
+    <p id="geofence-status" role="status"></p>
+    <button class="btn btn-primary" id="geofence-salvar" type="button">Salvar localização</button>
+  </div>
+  {% endif %}
   
         <!-- FOOTER: BOTÃO SALVAR -->
     <div class="footer-actions">
@@ -77,6 +109,6 @@
 
 <script src="{{ url_for('static', filename='js/dark-mode.js') }}"></script>
 <script src="{{ url_for('static', filename='js/menu.js') }}"></script>
-<script src="{{ url_for('static', filename='js/configuracoes.js') }}"></script>
+<script src="{{ url_for('static', filename='js/configuracoes.js', v='25-mobile-geofence') }}"></script>
 </body>
 </html>

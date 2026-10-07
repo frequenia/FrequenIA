@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mobile/clock/face_clock_service.dart';
+import 'package:mobile/clock/mobile_location_service.dart';
 import 'package:mobile/core/api_client.dart';
 import 'package:mobile/core/session_store.dart';
 
@@ -52,6 +53,7 @@ void main() {
         expect(jsonDecode(request.body), {
           'tipo': 'entrada',
           'tentativa_facial_id': 'attempt-1',
+          'localizacao': testLocation.toJson(),
         });
         expect(request.headers['Idempotency-Key'], 'operation-1');
         return jsonResponse({
@@ -72,6 +74,7 @@ void main() {
       final result = await service.submit(
         imagePath: image.path,
         type: ClockEventType.entrada,
+        location: testLocation,
       );
 
       expect(result.wasMarked, isTrue);
@@ -99,6 +102,7 @@ void main() {
       final result = await service.submit(
         imagePath: image.path,
         type: ClockEventType.saida,
+        location: testLocation,
       );
 
       expect(result.wasMarked, isFalse);
@@ -141,6 +145,7 @@ void main() {
       await service.submit(
         imagePath: image.path,
         type: ClockEventType.retornoIntervalo,
+        location: testLocation,
       );
       fail('A primeira marcação deveria falhar.');
     } on FaceClockMarkException catch (error) {
@@ -166,9 +171,14 @@ void main() {
     final first = service.submit(
       imagePath: image.path,
       type: ClockEventType.entrada,
+      location: testLocation,
     );
     await expectLater(
-      service.submit(imagePath: image.path, type: ClockEventType.entrada),
+      service.submit(
+        imagePath: image.path,
+        type: ClockEventType.entrada,
+        location: testLocation,
+      ),
       throwsA(isA<FaceClockBusyException>()),
     );
     await first;
@@ -207,8 +217,11 @@ void main() {
       );
       await api.restoreSession();
 
-      await FaceClockService(api)
-          .submit(imagePath: image.path, type: ClockEventType.entrada);
+      await FaceClockService(api).submit(
+        imagePath: image.path,
+        type: ClockEventType.entrada,
+        location: testLocation,
+      );
 
       expect(verificationCalls, 2);
       expect(refreshCalls, 1);
@@ -225,8 +238,11 @@ void main() {
     });
 
     await expectLater(
-      FaceClockService(api)
-          .submit(imagePath: image.path, type: ClockEventType.entrada),
+      FaceClockService(api).submit(
+        imagePath: image.path,
+        type: ClockEventType.entrada,
+        location: testLocation,
+      ),
       throwsA(
         isA<ApiException>()
             .having((error) => error.statusCode, 'status', 409)
@@ -269,6 +285,14 @@ const meResponse = <String, dynamic>{
   'funcionario_id': 'employee-1',
   'empresa_id': 'company-1',
 };
+
+final testLocation = MobileLocationSnapshot(
+  latitude: -23.55052,
+  longitude: -46.633308,
+  accuracyMeters: 10,
+  capturedAt: DateTime.utc(2026, 10, 7, 15),
+  isMocked: false,
+);
 
 http.Response jsonResponse(Map<String, dynamic> body, {int statusCode = 200}) =>
     http.Response(

@@ -1,7 +1,7 @@
 import os
 import secrets
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import psycopg2
@@ -45,7 +45,17 @@ def auth_headers(token, idempotency_key=None):
 def facial_clock(token, attempt_id, key=None, clock_type="entrada"):
     return requests.post(
         f"{BASE_URL}/api/marcacoes/facial",
-        json={"tipo": clock_type, "tentativa_facial_id": attempt_id},
+        json={
+            "tipo": clock_type,
+            "tentativa_facial_id": attempt_id,
+            "localizacao": {
+                "latitude": -23.55052,
+                "longitude": -46.633308,
+                "precisao_metros": 10,
+                "capturada_em": datetime.now(timezone.utc).isoformat(),
+                "simulada": False,
+            },
+        },
         headers=auth_headers(token, key),
         timeout=30,
     )
@@ -102,8 +112,11 @@ try:
             (company_ids[index], f"Fase 14 Empresa {uuid4()}"),
         )
         cursor.execute(
-            "INSERT INTO unidades (id, empresa_id, nome) VALUES (%s, %s, %s)",
-            (unit_ids[index], company_ids[index], f"Unidade {uuid4()}"),
+            """INSERT INTO unidades (
+                   id, empresa_id, nome, latitude, longitude,
+                   raio_metros, marcacao_mobile_ativa
+               ) VALUES (%s, %s, %s, %s, %s, 150, true)""",
+            (unit_ids[index], company_ids[index], f"Unidade {uuid4()}", -23.55052, -46.633308),
         )
         cursor.execute(
             "INSERT INTO equipes (id, empresa_id, unidade_id, nome) VALUES (%s, %s, %s, %s)",
