@@ -1,122 +1,63 @@
 <!DOCTYPE html>
-<html lang="pt-br">
-
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <title>Cadastro de Empresa</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/cadastroEmpresas.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nova empresa — FrequenIA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/cadastroEmpresas.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
 </head>
-
 <body>
+  <main class="container">
+    <header class="page-heading">
+      <div>
+        <span class="eyebrow">Plataforma</span>
+        <h1>Cadastrar empresa</h1>
+        <p>A empresa será criada com sua estrutura inicial e o primeiro administrador.</p>
+      </div>
+    </header>
 
-    <div class="container">
-
-        <div class="card">
-            <h2>Dados Gerais</h2>
-
-            <label>CNPJ</label>
-            <input type="text" id="cnpj">
-
-            <label>Razão Social</label>
-            <input type="text" id="razao">
-
-            <label>Nome Fantasia</label>
-            <input type="text">
+    <form id="companyForm" novalidate>
+      <section class="card">
+        <div class="section-heading">
+          <span class="step">1</span>
+          <div><h2>Dados da empresa</h2><p>Identificação da organização na plataforma.</p></div>
         </div>
-
-        <div class="card">
-            <h2>Contato</h2>
-
-            <label>Telefones</label>
-            <div id="telefones"></div>
-
-            <div class="mt">
-                <label>E-mail</label>
-                <div id="emails"></div>
-            </div>
+        <div class="form-grid">
+          <div class="field"><label for="cnpj">CNPJ</label><input type="text" id="cnpj" inputmode="numeric" maxlength="18" placeholder="00.000.000/0000-00" required></div>
+          <div class="field"><label for="razao">Razão social</label><input type="text" id="razao" maxlength="160" required></div>
         </div>
+      </section>
 
-        <div class="card">
-            <h2>Endereço</h2>
-
-            <div class="grid-3">
-                <div>
-                    <label>Rua</label>
-                    <input type="text">
-                </div>
-                <div>
-                    <label>Nº</label>
-                    <input type="text">
-                </div>
-                <div>
-                    <label>Bairro</label>
-                    <input type="text">
-                </div>
-            </div>
-
-            <div class="grid-2 mt">
-                <div>
-                    <label>Cidade</label>
-                    <input type="text">
-                </div>
-                <div>
-                    <label>Estado</label>
-                    <select>
-                        <option>Selecione</option>
-                        <option>AC</option>
-                        <option>AL</option>
-                        <option>AP</option>
-                        <option>AM</option>
-                        <option>BA</option>
-                        <option>CE</option>
-                        <option>DF</option>
-                        <option>ES</option>
-                        <option>GO</option>
-                        <option>MA</option>
-                        <option>MT</option>
-                        <option>MS</option>
-                        <option>MG</option>
-                        <option>PA</option>
-                        <option>PB</option>
-                        <option>PR</option>
-                        <option>PE</option>
-                        <option>PI</option>
-                        <option>RJ</option>
-                        <option>RN</option>
-                        <option>RS</option>
-                        <option>RO</option>
-                        <option>RR</option>
-                        <option>SC</option>
-                        <option>SP</option>
-                        <option>SE</option>
-                        <option>TO</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="grid-2 mt">
-                <div>
-                    <label>CEP</label>
-                    <input type="text">
-                </div>
-                <div>
-                    <label>Complemento</label>
-                    <input type="text">
-                </div>
-            </div>
+      <section class="card">
+        <div class="section-heading">
+          <span class="step">2</span>
+          <div><h2>Primeiro administrador</h2><p>Essa pessoa administrará somente esta empresa e definirá a senha pelo convite enviado por e-mail.</p></div>
         </div>
+        <div class="form-grid">
+          <div class="field"><label for="adminNome">Nome completo</label><input type="text" id="adminNome" maxlength="160" autocomplete="name" required></div>
+          <div class="field"><label for="adminCpf">CPF</label><input type="text" id="adminCpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" required></div>
+          <div class="field"><label for="adminEmail">E-mail</label><input type="email" id="adminEmail" maxlength="254" autocomplete="email" required></div>
+          <div class="field"><label for="adminTelefone">Telefone <span>(opcional)</span></label><input type="tel" id="adminTelefone" maxlength="15" autocomplete="tel" placeholder="(00) 00000-0000"></div>
+        </div>
+      </section>
 
-        <button class="btn btn-primary full" onclick="salvarEmpresa()">Salvar Cadastro</button>
+      <section class="structure-preview" aria-label="Estrutura inicial">
+        <div><span>Unidade</span><strong>Matriz</strong></div>
+        <div><span>Equipe</span><strong>Administração/RH</strong></div>
+        <div><span>Cargo</span><strong>Gestor de RH</strong></div>
+        <div><span>Matrícula</span><strong>GDRH automática</strong></div>
+      </section>
 
-    </div>
-
-    <script src="{{ url_for('static', filename='js/cadastroEmpresas.js') }}"></script>
+      <p id="formMessage" class="form-message" role="alert" hidden></p>
+      <div class="actions"><button type="submit" class="btn btn-primary" id="saveCompany">Cadastrar empresa e enviar convite</button></div>
+    </form>
+  </main>
+  <script src="{{ url_for('static', filename='js/cadastroEmpresas.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/dark-mode.js') }}"></script>
 </body>
-
 </html>

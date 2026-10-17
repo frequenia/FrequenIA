@@ -1,0 +1,40 @@
+# Controles críticos locais; validar com:
+# cfn-guard validate --rules infra/aws/attachments.guard --data infra/aws/attachments.template.yaml
+
+let buckets = Resources.*[ Type == 'AWS::S3::Bucket' ]
+let bucket_policies = Resources.*[ Type == 'AWS::S3::BucketPolicy' ]
+let queues = Resources.*[ Type == 'AWS::SQS::Queue' ]
+
+rule S3_PRIVATE_ENCRYPTED when %buckets !empty {
+  %buckets.Properties.PublicAccessBlockConfiguration.BlockPublicAcls == true
+  %buckets.Properties.PublicAccessBlockConfiguration.BlockPublicPolicy == true
+  %buckets.Properties.PublicAccessBlockConfiguration.IgnorePublicAcls == true
+  %buckets.Properties.PublicAccessBlockConfiguration.RestrictPublicBuckets == true
+  %buckets.Properties.BucketEncryption exists
+  %buckets.Properties.OwnershipControls.Rules[*].ObjectOwnership == 'BucketOwnerEnforced'
+}
+
+rule S3_RETAINED when %buckets !empty {
+  %buckets.DeletionPolicy == 'Retain'
+  %buckets.UpdateReplacePolicy == 'Retain'
+}
+
+rule S3_LIFECYCLE_SAFE when %buckets !empty {
+  %buckets.Properties.LifecycleConfiguration.Rules[*].AbortIncompleteMultipartUpload.DaysAfterInitiation exists
+  %buckets.Properties.LifecycleConfiguration.Rules[*].TagFilters[*].Key == 'frequenia-purge-eligible'
+}
+
+rule S3_DENIES_HTTP when %bucket_policies !empty {
+  %bucket_policies.Properties.PolicyDocument.Statement[*].Condition.Bool.'aws:SecureTransport' == false
+}
+
+rule SQS_PRIVATE_ENCRYPTED_RETAINED when %queues !empty {
+  %queues.Properties.SqsManagedSseEnabled == true
+  %queues.DeletionPolicy == 'Retain'
+  %queues.UpdateReplacePolicy == 'Retain'
+}
+
+rule SQS_MAIN_HAS_REDIVE_AND_LONG_POLL {
+  Resources.AttachmentScanQueue.Properties.RedrivePolicy exists
+  Resources.AttachmentScanQueue.Properties.ReceiveMessageWaitTimeSeconds == 20
+}

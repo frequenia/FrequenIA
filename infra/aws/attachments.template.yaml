@@ -1,0 +1,462 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Private durable storage for FrequenIA correction attachments.
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues: [development, staging, production]
+    Default: staging
+  QueueVisibilityTimeoutSeconds:
+    Type: Number
+    Default: 120
+    MinValue: 60
+    MaxValue: 43200
+  QueueMaxReceiveCount:
+    Type: Number
+    Default: 5
+    MinValue: 2
+    MaxValue: 20
+  PurgeSafetyMarginDays:
+    Type: Number
+    Default: 30
+    MinValue: 7
+    MaxValue: 365
+  BackupAgeThresholdHours:
+    Type: Number
+    Default: 48
+    MinValue: 1
+    MaxValue: 8760
+    Description: Placeholder requiring calibration and formal approval before production.
+  ContinuityRtoThresholdSeconds:
+    Type: Number
+    Default: 7200
+    MinValue: 60
+    MaxValue: 604800
+    Description: Exercise threshold only; not a production commitment without approval.
+  AlarmTopicArn:
+    Type: String
+    Default: ''
+    Description: Optional existing SNS topic ARN; this stack creates no subscription.
+
+Conditions:
+  HasAlarmTopic: !Not [!Equals [!Ref AlarmTopicArn, '']]
+
+Resources:
+  AttachmentBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+            BucketKeyEnabled: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      LifecycleConfiguration:
+        Rules:
+          - Id: AbortIncompleteMultipartUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+          - Id: PurgeEligibleSafetyNet
+            Status: Enabled
+            TagFilters:
+              - Key: frequenia-purge-eligible
+                Value: 'true'
+            ExpirationInDays: !Ref PurgeSafetyMarginDays
+      Tags:
+        - Key: Project
+          Value: FrequenIA
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: DataClass
+          Value: private-attachments
+
+  AttachmentBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref AttachmentBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource:
+              - !GetAtt AttachmentBucket.Arn
+              - !Sub '${AttachmentBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+          - Sid: DenyUnencryptedWrites
+            Effect: Deny
+            Principal: '*'
+            Action: s3:PutObject
+            Resource: !Sub '${AttachmentBucket.Arn}/*'
+            Condition:
+              StringNotEquals:
+                s3:x-amz-server-side-encryption: AES256
+
+  AttachmentRuntimePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Least privilege object access for the FrequenIA runtime role.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ReadinessPrefixProbe
+            Effect: Allow
+            Action: s3:ListBucket
+            Resource: !GetAtt AttachmentBucket.Arn
+            Condition:
+              StringLike:
+                s3:prefix: !Sub '${Environment}/*'
+          - Sid: AttachmentObjectsOnly
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:DeleteObject
+            Resource: !Sub '${AttachmentBucket.Arn}/${Environment}/*'
+
+  AttachmentScanDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      SqsManagedSseEnabled: true
+      MessageRetentionPeriod: 1209600
+
+  AttachmentScanQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      SqsManagedSseEnabled: true
+      ReceiveMessageWaitTimeSeconds: 20
+      VisibilityTimeout: !Ref QueueVisibilityTimeoutSeconds
+      MessageRetentionPeriod: 345600
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt AttachmentScanDeadLetterQueue.Arn
+        maxReceiveCount: !Ref QueueMaxReceiveCount
+
+  AttachmentPublisherPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Publish only attachment scan jobs from the transactional outbox.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: PublishAttachmentScan
+            Effect: Allow
+            Action:
+              - sqs:SendMessage
+              - sqs:GetQueueAttributes
+            Resource: !GetAtt AttachmentScanQueue.Arn
+
+  AttachmentWorkerPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Consume attachment scan jobs and inspect DLQ counters.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ConsumeAttachmentScan
+            Effect: Allow
+            Action:
+              - sqs:ReceiveMessage
+              - sqs:DeleteMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueAttributes
+            Resource: !GetAtt AttachmentScanQueue.Arn
+          - Sid: ObserveDeadLetters
+            Effect: Allow
+            Action: sqs:GetQueueAttributes
+            Resource: !GetAtt AttachmentScanDeadLetterQueue.Arn
+
+  AttachmentOperatorPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Explicit controlled DLQ replay permissions for an operator role.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ControlledRedrive
+            Effect: Allow
+            Action:
+              - sqs:StartMessageMoveTask
+              - sqs:CancelMessageMoveTask
+              - sqs:ListMessageMoveTasks
+            Resource: !GetAtt AttachmentScanDeadLetterQueue.Arn
+
+  AttachmentBackupPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Read-only inventory and export of attachment objects for an authorized backup role.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ListAttachmentPrefixForBackup
+            Effect: Allow
+            Action: s3:ListBucket
+            Resource: !GetAtt AttachmentBucket.Arn
+            Condition:
+              StringLike:
+                s3:prefix: !Sub '${Environment}/*'
+          - Sid: ReadAttachmentObjectsForBackup
+            Effect: Allow
+            Action: s3:GetObject
+            Resource: !Sub '${AttachmentBucket.Arn}/${Environment}/*'
+
+  AttachmentRestorePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Restore verified attachment objects into the isolated environment prefix.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: RestoreVerifiedObjects
+            Effect: Allow
+            Action: s3:PutObject
+            Resource: !Sub '${AttachmentBucket.Arn}/${Environment}/*'
+
+  AttachmentPurgeTaggingPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Apply or inspect only the persisted purge eligibility tag.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: PurgeEligibilityTags
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:GetObjectTagging
+              - s3:PutObjectTagging
+            Resource: !Sub '${AttachmentBucket.Arn}/${Environment}/*'
+
+  AttachmentEvidencePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Read and write only sanitized exercise evidence under its dedicated prefix.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: SanitizedEvidenceObjects
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+            Resource: !Sub '${AttachmentBucket.Arn}/${Environment}/continuity-evidence/*'
+
+  DlqMessagesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Attachment scan DLQ contains messages.
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt AttachmentScanDeadLetterQueue.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasAlarmTopic, [!Ref AlarmTopicArn], !Ref 'AWS::NoValue']
+
+  BacklogAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Oldest attachment scan message exceeded the configured limit.
+      Namespace: AWS/SQS
+      MetricName: ApproximateAgeOfOldestMessage
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt AttachmentScanQueue.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: 600
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasAlarmTopic, [!Ref AlarmTopicArn], !Ref 'AWS::NoValue']
+
+  QuarantineDelayedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Attachments remain in quarantine beyond the expected window.
+      Namespace: FrequenIA/Attachments
+      MetricName: QuarantineDelayed
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  ScannerUnavailableAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Attachment scanner readiness is unavailable.
+      Namespace: FrequenIA/Attachments
+      MetricName: ScannerAvailable
+      Statistic: Minimum
+      Period: 60
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+
+  StaleSignaturesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: ClamAV signature age exceeds the operational threshold.
+      Namespace: FrequenIA/Attachments
+      MetricName: ClamAVSignatureAge
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: 48
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: breaching
+
+  WorkerFailuresAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Attachment worker failure count exceeded the configured threshold.
+      Namespace: FrequenIA/Attachments
+      MetricName: ScanJobsFailed
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  WorkerHeartbeatAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Attachment scan worker heartbeat is absent.
+      Namespace: FrequenIA/Attachments
+      MetricName: WorkerHeartbeat
+      Statistic: Minimum
+      Period: 60
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+
+  ScanDurationP99Alarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Attachment scan p99 duration exceeded the configured limit.
+      Namespace: FrequenIA/Attachments
+      MetricName: ScanDuration
+      ExtendedStatistic: p99
+      Period: 300
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: 45000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  BackupAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Last verified backup exercise is older than the calibrated threshold.
+      Namespace: FrequenIA/Attachments
+      MetricName: LastVerifiedBackupAge
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: !Ref BackupAgeThresholdHours
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: breaching
+
+  ManifestIntegrityFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: A continuity manifest failed integrity validation.
+      Namespace: FrequenIA/Attachments
+      MetricName: ManifestIntegrityFailures
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  RestoreDurationP99Alarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Restore exercise p99 exceeded a threshold requiring homologation calibration.
+      Namespace: FrequenIA/Attachments
+      MetricName: RestoreDuration
+      ExtendedStatistic: p99
+      Period: 300
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: !Ref ContinuityRtoThresholdSeconds
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  AttachmentOperationsDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardBody: !Sub |
+        {"start":"-PT8H","periodOverride":"inherit","widgets":[{"type":"text","x":0,"y":0,"width":24,"height":1,"properties":{"markdown":"# FrequenIA attachment continuity\nThresholds require homologation calibration; local results are not production SLOs."}},{"type":"metric","x":0,"y":1,"width":12,"height":6,"properties":{"title":"SQS backlog","region":"${AWS::Region}","metrics":[["AWS/SQS","ApproximateNumberOfMessagesVisible","QueueName","${AttachmentScanQueue.QueueName}"],[".","ApproximateNumberOfMessagesNotVisible",".","."]] }},{"type":"metric","x":12,"y":1,"width":12,"height":6,"properties":{"title":"Scan duration percentiles","region":"${AWS::Region}","stat":"p99","metrics":[["FrequenIA/Attachments","ScanDuration"]]}},{"type":"metric","x":0,"y":7,"width":12,"height":6,"properties":{"title":"Backup and restore evidence","region":"${AWS::Region}","metrics":[["FrequenIA/Attachments","LastVerifiedBackupAge"],[".","RpoObserved"],[".","RtoObserved"]]}},{"type":"metric","x":12,"y":7,"width":12,"height":6,"properties":{"title":"Integrity, redrive and tagging","region":"${AWS::Region}","metrics":[["FrequenIA/Attachments","ManifestIntegrityFailures"],[".","RedriveFailures"],[".","PurgeEligibilityFailures"]]}}]}
+
+Outputs:
+  AttachmentBucketName:
+    Description: Private attachment bucket selected by server-side configuration.
+    Value: !Ref AttachmentBucket
+  AttachmentRuntimePolicyArn:
+    Description: Policy ARN to attach to the authorized runtime role.
+    Value: !Ref AttachmentRuntimePolicy
+  AttachmentScanQueueUrl:
+    Description: Server-side queue URL for the outbox dispatcher and worker.
+    Value: !Ref AttachmentScanQueue
+  AttachmentScanQueueArn:
+    Description: ARN of the private attachment scan queue.
+    Value: !GetAtt AttachmentScanQueue.Arn
+  AttachmentScanDeadLetterQueueUrl:
+    Description: URL of the retained private dead-letter queue.
+    Value: !Ref AttachmentScanDeadLetterQueue
+  AttachmentPublisherPolicyArn:
+    Description: Policy ARN for the outbox publisher.
+    Value: !Ref AttachmentPublisherPolicy
+  AttachmentWorkerPolicyArn:
+    Description: Policy ARN for attachment workers.
+    Value: !Ref AttachmentWorkerPolicy
+  AttachmentBackupPolicyArn:
+    Description: Read-only backup policy ARN.
+    Value: !Ref AttachmentBackupPolicy
+  AttachmentRestorePolicyArn:
+    Description: Isolated restore policy ARN.
+    Value: !Ref AttachmentRestorePolicy
+  AttachmentPurgeTaggingPolicyArn:
+    Description: Purge eligibility tagging policy ARN.
+    Value: !Ref AttachmentPurgeTaggingPolicy
+  AttachmentEvidencePolicyArn:
+    Description: Sanitized continuity evidence policy ARN.
+    Value: !Ref AttachmentEvidencePolicy

@@ -13,7 +13,14 @@ def conectar_bd():
     if not database_url:
         raise RuntimeError("DATABASE_URL is required to connect to PostgreSQL.")
 
-    return psycopg2.connect(database_url, sslmode="require", connect_timeout=15)
+    # pgvector e pgcrypto sao instalados no schema ``extensions`` pelas migrations.
+    # O search_path explicito evita depender de configuracao externa da role.
+    return psycopg2.connect(
+        database_url,
+        sslmode="require",
+        connect_timeout=15,
+        options="-c search_path=public,extensions",
+    )
 
 
 def buscar_usuario_login_por_cpf(cpf):
@@ -21,7 +28,8 @@ def buscar_usuario_login_por_cpf(cpf):
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             cursor.execute(
                 """
-                SELECT id, nome, senha_hash, status
+                SELECT id, nome, senha_hash, status, perfil_sistema,
+                       primeiro_acesso_pendente
                 FROM usuarios
                 WHERE cpf = %s
                 """,
@@ -75,7 +83,7 @@ def buscar_contexto_autenticado(usuario_id, funcionario_id):
             return cursor.fetchone()
 
 
-def buscar_sessao_access(session_id, usuario_id, funcionario_id):
+def buscar_sessao_access(session_id, usuario_id, funcionario_id=None):
     with closing(conectar_bd()) as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             cursor.execute(
@@ -86,23 +94,28 @@ def buscar_sessao_access(session_id, usuario_id, funcionario_id):
                     u.id AS user_id,
                     f.id AS funcionario_id,
                     f.empresa_id,
-                    f.perfil
+                    COALESCE(u.perfil_sistema, f.perfil) AS perfil
                 FROM auth_sessions s
                 INNER JOIN usuarios u ON u.id = s.usuario_id
-                INNER JOIN funcionarios f
+                LEFT JOIN funcionarios f
                     ON f.id = s.funcionario_id
                    AND f.empresa_id = s.empresa_id
                    AND f.usuario_id = u.id
-                INNER JOIN empresas e ON e.id = f.empresa_id
+                LEFT JOIN empresas e ON e.id = f.empresa_id
                 WHERE s.id = %s
                   AND s.usuario_id = %s
-                  AND s.funcionario_id = %s
+                  AND s.funcionario_id IS NOT DISTINCT FROM %s
                   AND s.revoked_at IS NULL
                   AND s.rotated_at IS NULL
                   AND s.expires_at > now()
                   AND u.status = 'ativo'
-                  AND f.status = 'ativo'
-                  AND e.status = 'ativa'
+                  AND (
+                    (u.perfil_sistema = 'administrador_geral'
+                     AND s.empresa_id IS NULL AND s.funcionario_id IS NULL)
+                    OR
+                    (u.perfil_sistema IS NULL
+                     AND f.status = 'ativo' AND e.status = 'ativa')
+                  )
                 """,
                 (session_id, usuario_id, funcionario_id),
             )

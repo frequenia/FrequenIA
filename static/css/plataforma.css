@@ -1,0 +1,32 @@
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #f4f6f9; color: #172033; font-family: Montserrat, sans-serif; }
+.platform-page { max-width: 1280px; margin: 0 auto; padding: 28px; }
+.platform-header, .panel-heading, .company-title { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.platform-header h1, .panel h2, .panel h3 { margin: 0; }
+.platform-header p, .panel-heading p, .company-title p { margin: 6px 0 0; color: #677085; }
+.eyebrow { color: #5b43d6 !important; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 24px 0; }
+.summary-card, .panel { background: #fff; border: 1px solid #e4e8f0; border-radius: 16px; box-shadow: 0 5px 18px rgba(29, 39, 66, .05); }
+.summary-card { padding: 20px; }
+.summary-card span, .summary-card small { display: block; color: #677085; }
+.summary-card strong { display: block; font-size: 30px; margin: 8px 0; }
+.panel { padding: 22px; margin-bottom: 20px; }
+.panel-heading { margin-bottom: 20px; }
+select { min-width: 280px; padding: 11px 13px; border: 1px solid #ccd3df; border-radius: 10px; background: #fff; }
+.mini-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 18px 0 26px; }
+.mini-card { padding: 14px; border-radius: 12px; background: #f5f6fb; }
+.mini-card span { display: block; color: #677085; font-size: 12px; }
+.mini-card strong { display: block; margin-top: 5px; font-size: 21px; }
+.table-wrap { overflow-x: auto; margin: 12px 0 24px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { padding: 13px 10px; border-bottom: 1px solid #e8ebf1; text-align: left; vertical-align: middle; }
+th { color: #566075; font-size: 12px; text-transform: uppercase; }
+.status-pill { padding: 7px 11px; border-radius: 999px; background: #e8f7ef; color: #17653a; font-size: 12px; font-weight: 700; }
+.status-pill.inactive { background: #fbe9e9; color: #9a2929; }
+.empty-state { padding: 28px; text-align: center; color: #677085; border: 1px dashed #cdd3df; border-radius: 12px; }
+.page-message { padding: 12px; border-radius: 10px; background: #fff2d9; color: #785000; }
+.small-action { border: 0; border-radius: 8px; padding: 8px 10px; background: #5b43d6; color: #fff; cursor: pointer; }
+.small-action:disabled { opacity: .45; cursor: default; }
+@media (max-width: 900px) { .summary-grid, .mini-grid { grid-template-columns: repeat(2, 1fr); } .platform-header, .panel-heading { align-items: stretch; flex-direction: column; } select { width: 100%; min-width: 0; } }
+@media (max-width: 520px) { .platform-page { padding: 16px; } .summary-grid, .mini-grid { grid-template-columns: 1fr; } }

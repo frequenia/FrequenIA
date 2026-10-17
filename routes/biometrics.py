@@ -31,6 +31,17 @@ from services.facial_failure_occurrences import (
     COUNTED_FAILURE_REASONS,
     consume_facial_failure_cycle,
 )
+from services.biometric_governance import (
+    BiometricGovernanceError,
+    create_active_profile,
+    create_approved_policy,
+    governance_readiness,
+    manage_hold,
+    record_lifecycle,
+    resolve_governance,
+    resolve_verification_material,
+    transition_biometric,
+)
 from utils.auth_decorator import require_roles
 
 LOGGER = logging.getLogger(__name__)
@@ -60,6 +71,13 @@ def _serialize_biometric(record):
         "revoked_at": (
             record["revoked_at"].isoformat() if record["revoked_at"] else None
         ),
+        "estado_transparencia": {
+            "ativa": "ativa",
+            "bloqueada": "bloqueada",
+            "revogada": "recadastro_necessario",
+            "exclusao_pendente": "exclusao_pendente",
+            "eliminada": "eliminada",
+        }.get(record["status"], "indisponivel"),
     }
 
 
@@ -249,10 +267,23 @@ def enroll_biometric(funcionario_id):
                 connection.rollback()
                 return jsonify({"erro": "Funcionario nao encontrado."}), 404
 
+            governance = resolve_governance(cursor, company_id, lock=True)
+            if (
+                governance.model != MODEL_NAME
+                or governance.model_version != MODEL_VERSION
+                or governance.dimension != EMBEDDING_DIMENSION
+            ):
+                raise BiometricGovernanceError(
+                    "perfil_biometrico_incompativel",
+                    "O perfil tecnico exige recadastro com stack compativel.",
+                    409,
+                )
+
             cursor.execute(
                 """
                 UPDATE biometrias
                 SET status = 'revogada',
+                    motivo_codigo = 'recadastro',
                     revoked_at = clock_timestamp(),
                     updated_at = clock_timestamp()
                 WHERE empresa_id = %s
@@ -266,9 +297,10 @@ def enroll_biometric(funcionario_id):
                 """
                 INSERT INTO biometrias (
                     empresa_id, funcionario_id, embedding,
-                    modelo, versao_modelo, referencia_arquivo_privado, status
+                    modelo, versao_modelo, referencia_arquivo_privado, status,
+                    politica_biometrica_id, perfil_tecnico_id
                 )
-                VALUES (%s, %s, %s, %s, %s, NULL, 'ativa')
+                VALUES (%s, %s, %s, %s, %s, NULL, 'ativa', %s, %s)
                 RETURNING id, status, modelo, versao_modelo,
                           created_at, updated_at, revoked_at
                 """,
@@ -278,9 +310,24 @@ def enroll_biometric(funcionario_id):
                     embedding,
                     MODEL_NAME,
                     MODEL_VERSION,
+                    governance.policy_id,
+                    governance.profile_id,
                 ),
             )
             record = cursor.fetchone()
+            record_lifecycle(
+                cursor,
+                company_id=company_id,
+                employee_id=employee_id,
+                biometric_id=record["id"],
+                actor_id=g.auth_user_id,
+                action="recadastrar" if replaced_count else "cadastrar",
+                previous="revogada" if replaced_count else None,
+                target="ativa",
+                reason="recadastro" if replaced_count else "cadastro_inicial",
+                policy_id=governance.policy_id,
+                profile_id=governance.profile_id,
+            )
         connection.commit()
         return (
             jsonify(
@@ -311,6 +358,10 @@ def enroll_biometric(funcionario_id):
         if connection:
             connection.rollback()
         return jsonify({"erro": str(exc)}), 400
+    except BiometricGovernanceError as exc:
+        if connection:
+            connection.rollback()
+        return jsonify({"erro": str(exc), "codigo": exc.code}), exc.status
     except Exception:
         if connection:
             connection.rollback()
@@ -395,22 +446,17 @@ def _reject_verification_authority_fields():
 
 
 def _active_biometric(employee_id, company_id):
+    # O resolvedor mantem a consulta estritamente 1:1 com empresa_id = %s,
+    # funcionario_id = %s e status = 'ativa'; nunca executa pesquisa vetorial.
     with closing(conectar_bd()) as connection:
         register_vector(connection)
         with connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            cursor.execute(
-                """
-                SELECT embedding
-                FROM biometrias
-                WHERE empresa_id = %s
-                  AND funcionario_id = %s
-                  AND status = 'ativa'
-                ORDER BY created_at DESC, id DESC
-                LIMIT 1
-                """,
-                (company_id, employee_id),
+            biometric, governance = resolve_verification_material(
+                cursor, company_id, employee_id
             )
-            return cursor.fetchone()
+            if biometric:
+                biometric["limiar"] = governance.threshold
+            return biometric
 
 
 def _record_face_attempt(employee_id, company_id, result, reason, distance=None):
@@ -493,7 +539,9 @@ def verify_own_biometric():
         verified, distance = compare_face_embeddings(
             biometric["embedding"],
             candidate,
-            current_app.config["FACE_VERIFICATION_MAX_COSINE_DISTANCE"],
+            biometric.get(
+                "limiar", current_app.config["FACE_VERIFICATION_MAX_COSINE_DISTANCE"]
+            ),
         )
         reason = "match" if verified else "nao_corresponde"
         attempt_id = _record_face_attempt(
@@ -523,6 +571,154 @@ def verify_own_biometric():
         return jsonify({"erro": "Servico facial temporariamente indisponivel."}), 503
     except ValueError as exc:
         return jsonify({"erro": str(exc)}), 400
+    except BiometricGovernanceError as exc:
+        return jsonify({"verificado": False, "motivo": exc.code}), exc.status
     except Exception:
         LOGGER.exception("Falha ao verificar biometria 1:1.")
         return jsonify({"erro": "Nao foi possivel verificar a biometria."}), 500
+
+
+@biometrics_bp.get("/api/biometria/estado")
+@require_roles("administrador", "funcionario", "gestor", "rh")
+def own_biometric_transparency():
+    """Transparencia pessoal sem vetor, score ou referencia privada."""
+    connection = conectar_bd()
+    try:
+        with connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute(
+                """SELECT b.status,p.versao AS politica_versao,p.versao_aviso,
+                          p.finalidade,p.canal_atendimento,p.retencao_dias
+                   FROM funcionarios f
+                   LEFT JOIN biometrias b ON b.empresa_id=f.empresa_id
+                    AND b.funcionario_id=f.id
+                   LEFT JOIN politicas_biometricas p ON p.empresa_id=b.empresa_id
+                    AND p.id=b.politica_biometrica_id
+                   WHERE f.empresa_id=%s AND f.id=%s
+                   ORDER BY b.created_at DESC,b.id DESC LIMIT 1""",
+                (g.auth_context["empresa_id"], g.auth_funcionario_id),
+            )
+            row = cursor.fetchone()
+        if not row:
+            return jsonify({"erro": "Funcionario nao encontrado."}), 404
+        status = row["status"] or "recadastro_necessario"
+        return jsonify({
+            "estado": {"revogada": "recadastro_necessario"}.get(status, status),
+            "politica": ({
+                "versao": row["politica_versao"], "versao_aviso": row["versao_aviso"],
+                "finalidade": row["finalidade"], "canal_atendimento": row["canal_atendimento"],
+                "retencao_dias": row["retencao_dias"],
+            } if row["politica_versao"] else None),
+            "explicacao": (
+                "Verificacao facial 1:1 para registro de ponto; nao realiza pesquisa facial global. "
+                "As fotos enviadas sao processadas em memoria e nao sao persistidas pelo fluxo atual."
+            ),
+        }), 200
+    finally:
+        connection.close()
+
+
+@biometrics_bp.post("/api/admin/funcionarios/<funcionario_id>/biometria/ciclo")
+@require_roles("administrador", "rh")
+def mutate_biometric_lifecycle(funcionario_id):
+    connection = None
+    try:
+        payload = request.get_json(silent=True) or {}
+        allowed = {"operacao", "motivo", "idempotencia", "referencia", "expira_at"}
+        if not set(payload).issubset(allowed) or not {"operacao", "motivo", "idempotencia"}.issubset(payload):
+            raise ValueError("Informe operacao, motivo e idempotencia.")
+        company_id = g.auth_context["empresa_id"]
+        employee_id = _uuid(funcionario_id, "Funcionario")
+        connection = conectar_bd()
+        with connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            if not _find_employee(cursor, employee_id, company_id, lock=True):
+                connection.rollback()
+                return jsonify({"erro": "Funcionario nao encontrado."}), 404
+            if payload["operacao"] in {"criar_hold", "cancelar_hold"}:
+                result = manage_hold(
+                    cursor, company_id=company_id, employee_id=employee_id,
+                    actor_id=g.auth_user_id, operation=payload["operacao"],
+                    reason=payload["motivo"], reference=payload.get("referencia"),
+                    idempotency_key=payload["idempotencia"], expires_at=payload.get("expira_at"),
+                )
+            else:
+                result = transition_biometric(
+                    cursor, company_id=company_id, employee_id=employee_id,
+                    actor_id=g.auth_user_id, operation=payload["operacao"],
+                    reason=payload["motivo"], idempotency_key=payload["idempotencia"],
+                )
+        connection.commit()
+        return jsonify(result), 200
+    except (ValueError, BiometricGovernanceError) as exc:
+        if connection:
+            connection.rollback()
+        status = exc.status if isinstance(exc, BiometricGovernanceError) else 400
+        code = exc.code if isinstance(exc, BiometricGovernanceError) else "requisicao_invalida"
+        return jsonify({"erro": str(exc), "codigo": code}), status
+    finally:
+        if connection:
+            connection.close()
+
+
+@biometrics_bp.get("/api/admin/governanca-biometrica/readiness")
+@require_roles("administrador", "rh")
+def biometric_governance_readiness():
+    connection = conectar_bd()
+    try:
+        with connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            state = governance_readiness(cursor, g.auth_context["empresa_id"])
+        return jsonify({"status": "ready" if all(state.values()) else "not_ready", "dependencies": state}), (200 if all(state.values()) else 503)
+    finally:
+        connection.close()
+
+
+def _serialize_governance_row(row):
+    return {
+        key: (str(value) if key == "id" else float(value) if key == "limiar" else value)
+        for key, value in row.items()
+    }
+
+
+@biometrics_bp.post("/api/admin/governanca-biometrica/politicas")
+@require_roles("administrador", "rh")
+def approve_biometric_policy():
+    connection = None
+    try:
+        payload = request.get_json(silent=True) or {}
+        connection = conectar_bd()
+        with connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            row = create_approved_policy(
+                cursor, company_id=g.auth_context["empresa_id"],
+                actor_id=g.auth_user_id, payload=payload,
+            )
+        connection.commit()
+        return jsonify({"politica": _serialize_governance_row(row)}), 201
+    except (BiometricGovernanceError, psycopg2.Error) as exc:
+        if connection: connection.rollback()
+        code = exc.code if isinstance(exc, BiometricGovernanceError) else "politica_conflitante"
+        status = exc.status if isinstance(exc, BiometricGovernanceError) else 409
+        return jsonify({"erro": "Politica biometrica invalida ou conflitante.", "codigo": code}), status
+    finally:
+        if connection: connection.close()
+
+
+@biometrics_bp.post("/api/admin/governanca-biometrica/perfis")
+@require_roles("administrador", "rh")
+def activate_biometric_profile():
+    connection = None
+    try:
+        payload = request.get_json(silent=True) or {}
+        connection = conectar_bd()
+        with connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            row = create_active_profile(
+                cursor, company_id=g.auth_context["empresa_id"],
+                actor_id=g.auth_user_id, payload=payload,
+            )
+        connection.commit()
+        return jsonify({"perfil": _serialize_governance_row(row)}), 201
+    except (BiometricGovernanceError, psycopg2.Error) as exc:
+        if connection: connection.rollback()
+        code = exc.code if isinstance(exc, BiometricGovernanceError) else "perfil_conflitante"
+        status = exc.status if isinstance(exc, BiometricGovernanceError) else 409
+        return jsonify({"erro": "Perfil tecnico invalido ou conflitante.", "codigo": code}), status
+    finally:
+        if connection: connection.close()

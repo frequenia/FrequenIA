@@ -35,6 +35,18 @@ void main() {
       screen(
         MockClient((request) async {
           requests.add(request);
+          if (request.url.path == '/api/biometria/estado') {
+            return response({
+              'estado': 'ativa',
+              'explicacao': 'Verificação facial 1:1; sem pesquisa global.',
+              'politica': {
+                'finalidade': 'registro_ponto_1a1',
+                'versao_aviso': '1',
+                'retencao_dias': 30,
+                'canal_atendimento': '/atendimento',
+              },
+            });
+          }
           return response({
             'nome': 'Ana Teste',
             'cpf_mascarado': '***.***.***-12',
@@ -52,10 +64,23 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(requests.single.url.path, '/api/perfil');
-    expect(requests.single.url.queryParameters, isEmpty);
+    expect(requests.map((request) => request.url.path), [
+      '/api/perfil',
+      '/api/biometria/estado',
+    ]);
+    expect(
+      requests.every((request) => request.url.queryParameters.isEmpty),
+      isTrue,
+    );
     expect(find.text('Ana Teste'), findsOneWidget);
     expect(find.text('***.***.***-12'), findsOneWidget);
+    expect(find.text('Ativa'), findsOneWidget);
+    expect(find.text('30 dias'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Empresa A'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Empresa A'), findsOneWidget);
     expect(find.text('Funcionário'), findsOneWidget);
     expect(find.text('user_id'), findsNothing);
@@ -68,18 +93,20 @@ void main() {
     await tester.pumpWidget(
       screen(
         MockClient(
-          (_) async => response({
-            'nome': 'Ana Teste',
-            'cpf_mascarado': '***.***.***-12',
-            'telefone': null,
-            'email': null,
-            'matricula': 'M-17',
-            'perfil': 'funcionario',
-            'empresa': 'Empresa A',
-            'unidade': 'Piloto',
-            'equipe': null,
-            'cargo': null,
-          }),
+          (request) async => request.url.path == '/api/biometria/estado'
+              ? response({'estado': 'eliminada', 'politica': null})
+              : response({
+                  'nome': 'Ana Teste',
+                  'cpf_mascarado': '***.***.***-12',
+                  'telefone': null,
+                  'email': null,
+                  'matricula': 'M-17',
+                  'perfil': 'funcionario',
+                  'empresa': 'Empresa A',
+                  'unidade': 'Piloto',
+                  'equipe': null,
+                  'cargo': null,
+                }),
         ),
       ),
     );
@@ -96,7 +123,11 @@ void main() {
         MockClient((_) async {
           calls++;
           if (calls == 1) return response({'erro': 'Sessão inválida.'}, 401);
-          return response({'nome': 'Ana Teste'});
+          if (calls == 2) return response({'nome': 'Ana Teste'});
+          return response({
+            'estado': 'recadastro_necessario',
+            'politica': null,
+          });
         }),
       ),
     );
@@ -105,6 +136,6 @@ void main() {
     await tester.tap(find.text('Atualizar'));
     await tester.pumpAndSettle();
     expect(find.text('Ana Teste'), findsOneWidget);
-    expect(calls, 2);
+    expect(calls, 3);
   });
 }

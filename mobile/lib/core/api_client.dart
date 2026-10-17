@@ -62,7 +62,7 @@ class ApiClient {
   Future<Map<String, dynamic>> login(String cpf, String password) async {
     final response = await _sendJson(
       'POST',
-      '/login',
+      '/api/mobile/login',
       body: {'cpf': cpf, 'senha': password},
     );
     final data = _decode(response);
@@ -99,6 +99,9 @@ class ApiClient {
     Map<String, dynamic>? body,
   ]) => _request('POST', path, body: body, retryOnUnauthorized: true);
 
+  Future<Map<String, dynamic>> delete(String path) =>
+      _request('DELETE', path, retryOnUnauthorized: true);
+
   Future<Map<String, dynamic>> postWithHeaders(
     String path,
     Map<String, dynamic> body,
@@ -115,11 +118,17 @@ class ApiClient {
     String path, {
     required String fieldName,
     required String filePath,
+    String method = 'POST',
+    Map<String, String> fields = const {},
+    String? mimeType,
   }) async {
     var response = await _sendMultipart(
       path,
       fieldName: fieldName,
       filePath: filePath,
+      method: method,
+      fields: fields,
+      mimeType: mimeType,
       accessToken: _accessToken,
     );
     if (response.statusCode == 401 && _refreshToken != null) {
@@ -128,6 +137,9 @@ class ApiClient {
         path,
         fieldName: fieldName,
         filePath: filePath,
+        method: method,
+        fields: fields,
+        mimeType: mimeType,
         accessToken: _accessToken,
       );
     }
@@ -240,26 +252,31 @@ class ApiClient {
     String path, {
     required String fieldName,
     required String filePath,
+    required String method,
+    required Map<String, String> fields,
+    String? mimeType,
     String? accessToken,
   }) async {
-    final request = http.MultipartRequest('POST', Uri.parse('$_baseUrl$path'))
+    final resolvedMime = mimeType ?? 'image/jpeg';
+    final mimeParts = resolvedMime.split('/');
+    final request = http.MultipartRequest(method, Uri.parse('$_baseUrl$path'))
       ..headers['Accept'] = 'application/json';
     if (accessToken != null) {
       request.headers['Authorization'] = 'Bearer $accessToken';
     }
+    request.fields.addAll(fields);
     request.files.add(
       await http.MultipartFile.fromPath(
         fieldName,
         filePath,
-        contentType: MediaType('image', 'jpeg'),
+        contentType: MediaType(mimeParts.first, mimeParts.last),
       ),
     );
 
     try {
       final streamed = await _client.send(request).timeout(_multipartTimeout);
-      return await http.Response.fromStream(
-        streamed,
-      ).timeout(_multipartTimeout);
+      return await http.Response.fromStream(streamed)
+          .timeout(_multipartTimeout);
     } on TimeoutException {
       throw const ApiException(
         'O servidor demorou para responder. Tente novamente.',

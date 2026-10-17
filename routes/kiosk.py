@@ -32,6 +32,11 @@ from services.facial_failure_occurrences import (
     COUNTED_FAILURE_REASONS,
     consume_facial_failure_cycle,
 )
+from services.daily_journey import JourneyError, confirm_expected_event
+from services.biometric_governance import (
+    BiometricGovernanceError,
+    resolve_verification_material,
+)
 from utils.auth_decorator import require_roles
 from utils.terminal_auth import terminal_required
 
@@ -221,12 +226,14 @@ def _find_employee_by_registration(cursor, company_id, registration):
 
 
 def _active_biometric(cursor, company_id, employee_id):
-    cursor.execute(
-        """SELECT embedding FROM biometrias WHERE empresa_id=%s AND funcionario_id=%s
-           AND status='ativa' ORDER BY created_at DESC, id DESC LIMIT 1 FOR SHARE""",
-        (company_id, employee_id),
+    # O resolvedor aplica os filtros equivalentes: empresa_id = %s,
+    # funcionario_id = %s e status = 'ativa', alem de politica/perfil vigentes.
+    biometric, governance = resolve_verification_material(
+        cursor, company_id, employee_id
     )
-    return cursor.fetchone()
+    if biometric:
+        biometric["limiar"] = governance.threshold
+    return biometric
 
 
 def _record_attempt(cursor, company_id, employee_id, result, reason, distance=None):
@@ -250,9 +257,10 @@ def create_kiosk_facial_clock():
         if any(field in request.form or field in request.args for field in ("empresa_id", "funcionario_id", "usuario_id", "embedding", "tentativa_facial_id")):
             raise ValueError("A requisição contém campos controlados pelo servidor.")
         registration = str(request.form.get("matricula") or "").strip()
-        clock_type = str(request.form.get("tipo") or "").strip()
+        legacy_type = str(request.form.get("tipo") or "").strip() or None
         if not registration or len(registration) > 128: raise ValueError("Matrícula inválida.")
-        if clock_type not in ALLOWED_CLOCK_EVENT_TYPES: raise ValueError("Tipo de marcação inválido.")
+        if legacy_type is not None and legacy_type not in ALLOWED_CLOCK_EVENT_TYPES:
+            raise ValueError("Tipo legado de marcação inválido.")
         image = _read_image_upload()
         key = chave_idempotencia_requisicao()
         company_id = g.terminal_context["empresa_id"]
@@ -278,7 +286,10 @@ def create_kiosk_facial_clock():
             _record_attempt(cursor, company_id, employee_id, "falha", "liveness_reprovado")
             connection.commit(); return jsonify({"verificado": False, "erro": "Não foi possível concluir a verificação."}), 422
         candidate = _validate_embedding(generate_biometric_embedding(image))
-        verified, distance = compare_face_embeddings(biometric["embedding"], candidate, current_app.config["FACE_VERIFICATION_MAX_COSINE_DISTANCE"])
+        verified, distance = compare_face_embeddings(
+            biometric["embedding"], candidate,
+            biometric.get("limiar", current_app.config["FACE_VERIFICATION_MAX_COSINE_DISTANCE"]),
+        )
         if not verified:
             _record_attempt(cursor, company_id, employee_id, "falha", "nao_corresponde", distance)
             connection.commit(); return jsonify({"verificado": False, "erro": "Não foi possível concluir a verificação."}), 409
@@ -286,17 +297,23 @@ def create_kiosk_facial_clock():
         if recent:
             connection.rollback(); return resposta_marcacao_recente(recent)
         attempt_id = _record_attempt(cursor, company_id, employee_id, "sucesso", "match", distance)
-        cursor.execute(
-            """INSERT INTO marcacoes (empresa_id, funcionario_id, tentativa_facial_id,
-               instante, tipo, origem, estado, chave_idempotencia, canal)
-               VALUES (%s, %s, %s, clock_timestamp(), %s, 'facial', 'confirmada', %s, 'quiosque')
-               RETURNING id, tentativa_facial_id, tipo, origem, estado, instante,
-                         chave_idempotencia, canal, precisao_metros,
-                         distancia_unidade_metros""",
-            (company_id, employee_id, attempt_id, clock_type, key),
+        result = confirm_expected_event(
+            cursor, company_id, employee_id, key=key, channel="quiosque",
+            facial_attempt_id=attempt_id, actor_user_id=None,
+            legacy_type=legacy_type,
+            default_timezone=current_app.config.get("JOURNEY_DEFAULT_TIMEZONE", "UTC"),
+            grace_hours=current_app.config.get("JOURNEY_OPEN_GRACE_HOURS", 12),
+            minimum_interval_seconds=60,
         )
-        marking = cursor.fetchone(); connection.commit()
-        return jsonify({"marcacao": serializar_marcacao(marking)}), 201
+        if result["marking"] is None:
+            connection.commit()
+            return jsonify({
+                "erro": "A tentativa foi preservada e enviada para análise.",
+                "codigo": result["code"], "jornada": result["decision"],
+                "ocorrencia_id": result.get("occurrence_id"),
+            }), 409
+        connection.commit()
+        return jsonify({"marcacao": serializar_marcacao(result["marking"]), "jornada": result["decision"]}), 201
     except (InvalidFaceCountError, InvalidFaceImageError) as exc:
         if connection: connection.rollback()
         return jsonify({"erro": str(exc)}), 422
@@ -309,6 +326,12 @@ def create_kiosk_facial_clock():
     except ValueError as exc:
         if connection: connection.rollback()
         return jsonify({"erro": str(exc)}), 400
+    except JourneyError as exc:
+        if connection: connection.rollback()
+        return jsonify({"erro": str(exc), "codigo": exc.code}), exc.status
+    except BiometricGovernanceError as exc:
+        if connection: connection.rollback()
+        return jsonify({"verificado": False, "erro": "Nao foi possivel concluir a verificacao.", "codigo": exc.code}), exc.status
     except psycopg2.errors.UniqueViolation:
         if connection: connection.rollback()
         return jsonify({"erro": "Não foi possível repetir esta marcação."}), 409

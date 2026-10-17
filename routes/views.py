@@ -37,10 +37,20 @@ from db import (
 )
 from services.management_scope import employee_visibility_query
 from services.email_service import EmailDeliveryError, send_password_reset_email
+from services.employee_onboarding import allocate_registration, first_access_credentials
+from services.company_onboarding import (
+    CompanyOnboardingConflict,
+    create_company_with_initial_admin,
+)
 from services.mobile_location import (
     LocationValidationError,
     parse_location,
     validate_geofence,
+)
+from services.daily_journey import JourneyError, confirm_expected_event, resolve_schedule_for_date
+from services.biometric_governance import (
+    BiometricGovernanceError,
+    change_employee_status,
 )
 from utils.terminal_auth import terminal_required
 import os
@@ -197,62 +207,11 @@ def serializar_turno(turno):
 
 
 def buscar_jornada_data(cursor, empresa_id, funcionario_id, data_consulta):
-    cursor.execute(
-        """
-        SELECT
-            ft.id AS atribuicao_id,
-            ft.vigencia_inicio,
-            ft.vigencia_fim,
-            t.id AS turno_id,
-            t.nome AS turno_nome,
-            t.timezone,
-            t.status AS turno_status
-        FROM funcionarios_turnos ft
-        INNER JOIN turnos t
-            ON t.id = ft.turno_id
-           AND t.empresa_id = ft.empresa_id
-        WHERE ft.empresa_id = %s
-          AND ft.funcionario_id = %s
-          AND ft.vigencia_inicio <= %s
-          AND (ft.vigencia_fim IS NULL OR ft.vigencia_fim >= %s)
-        ORDER BY ft.vigencia_inicio DESC, ft.created_at DESC, ft.id
-        LIMIT 1
-        """,
-        (empresa_id, funcionario_id, data_consulta, data_consulta),
-    )
-    atribuicao = cursor.fetchone()
-    if not atribuicao:
-        return None
-
-    cursor.execute(
-        """
-        SELECT id, dia_semana, ordem, inicio, fim, fim_dia_offset
-        FROM periodos_turno
-        WHERE empresa_id = %s AND turno_id = %s
-        ORDER BY dia_semana, ordem, id
-        """,
-        (empresa_id, atribuicao["turno_id"]),
-    )
-    return {
-        "turno": {
-            "id": str(atribuicao["turno_id"]),
-            "nome": atribuicao["turno_nome"],
-            "timezone": atribuicao["timezone"],
-            "status": atribuicao["turno_status"],
-        },
-        "vigencia": {
-            "inicio": atribuicao["vigencia_inicio"].isoformat(),
-            "fim": (
-                atribuicao["vigencia_fim"].isoformat()
-                if atribuicao["vigencia_fim"]
-                else None
-            ),
-        },
-        "periodos": [serialize_period(item) for item in cursor.fetchall()],
-    }
+    resolved = resolve_schedule_for_date(cursor, empresa_id, funcionario_id, data_consulta)
+    return None if resolved["origem"] == "sem_jornada" else resolved
 
 
-def validar_dados_administrativos(dados, password_required=False):
+def validar_dados_administrativos(dados, password_required=False, matricula_required=True):
     nome = str(dados.get("nome") or "").strip()
     email = str(dados.get("email") or "").strip().lower()
     telefone = str(dados.get("telefone") or "").strip()
@@ -268,7 +227,7 @@ def validar_dados_administrativos(dados, password_required=False):
         raise ValueError("E-mail inválido.")
     if not cpf_valido(cpf):
         raise ValueError("CPF inválido.")
-    if not matricula:
+    if matricula_required and not matricula:
         raise ValueError("Matrícula é obrigatória.")
     if perfil not in ALLOWED_EMPLOYEE_PROFILES:
         raise ValueError("Perfil inválido.")
@@ -340,13 +299,14 @@ def gerar_access_token(user_id, funcionario_id, session_id):
     agora = datetime.now(timezone.utc)
     payload = {
         "sub": str(user_id),
-        "funcionario_id": str(funcionario_id),
         "sid": str(session_id),
         "type": "access",
         "iat": agora,
         "exp": agora
         + timedelta(minutes=current_app.config["JWT_ACCESS_TOKEN_MINUTES"]),
     }
+    if funcionario_id is not None:
+        payload["funcionario_id"] = str(funcionario_id)
     return jwt.encode(
         payload,
         current_app.config["JWT_SECRET_KEY"],
@@ -376,8 +336,8 @@ def criar_auth_session(cursor, user_id, vinculo, familia_id=None):
         """,
         (
             user_id,
-            vinculo["empresa_id"],
-            vinculo["funcionario_id"],
+            vinculo.get("empresa_id"),
+            vinculo.get("funcionario_id"),
             refresh_token_hash,
             familia_id,
             current_app.config["JWT_REFRESH_TOKEN_DAYS"],
@@ -387,17 +347,18 @@ def criar_auth_session(cursor, user_id, vinculo, familia_id=None):
     return auth_session, refresh_token
 
 
-def resposta_com_tokens(payload, refresh_token, status=200):
+def resposta_com_tokens(payload, refresh_token, status=200, set_refresh_cookie=True):
     response = jsonify(payload)
-    response.set_cookie(
-        REFRESH_COOKIE_NAME,
-        refresh_token,
-        max_age=current_app.config["JWT_REFRESH_TOKEN_DAYS"] * 24 * 60 * 60,
-        httponly=True,
-        secure=current_app.config["REFRESH_COOKIE_SECURE"],
-        samesite="Lax",
-        path="/auth",
-    )
+    if set_refresh_cookie:
+        response.set_cookie(
+            REFRESH_COOKIE_NAME,
+            refresh_token,
+            max_age=current_app.config["JWT_REFRESH_TOKEN_DAYS"] * 24 * 60 * 60,
+            httponly=True,
+            secure=current_app.config["REFRESH_COOKIE_SECURE"],
+            samesite="Lax",
+            path="/auth",
+        )
     return response, status
 
 
@@ -485,19 +446,25 @@ def gerenciar_usuario():
 
 
 @views_bp.route("/jornadas")
-@require_roles("administrador")
+@require_roles("administrador", "rh", "gestor")
 def jornadas():
-    return render_template("jornadas.html")
+    return render_template("jornadas.html", perfil=g.auth_context["perfil"])
 
 
 @views_bp.route("/gerenciarEmpresa")
-@require_roles("administrador")
+@require_roles("administrador_geral")
 def gerenciar_empresa():
     return render_template("gerenciarEmpresa.html")
 
 
+@views_bp.route("/plataforma")
+@require_roles("administrador_geral")
+def plataforma():
+    return render_template("plataforma.html")
+
+
 @views_bp.route("/configuracoes")
-@require_roles("administrador")
+@require_roles("administrador_geral", "administrador", "rh", "gestor", "funcionario")
 def configuracoes():
     response = current_app.make_response(
         render_template("configuracoes.html", perfil=g.auth_context["perfil"])
@@ -507,7 +474,7 @@ def configuracoes():
 
 
 @views_bp.route("/cadastroEmpresas")
-@require_roles("administrador")
+@require_roles("administrador_geral")
 def cadastroEmpresas():
     return render_template("cadastroEmpresas.html")
 
@@ -526,7 +493,9 @@ def inserir_token():
 # FUNÇÃO PRINCIPAL - LOGIN
 # ==================================================================================================
 @views_bp.route("/login", methods=["POST"])
+@views_bp.route("/api/mobile/login", methods=["POST"])
 def login():
+    mobile_login = request.path == "/api/mobile/login"
     data = request.get_json(silent=True) or {}
 
     cpf = data.get("cpf")
@@ -538,7 +507,7 @@ def login():
     cpf = cpf.replace(".", "").replace("-", "").strip()
     senha = senha.strip()
 
-    if not cpf or not senha:
+    if not cpf or not senha or len(senha) > 128:
         return jsonify({"erro": "Credenciais inválidas."}), 401
 
     user = buscar_usuario_login_por_cpf(cpf)
@@ -551,14 +520,21 @@ def login():
     ):
         return jsonify({"erro": "Credenciais inválidas."}), 401
 
-    vinculos = buscar_vinculos_ativos(user["id"])
-    if not vinculos:
-        return jsonify({"erro": "Credenciais inválidas."}), 401
+    if user.get("perfil_sistema") == "administrador_geral":
+        vinculo = {
+            "empresa_id": None,
+            "funcionario_id": None,
+            "perfil": "administrador_geral",
+        }
+    else:
+        vinculos = buscar_vinculos_ativos(user["id"])
+        if not vinculos:
+            return jsonify({"erro": "Credenciais inválidas."}), 401
 
-    if len(vinculos) > 1:
-        return jsonify({"erro": "Seleção de vínculo necessária."}), 409
+        if len(vinculos) > 1:
+            return jsonify({"erro": "Seleção de vínculo necessária."}), 409
 
-    vinculo = vinculos[0]
+        vinculo = vinculos[0]
     conn = conectar_bd()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     try:
@@ -571,12 +547,17 @@ def login():
         cursor.close()
         conn.close()
 
-    session["user_id"] = str(user["id"])
-    session["nome"] = user["nome"]
-    session["tipo"] = vinculo["perfil"]
-    session["funcionario_id"] = str(vinculo["funcionario_id"])
-    session["empresa_id"] = str(vinculo["empresa_id"])
-    session["auth_session_id"] = str(auth_session["id"])
+    if not mobile_login:
+        session["user_id"] = str(user["id"])
+        session["nome"] = user["nome"]
+        session["tipo"] = vinculo["perfil"]
+        if vinculo["funcionario_id"] is not None:
+            session["funcionario_id"] = str(vinculo["funcionario_id"])
+            session["empresa_id"] = str(vinculo["empresa_id"])
+        else:
+            session.pop("funcionario_id", None)
+            session.pop("empresa_id", None)
+        session["auth_session_id"] = str(auth_session["id"])
     access_token = gerar_access_token(
         user["id"],
         vinculo["funcionario_id"],
@@ -588,13 +569,18 @@ def login():
             "ok": True,
             "nome": user["nome"],
             "tipo": vinculo["perfil"],
-            "funcionario_id": str(vinculo["funcionario_id"]),
+            "funcionario_id": (
+                str(vinculo["funcionario_id"])
+                if vinculo["funcionario_id"] is not None
+                else None
+            ),
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "Bearer",
             "expires_in": current_app.config["JWT_ACCESS_TOKEN_MINUTES"] * 60,
         },
         refresh_token,
+        set_refresh_cookie=not mobile_login,
     )
 
 
@@ -650,22 +636,29 @@ def auth_refresh():
 
         cursor.execute(
             """
-            SELECT 1
+            SELECT COALESCE(u.perfil_sistema, f.perfil) AS perfil
             FROM usuarios u
-            INNER JOIN funcionarios f
+            LEFT JOIN funcionarios f
                 ON f.usuario_id = u.id
-               AND f.id = %s
-               AND f.empresa_id = %s
-            INNER JOIN empresas e ON e.id = f.empresa_id
+               AND f.id IS NOT DISTINCT FROM %s
+               AND f.empresa_id IS NOT DISTINCT FROM %s
+            LEFT JOIN empresas e ON e.id = f.empresa_id
             WHERE u.id = %s
               AND u.status = 'ativo'
-              AND f.status = 'ativo'
-              AND e.status = 'ativa'
+              AND (
+                (u.perfil_sistema = 'administrador_geral'
+                 AND %s IS NULL AND %s IS NULL)
+                OR
+                (u.perfil_sistema IS NULL
+                 AND f.status = 'ativo' AND e.status = 'ativa')
+              )
             """,
             (
                 current_session["funcionario_id"],
                 current_session["empresa_id"],
                 current_session["usuario_id"],
+                current_session["empresa_id"],
+                current_session["funcionario_id"],
             ),
         )
         if not cursor.fetchone():
@@ -729,8 +722,9 @@ def auth_me():
         jsonify(
             {
                 "user_id": str(contexto["user_id"]),
-                "funcionario_id": str(contexto["funcionario_id"]),
-                "empresa_id": str(contexto["empresa_id"]),
+                "funcionario_id": contexto["funcionario_id"],
+                "empresa_id": contexto["empresa_id"],
+                "perfil": contexto["perfil"],
             }
         ),
         200,
@@ -762,7 +756,7 @@ def cadastrar_usuario():
     try:
         dados = validar_dados_administrativos(
             request.get_json(silent=True) or {},
-            password_required=True,
+            matricula_required=False,
         )
         empresa_id_autorizada(dados["empresa_id"])
 
@@ -784,11 +778,18 @@ def cadastrar_usuario():
             return jsonify({"status": "erro", "mensagem": message}), 409
 
         validar_estrutura_funcional(cursor, dados)
+        dados["matricula"] = allocate_registration(
+            cursor, dados["empresa_id"], dados["cargo_id"]
+        )
+        credentials = first_access_credentials()
 
         cursor.execute(
             """
-            INSERT INTO usuarios (nome, email, telefone, cpf, senha_hash)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO usuarios (
+                nome, email, telefone, cpf, senha_hash,
+                status, primeiro_acesso_pendente
+            )
+            VALUES (%s, %s, %s, %s, %s, 'bloqueado', true)
             RETURNING id
             """,
             (
@@ -796,7 +797,7 @@ def cadastrar_usuario():
                 dados["email"],
                 dados["telefone"],
                 dados["cpf"],
-                generate_password_hash(dados["senha"]),
+                credentials["password_hash"],
             ),
         )
 
@@ -825,10 +826,52 @@ def cadastrar_usuario():
             ),
         )
 
+        cursor.execute(
+            """INSERT INTO password_reset_tokens (
+                   usuario_id, token_hash, purpose, expires_at
+               ) VALUES (
+                   %s, %s, 'first_access',
+                   now() + (%s * interval '1 minute')
+               )""",
+            (
+                usuario_id,
+                credentials["token_hash"],
+                current_app.config["PASSWORD_RESET_TOKEN_MINUTES"],
+            ),
+        )
+
         conn.commit()
 
+        try:
+            send_password_reset_email(
+                dados["email"],
+                credentials["raw_token"],
+                current_app.config["PASSWORD_RESET_TOKEN_MINUTES"],
+            )
+        except EmailDeliveryError:
+            LOGGER.exception("Funcionário criado, mas o convite de primeiro acesso falhou.")
+            return (
+                jsonify(
+                    {
+                        "status": "erro",
+                        "mensagem": (
+                            "Funcionário cadastrado e matrícula gerada, mas o convite "
+                            "não pôde ser enviado. Use 'Esqueceu sua senha?' para reenviar."
+                        ),
+                        "matricula": dados["matricula"],
+                    }
+                ),
+                502,
+            )
+
         return (
-            jsonify({"status": "ok", "mensagem": "Usuário cadastrado com sucesso."}),
+            jsonify(
+                {
+                    "status": "ok",
+                    "mensagem": "Funcionário cadastrado. Convite de primeiro acesso enviado.",
+                    "matricula": dados["matricula"],
+                }
+            ),
             201,
         )
 
@@ -836,10 +879,11 @@ def cadastrar_usuario():
         if conn:
             conn.rollback()
         return jsonify({"status": "erro", "mensagem": str(exc)}), 403
-    except ValueError as exc:
+    except (ValueError, BiometricGovernanceError) as exc:
         if conn:
             conn.rollback()
-        return jsonify({"status": "erro", "mensagem": str(exc)}), 400
+        status_code = exc.status if isinstance(exc, BiometricGovernanceError) else 400
+        return jsonify({"status": "erro", "mensagem": str(exc)}), status_code
     except psycopg2.errors.UniqueViolation:
         if conn:
             conn.rollback()
@@ -873,39 +917,352 @@ def cadastrar_usuario():
 # FUNÇÃO PRINCIPAL - CADASTRO DE EMPRESAS
 # ==================================================================================================
 @views_bp.route("/cadastrar_empresa", methods=["POST"])
-@require_roles("administrador")
+@require_roles("administrador_geral")
 def cadastrar_empresa():
     conn = None
     cursor = None
 
     try:
-        dadosEmp = request.get_json()
+        dados_emp = request.get_json(silent=True) or {}
+        nome = " ".join(str(dados_emp.get("nome") or dados_emp.get("razao") or "").split())
+        cnpj = re.sub(r"\D", "", str(dados_emp.get("cnpj") or ""))
+        if not nome:
+            raise ValueError("Razão social é obrigatória.")
+        if len(cnpj) != 14:
+            raise ValueError("CNPJ deve conter 14 dígitos.")
+
+        administrador_bruto = dados_emp.get("administrador")
+        if not isinstance(administrador_bruto, dict):
+            raise ValueError("Dados do primeiro administrador são obrigatórios.")
+        administrador = {
+            "nome": " ".join(str(administrador_bruto.get("nome") or "").split()),
+            "cpf": normalizar_cpf(administrador_bruto.get("cpf")),
+            "email": str(administrador_bruto.get("email") or "").strip().lower(),
+            "telefone": " ".join(
+                str(administrador_bruto.get("telefone") or "").split()
+            ) or None,
+        }
+        if not administrador["nome"]:
+            raise ValueError("Nome do primeiro administrador é obrigatório.")
+        if not cpf_valido(administrador["cpf"]):
+            raise ValueError("CPF do primeiro administrador é inválido.")
+        if not EMAIL_PATTERN.fullmatch(administrador["email"]):
+            raise ValueError("E-mail do primeiro administrador é inválido.")
+
+        credentials = first_access_credentials()
 
         conn = conectar_bd()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
-        cursor.execute(
-            """
-            INSERT INTO empresas_teste (cnpj, razao)
-            VALUES (%s, %s)
-            """,
-            (dadosEmp["cnpj"], dadosEmp["razao"]),
+        onboarding = create_company_with_initial_admin(
+            cursor,
+            company_name=nome,
+            cnpj=cnpj,
+            administrator=administrador,
+            credentials=credentials,
+            actor_user_id=g.auth_context["user_id"],
+            invitation_minutes=current_app.config["PASSWORD_RESET_TOKEN_MINUTES"],
         )
-
         conn.commit()
 
-        return jsonify({"status": "ok", "mensagem": "Empresa cadastrada com sucesso"})
+        invitation_status = "enviado"
+        message = "Empresa e primeiro administrador cadastrados. Convite enviado por e-mail."
+        try:
+            send_password_reset_email(
+                administrador["email"],
+                credentials["raw_token"],
+                current_app.config["PASSWORD_RESET_TOKEN_MINUTES"],
+            )
+        except EmailDeliveryError:
+            invitation_status = "falhou"
+            message = (
+                "Empresa e administrador cadastrados, mas o convite não pôde ser "
+                "enviado. Reenvie-o pelo painel da plataforma."
+            )
+            LOGGER.exception("Empresa criada, mas o convite do administrador falhou.")
 
-    except Exception as e:
+        return (
+            jsonify(
+                {
+                    "status": "ok" if invitation_status == "enviado" else "aviso",
+                    "mensagem": message,
+                    **onboarding,
+                    "matricula": onboarding["administrador"]["matricula"],
+                    "convite": {
+                        "status": invitation_status,
+                        "reenviavel": True,
+                    },
+                }
+            ),
+            201,
+        )
+
+    except CompanyOnboardingConflict as exc:
         if conn:
             conn.rollback()
-        return jsonify({"status": "erro", "mensagem": str(e)})
+        return jsonify({"status": "erro", "mensagem": str(exc)}), 409
+    except ValueError as exc:
+        if conn:
+            conn.rollback()
+        return jsonify({"status": "erro", "mensagem": str(exc)}), 400
+    except psycopg2.errors.UniqueViolation:
+        if conn:
+            conn.rollback()
+        return jsonify({"status": "erro", "mensagem": "CNPJ, CPF ou e-mail já cadastrado."}), 409
+    except Exception:
+        if conn:
+            conn.rollback()
+        LOGGER.exception("Falha ao cadastrar empresa.")
+        return jsonify({"status": "erro", "mensagem": "Não foi possível cadastrar a empresa."}), 500
 
     finally:
         if cursor:
             cursor.close()
         if conn:
             conn.close()
+
+
+@views_bp.patch("/api/plataforma/empresas/<empresa_id>/status")
+@require_roles("administrador_geral")
+def atualizar_status_empresa(empresa_id):
+    try:
+        identifier = uuid_obrigatorio(empresa_id, "Empresa")
+        status = str((request.get_json(silent=True) or {}).get("status") or "").strip()
+        if status not in {"ativa", "inativa"}:
+            raise ValueError("Status de empresa inválido.")
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 400
+
+    connection = conectar_bd()
+    try:
+        with connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute(
+                """UPDATE empresas SET status=%s, updated_at=clock_timestamp()
+                   WHERE id=%s AND status IS DISTINCT FROM %s
+                   RETURNING id, nome, cnpj, status, updated_at""",
+                (status, identifier, status),
+            )
+            company = cursor.fetchone()
+            if not company:
+                cursor.execute(
+                    "SELECT id, nome, cnpj, status, updated_at FROM empresas WHERE id=%s",
+                    (identifier,),
+                )
+                company = cursor.fetchone()
+            if not company:
+                connection.rollback()
+                return jsonify({"erro": "Empresa não encontrada."}), 404
+            cursor.execute(
+                """INSERT INTO auditoria (
+                       empresa_id, ator_usuario_id, acao,
+                       entidade_tipo, entidade_id, metadados
+                   ) VALUES (%s,%s,'empresa.status_alterado','empresa',%s,%s)""",
+                (
+                    identifier,
+                    g.auth_context["user_id"],
+                    identifier,
+                    psycopg2.extras.Json({"status": status}),
+                ),
+            )
+        connection.commit()
+        return jsonify({"empresa": company}), 200
+    except Exception:
+        connection.rollback()
+        LOGGER.exception("Falha ao alterar status da empresa.")
+        return jsonify({"erro": "Não foi possível alterar o status da empresa."}), 500
+    finally:
+        connection.close()
+
+
+@views_bp.get("/api/plataforma/resumo")
+@require_roles("administrador_geral")
+def resumo_plataforma():
+    connection = conectar_bd()
+    try:
+        with connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute(
+                """SELECT
+                     (SELECT count(*) FROM empresas) AS empresas_total,
+                     (SELECT count(*) FROM empresas WHERE status='ativa') AS empresas_ativas,
+                     (SELECT count(*) FROM empresas WHERE status='inativa') AS empresas_inativas,
+                     (SELECT count(*) FROM funcionarios WHERE status='ativo') AS funcionarios_ativos,
+                     (SELECT count(*) FROM terminais_ponto WHERE status='ativo') AS terminais_ativos,
+                     (SELECT count(*) FROM terminais_ponto WHERE status='revogado') AS terminais_revogados,
+                     (SELECT count(*) FROM usuarios
+                       WHERE primeiro_acesso_pendente=true) AS primeiros_acessos_pendentes"""
+            )
+            summary = cursor.fetchone()
+        return jsonify({"resumo": summary}), 200
+    finally:
+        connection.close()
+
+
+@views_bp.get("/api/plataforma/empresas/<empresa_id>")
+@require_roles("administrador_geral")
+def detalhe_empresa_plataforma(empresa_id):
+    try:
+        identifier = uuid_obrigatorio(empresa_id, "Empresa")
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 400
+
+    connection = conectar_bd()
+    try:
+        with connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute(
+                """SELECT id, nome, cnpj, status, created_at, updated_at
+                   FROM empresas WHERE id=%s""",
+                (identifier,),
+            )
+            company = cursor.fetchone()
+            if not company:
+                return jsonify({"erro": "Empresa não encontrada."}), 404
+            cursor.execute(
+                """SELECT
+                     (SELECT count(*) FROM unidades WHERE empresa_id=%s) AS unidades,
+                     (SELECT count(*) FROM equipes WHERE empresa_id=%s) AS equipes,
+                     (SELECT count(*) FROM funcionarios WHERE empresa_id=%s) AS funcionarios,
+                     (SELECT count(*) FROM funcionarios
+                       WHERE empresa_id=%s AND status='ativo') AS funcionarios_ativos,
+                     (SELECT count(*) FROM terminais_ponto WHERE empresa_id=%s) AS terminais,
+                     (SELECT count(*) FROM terminais_ponto
+                       WHERE empresa_id=%s AND status='ativo') AS terminais_ativos""",
+                (identifier,) * 6,
+            )
+            counts = cursor.fetchone()
+            cursor.execute(
+                """SELECT u.id, u.nome, u.email, u.status,
+                          u.primeiro_acesso_pendente, f.matricula
+                   FROM funcionarios f
+                   INNER JOIN usuarios u ON u.id=f.usuario_id
+                   WHERE f.empresa_id=%s AND f.perfil='administrador'
+                   ORDER BY u.nome""",
+                (identifier,),
+            )
+            administrators = cursor.fetchall()
+            cursor.execute(
+                """SELECT id, nome, status, created_at, revoked_at
+                   FROM terminais_ponto WHERE empresa_id=%s
+                   ORDER BY created_at DESC, id""",
+                (identifier,),
+            )
+            terminals = cursor.fetchall()
+        return jsonify(
+            {
+                "empresa": company,
+                "contadores": counts,
+                "administradores": administrators,
+                "terminais": terminals,
+            }
+        ), 200
+    finally:
+        connection.close()
+
+
+@views_bp.get("/api/plataforma/auditoria")
+@require_roles("administrador_geral")
+def auditoria_plataforma():
+    try:
+        limit = min(max(int(request.args.get("limite", "50")), 1), 100)
+    except ValueError:
+        return jsonify({"erro": "Limite inválido."}), 400
+    connection = conectar_bd()
+    try:
+        with connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute(
+                """SELECT a.id, a.acao, a.entidade_tipo, a.entidade_id,
+                          a.ocorrido_at, a.metadados, e.nome AS empresa,
+                          u.nome AS ator
+                   FROM auditoria a
+                   LEFT JOIN empresas e ON e.id=a.empresa_id
+                   LEFT JOIN usuarios u ON u.id=a.ator_usuario_id
+                   WHERE a.acao LIKE 'empresa.%%'
+                   ORDER BY a.ocorrido_at DESC, a.id DESC
+                   LIMIT %s""",
+                (limit,),
+            )
+            events = cursor.fetchall()
+        return jsonify({"auditoria": events}), 200
+    finally:
+        connection.close()
+
+
+@views_bp.post(
+    "/api/plataforma/empresas/<empresa_id>/administradores/<usuario_id>/reenviar-convite"
+)
+@require_roles("administrador_geral")
+def reenviar_convite_administrador(empresa_id, usuario_id):
+    try:
+        company_id = uuid_obrigatorio(empresa_id, "Empresa")
+        user_id = uuid_obrigatorio(usuario_id, "Usuário")
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 400
+
+    credentials = first_access_credentials()
+    connection = conectar_bd()
+    try:
+        with connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute(
+                """SELECT u.id, u.email
+                   FROM usuarios u
+                   INNER JOIN funcionarios f ON f.usuario_id=u.id
+                   WHERE u.id=%s AND f.empresa_id=%s AND f.perfil='administrador'
+                     AND u.primeiro_acesso_pendente=true AND u.status='bloqueado'
+                   FOR UPDATE OF u""",
+                (user_id, company_id),
+            )
+            administrator = cursor.fetchone()
+            if not administrator:
+                connection.rollback()
+                return jsonify({"erro": "Convite pendente não encontrado."}), 404
+            cursor.execute(
+                """UPDATE password_reset_tokens SET revoked_at=clock_timestamp()
+                   WHERE usuario_id=%s AND used_at IS NULL AND revoked_at IS NULL""",
+                (user_id,),
+            )
+            cursor.execute(
+                "UPDATE usuarios SET senha_hash=%s, updated_at=clock_timestamp() WHERE id=%s",
+                (credentials["password_hash"], user_id),
+            )
+            cursor.execute(
+                """INSERT INTO password_reset_tokens (
+                       usuario_id, token_hash, purpose, expires_at
+                   ) VALUES (%s,%s,'first_access',
+                             now() + (%s * interval '1 minute'))""",
+                (
+                    user_id,
+                    credentials["token_hash"],
+                    current_app.config["PASSWORD_RESET_TOKEN_MINUTES"],
+                ),
+            )
+            cursor.execute(
+                """INSERT INTO auditoria (
+                       empresa_id, ator_usuario_id, acao,
+                       entidade_tipo, entidade_id, metadados
+                   ) VALUES (%s,%s,'empresa.convite_reenviado','usuario',%s,%s)""",
+                (
+                    company_id,
+                    g.auth_context["user_id"],
+                    user_id,
+                    psycopg2.extras.Json({"perfil": "administrador"}),
+                ),
+            )
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        LOGGER.exception("Falha ao preparar reenvio de convite administrativo.")
+        return jsonify({"erro": "Não foi possível reenviar o convite."}), 500
+    finally:
+        connection.close()
+
+    try:
+        send_password_reset_email(
+            administrator["email"],
+            credentials["raw_token"],
+            current_app.config["PASSWORD_RESET_TOKEN_MINUTES"],
+        )
+    except EmailDeliveryError:
+        LOGGER.exception("Falha ao entregar convite administrativo reenviado.")
+        return jsonify({"erro": "Convite preparado, mas o e-mail não foi entregue."}), 502
+    return jsonify({"ok": True, "mensagem": "Convite reenviado."}), 200
 
 
 # ==================================================================================================
@@ -928,6 +1285,24 @@ def menu():
         nome=session.get("nome"),
         tipo=session.get("tipo"),
     )
+
+
+@views_bp.route("/autoatendimento")
+@require_roles("funcionario")
+def autoatendimento():
+    return redirect("/meu-ponto")
+
+
+@views_bp.route("/meu-ponto")
+@require_roles("funcionario")
+def meu_ponto():
+    return render_template("meuPonto.html")
+
+
+@views_bp.route("/minhas-solicitacoes")
+@require_roles("funcionario")
+def minhas_solicitacoes():
+    return render_template("minhasSolicitacoes.html")
 
 
 # ==================================================================================================
@@ -1152,21 +1527,25 @@ def listar_usuarios():
 # FUNÇÃO - LISTAGEM DE EMPRESAS (GERENCIAMENTO)
 # ==================================================================================================
 @views_bp.route("/listarEmpresas")
-@require_roles("administrador")
+@require_roles("administrador", "administrador_geral")
 def listar_empresas():
     try:
         conn = conectar_bd()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        cursor.execute(
-            """
-            SELECT id, nome
-            FROM empresas
-            WHERE id = %s AND status = 'ativa'
-            ORDER BY nome
-            """,
-            (g.auth_context["empresa_id"],),
-        )
+        if g.auth_context["perfil"] == "administrador_geral":
+            cursor.execute(
+                """SELECT id, nome, cnpj, status, created_at
+                   FROM empresas ORDER BY nome"""
+            )
+        else:
+            cursor.execute(
+                """SELECT id, nome, cnpj, status, created_at
+                   FROM empresas
+                   WHERE id = %s AND status = 'ativa'
+                   ORDER BY nome""",
+                (g.auth_context["empresa_id"],),
+            )
         empresas = cursor.fetchall()
 
         cursor.close()
@@ -1192,7 +1571,7 @@ def atualizar_usuario():
             request_data.get("funcionario_id"),
             "Funcionário",
         )
-        dados = validar_dados_administrativos(request_data)
+        dados = validar_dados_administrativos(request_data, matricula_required=False)
         empresa_id_autorizada(dados["empresa_id"])
 
         conn = conectar_bd()
@@ -1247,7 +1626,6 @@ def atualizar_usuario():
                 unidade_id = %s,
                 equipe_id = %s,
                 cargo_id = %s,
-                matricula = %s,
                 tipo_contrato = %s,
                 data_admissao = %s,
                 carga_horaria_semanal = %s,
@@ -1260,7 +1638,6 @@ def atualizar_usuario():
                 dados["unidade_id"],
                 dados["equipe_id"],
                 dados["cargo_id"],
-                dados["matricula"],
                 dados["tipo_contrato"],
                 dados["data_admissao"],
                 dados["carga_horaria_semanal"],
@@ -1330,7 +1707,7 @@ def atualizar_horarios():
 
 
 @views_bp.route("/api/admin/turnos", methods=["GET", "POST"])
-@require_roles("administrador")
+@require_roles("administrador", "rh", "gestor")
 def turnos_administrativos():
     conn = None
     cursor = None
@@ -1359,6 +1736,8 @@ def turnos_administrativos():
                 turnos.append(serializar_turno(turno))
             return jsonify({"turnos": turnos}), 200
 
+        if request.method == "POST" and g.auth_context["perfil"] != "administrador":
+            return jsonify({"erro": "Somente administrador altera turnos."}), 403
         dados = request.get_json(silent=True) or {}
         turno_data = validar_turno_payload(dados)
         cursor.execute(
@@ -1403,11 +1782,13 @@ def turnos_administrativos():
 
 
 @views_bp.route("/api/admin/turnos/<turno_id>", methods=["GET", "PUT"])
-@require_roles("administrador")
+@require_roles("administrador", "rh", "gestor")
 def turno_administrativo(turno_id):
     conn = None
     cursor = None
     try:
+        if request.method == "PUT" and g.auth_context["perfil"] != "administrador":
+            return jsonify({"erro": "Somente administrador altera turnos."}), 403
         turno_id = uuid_obrigatorio(turno_id, "Turno")
         dados = request.get_json(silent=True) or {}
         empresa_id = empresa_autenticada(dados if request.method == "PUT" else None)
@@ -1506,7 +1887,7 @@ def _password_reset_user(cursor, identifier):
     if "@" in identifier:
         cursor.execute(
             """
-            SELECT id, email, senha_hash, status
+            SELECT id, email, senha_hash, status, primeiro_acesso_pendente
             FROM usuarios
             WHERE email = %s AND status IN ('ativo', 'bloqueado')
             """,
@@ -1518,7 +1899,7 @@ def _password_reset_user(cursor, identifier):
             return None
         cursor.execute(
             """
-            SELECT id, email, senha_hash, status
+            SELECT id, email, senha_hash, status, primeiro_acesso_pendente
             FROM usuarios
             WHERE cpf = %s AND status IN ('ativo', 'bloqueado')
             """,
@@ -1539,7 +1920,11 @@ def enviar_token():
     try:
         user = _password_reset_user(cursor, identifier)
         if user:
-            purpose = "first_access" if not user["senha_hash"] else "password_reset"
+            purpose = (
+                "first_access"
+                if user.get("primeiro_acesso_pendente") or not user["senha_hash"]
+                else "password_reset"
+            )
             cursor.execute(
                 """
                 UPDATE password_reset_tokens
@@ -1668,8 +2053,8 @@ def resetar_senha():
     data = request.get_json(silent=True) or {}
     token = data.get("token")
     senha = data.get("new_password") or data.get("senha")
-    if not isinstance(senha, str) or len(senha) < 12:
-        return jsonify({"erro": "A senha deve possuir pelo menos 12 caracteres."}), 400
+    if not isinstance(senha, str) or not 12 <= len(senha) <= 128:
+        return jsonify({"erro": "A senha deve possuir entre 12 e 128 caracteres."}), 400
     if not isinstance(token, str) or not token:
         return jsonify({"erro": PASSWORD_RESET_INVALID_MESSAGE}), 400
 
@@ -1699,6 +2084,10 @@ def resetar_senha():
             """
             UPDATE usuarios
             SET senha_hash = %s,
+                primeiro_acesso_pendente = CASE
+                    WHEN %s = 'first_access' THEN false
+                    ELSE primeiro_acesso_pendente
+                END,
                 status = CASE
                     WHEN %s = 'first_access' AND status = 'bloqueado' THEN 'ativo'
                     ELSE status
@@ -1706,7 +2095,12 @@ def resetar_senha():
                 updated_at = now()
             WHERE id = %s
             """,
-            (senha_hash, reset_token["purpose"], reset_token["usuario_id"]),
+            (
+                senha_hash,
+                reset_token["purpose"],
+                reset_token["purpose"],
+                reset_token["usuario_id"],
+            ),
         )
         if reset_token["purpose"] == "first_access":
             cursor.execute(
@@ -2140,7 +2534,7 @@ def buscar_marcacao_por_idempotencia(cursor, empresa_id, chave_idempotencia):
         """
         SELECT id, funcionario_id, tentativa_facial_id, tipo, origem, estado,
                instante, chave_idempotencia, canal, precisao_metros,
-               distancia_unidade_metros
+               distancia_unidade_metros, jornada_evento_id
         FROM marcacoes
         WHERE empresa_id = %s AND chave_idempotencia = %s
         """,
@@ -2255,9 +2649,9 @@ def criar_marcacao_facial():
         if set(dados) - campos_permitidos:
             raise ValueError("A requisição contém campos não permitidos.")
 
-        tipo = str(dados.get("tipo") or "").strip()
-        if tipo not in ALLOWED_CLOCK_EVENT_TYPES:
-            raise ValueError("Tipo de marcação inválido.")
+        tipo_legado = str(dados.get("tipo") or "").strip() or None
+        if tipo_legado is not None and tipo_legado not in ALLOWED_CLOCK_EVENT_TYPES:
+            raise ValueError("Tipo legado de marcação inválido.")
         tentativa_facial_id = uuid_obrigatorio(
             dados.get("tentativa_facial_id"), "Tentativa facial"
         )
@@ -2278,7 +2672,6 @@ def criar_marcacao_facial():
                 str(existente["funcionario_id"]) == str(funcionario_id)
                 and existente["origem"] == "facial"
                 and str(existente["tentativa_facial_id"]) == tentativa_facial_id
-                and existente["tipo"] == tipo
                 and existente.get("canal") == "mobile"
             )
             if not mesma_operacao:
@@ -2328,28 +2721,31 @@ def criar_marcacao_facial():
         if cursor.fetchone():
             conn.rollback()
             return jsonify({"erro": "A tentativa facial já foi utilizada.", "codigo": "tentativa_facial_utilizada"}), 409
-        recente = buscar_marcacao_recente(cursor, empresa_id, funcionario_id)
-        if recente:
-            conn.rollback()
-            return resposta_marcacao_recente(recente)
-
-        cursor.execute(
-            """INSERT INTO marcacoes (
-                   empresa_id,funcionario_id,tentativa_facial_id,unidade_id,
-                   instante,tipo,origem,estado,chave_idempotencia,canal,
-                   latitude,longitude,precisao_metros,distancia_unidade_metros,
-                   localizacao_capturada_at,endereco_localizacao
-               ) VALUES (%s,%s,%s,%s,clock_timestamp(),%s,'facial','confirmada',
-                         %s,'mobile',%s,%s,%s,%s,%s,%s)
-               RETURNING id,tentativa_facial_id,tipo,origem,estado,instante,
-                         chave_idempotencia,canal,precisao_metros,
-                         distancia_unidade_metros""",
-            (empresa_id, funcionario_id, tentativa_facial_id, unidade["id"], tipo,
-             chave_idempotencia, location["latitude"], location["longitude"],
-             location["precisao_metros"], distance, location["capturada_at"],
-             None),
+        result = confirm_expected_event(
+            cursor, empresa_id, funcionario_id,
+            key=chave_idempotencia, channel="mobile",
+            facial_attempt_id=tentativa_facial_id,
+            actor_user_id=g.auth_context["user_id"], legacy_type=tipo_legado,
+            default_timezone=current_app.config.get("JOURNEY_DEFAULT_TIMEZONE", "UTC"),
+            grace_hours=current_app.config.get("JOURNEY_OPEN_GRACE_HOURS", 12),
+            minimum_interval_seconds=CLOCK_EVENT_MINIMUM_INTERVAL_SECONDS,
+            marking_fields={
+                "unidade_id": unidade["id"], "latitude": location["latitude"],
+                "longitude": location["longitude"],
+                "precisao_metros": location["precisao_metros"],
+                "distancia_unidade_metros": distance,
+                "localizacao_capturada_at": location["capturada_at"],
+                "endereco_localizacao": None,
+            },
         )
-        marcacao = cursor.fetchone()
+        if result["marking"] is None:
+            conn.commit()
+            return jsonify({
+                "erro": "A tentativa foi preservada e enviada para análise.",
+                "codigo": result["code"], "jornada": result["decision"],
+                "ocorrencia_id": result.get("occurrence_id"),
+            }), 409
+        marcacao = result["marking"]
         cursor.execute(
             """INSERT INTO auditoria (
                    empresa_id,ator_usuario_id,acao,entidade_tipo,entidade_id,
@@ -2360,7 +2756,7 @@ def criar_marcacao_facial():
              psycopg2.extras.Json({"unidade_id": str(unidade["id"]), "distancia_metros": round(distance, 2), "precisao_metros": location["precisao_metros"]})),
         )
         conn.commit()
-        return jsonify({"marcacao": serializar_marcacao(marcacao)}), 201
+        return jsonify({"marcacao": serializar_marcacao(marcacao), "jornada": result["decision"]}), 201
     except LocationValidationError as exc:
         if conn:
             conn.rollback()
@@ -2385,6 +2781,10 @@ def criar_marcacao_facial():
         if conn:
             conn.rollback()
         return jsonify({"erro": str(exc)}), 400
+    except JourneyError as exc:
+        if conn:
+            conn.rollback()
+        return jsonify({"erro": str(exc), "codigo": exc.code}), exc.status
     except psycopg2.errors.UniqueViolation:
         if conn:
             conn.rollback()
@@ -2652,9 +3052,13 @@ def deletar_usuario():
                 404,
             )
 
-        cursor.execute(
-            "UPDATE funcionarios SET status = 'desligado', updated_at = now() WHERE id = %s AND empresa_id = %s",
-            (funcionario_id, g.auth_context["empresa_id"]),
+        change_employee_status(
+            cursor,
+            company_id=g.auth_context["empresa_id"],
+            employee_id=str(funcionario_id),
+            actor_id=g.auth_user_id,
+            target_status="desligado",
+            away_policy=current_app.config["BIOMETRIC_AWAY_POLICY"],
         )
         cursor.execute(
             "SELECT 1 FROM funcionarios WHERE usuario_id = %s AND status = 'ativo' LIMIT 1",
@@ -2669,10 +3073,11 @@ def deletar_usuario():
         conn.commit()
         return jsonify({"status": "ok", "mensagem": "Vínculo desativado com sucesso."})
 
-    except ValueError as exc:
+    except (ValueError, BiometricGovernanceError) as exc:
         if conn:
             conn.rollback()
-        return jsonify({"status": "erro", "mensagem": str(exc)}), 400
+        status_code = exc.status if isinstance(exc, BiometricGovernanceError) else 400
+        return jsonify({"status": "erro", "mensagem": str(exc)}), status_code
     except Exception:
         if conn:
             conn.rollback()
@@ -2723,9 +3128,13 @@ def atualizar_status_usuario():
             )
 
         novo_status = "desligado" if funcionario["status"] == "ativo" else "ativo"
-        cursor.execute(
-            "UPDATE funcionarios SET status = %s, updated_at = now() WHERE id = %s AND empresa_id = %s",
-            (novo_status, funcionario_id, g.auth_context["empresa_id"]),
+        change_employee_status(
+            cursor,
+            company_id=g.auth_context["empresa_id"],
+            employee_id=str(funcionario_id),
+            actor_id=g.auth_user_id,
+            target_status=novo_status,
+            away_policy=current_app.config["BIOMETRIC_AWAY_POLICY"],
         )
         if novo_status == "ativo":
             cursor.execute(
@@ -2747,10 +3156,11 @@ def atualizar_status_usuario():
 
         return jsonify({"status": "ok", "novo_status": novo_status})
 
-    except ValueError as exc:
+    except (ValueError, BiometricGovernanceError) as exc:
         if conn:
             conn.rollback()
-        return jsonify({"status": "erro", "mensagem": str(exc)}), 400
+        status_code = exc.status if isinstance(exc, BiometricGovernanceError) else 400
+        return jsonify({"status": "erro", "mensagem": str(exc)}), status_code
     except Exception:
         if conn:
             conn.rollback()

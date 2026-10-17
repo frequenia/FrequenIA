@@ -1,4 +1,5 @@
 const selectEmpresa = document.getElementById("empresa");
+const empresaNome = document.getElementById("empresa_nome");
 const selectUnidade = document.getElementById("unidade");
 const selectEquipe = document.getElementById("equipe");
 const selectCargo = document.getElementById("cargo");
@@ -16,7 +17,14 @@ function preencherSelect(select, items, placeholder = "Selecione") {
 
 async function carregarEmpresas() {
   const response = await fetch("/listarEmpresas");
-  preencherSelect(selectEmpresa, await response.json());
+  const empresas = await response.json();
+  if (!response.ok || empresas.length !== 1) {
+    empresaNome.value = "Empresa não disponível";
+    return;
+  }
+  selectEmpresa.value = empresas[0].id;
+  empresaNome.value = empresas[0].nome;
+  await carregarEstruturaEmpresa();
 }
 
 async function carregarEstruturaEmpresa() {
@@ -86,12 +94,10 @@ async function cadastrarUsuario() {
     email: document.getElementById("email").value.trim(),
     telefone: document.getElementById("telefone").value.trim(),
     cpf: document.getElementById("cpf").value,
-    senha: document.getElementById("senha").value,
     empresa_id: selectEmpresa.value,
     unidade_id: selectUnidade.value,
     equipe_id: selectEquipe.value,
     cargo_id: selectCargo.value,
-    matricula: document.getElementById("matricula").value.trim(),
     perfil: document.getElementById("perfil").value,
     tipo_contrato: document.getElementById("tipo_contrato").value,
     data_admissao: document.getElementById("data_admissao").value,
@@ -104,10 +110,10 @@ async function cadastrarUsuario() {
     body: JSON.stringify(payload),
   });
   const result = await response.json();
-  alert(result.mensagem || (response.ok ? "Cadastro concluído." : "Não foi possível cadastrar."));
+  const matricula = result.matricula ? ` Matrícula: ${result.matricula}.` : "";
+  alert((result.mensagem || (response.ok ? "Cadastro concluído." : "Não foi possível cadastrar.")) + matricula);
   if (response.ok) document.getElementById("formCadastro").reset();
 }
 
-selectEmpresa.addEventListener("change", carregarEstruturaEmpresa);
 selectUnidade.addEventListener("change", carregarEquipes);
 carregarEmpresas();

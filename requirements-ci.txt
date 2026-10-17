@@ -1,0 +1,18 @@
+# Dependências mínimas e fixadas para a suíte automatizada. O runtime de
+# produção continua sendo definido por requirements-runtime.txt.
+beautifulsoup4==4.14.3
+boto3==1.40.70
+cfn-lint==1.41.0
+cloudinary==1.44.1
+Flask==3.1.3
+flask-cors==6.0.2
+numpy==2.2.6
+opencv-python-headless==4.13.0.92
+pgvector==0.4.2
+psycopg2-binary==2.9.11
+PyJWT==2.13.0
+python-dotenv==1.2.2
+python-docx==1.2.0
+requests==2.32.5
+reportlab==4.4.3
+Werkzeug==3.1.6

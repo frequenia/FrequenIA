@@ -13,13 +13,7 @@
     <p id="kiosk-status" role="status">Preparando a câmera…</p>
     <label for="matricula">Matrícula</label>
     <input id="matricula" name="matricula" autocomplete="off" inputmode="text" maxlength="128" required>
-    <label for="tipo">Tipo de marcação</label>
-    <select id="tipo" name="tipo">
-      <option value="entrada">Entrada</option>
-      <option value="saida_intervalo">Saída para intervalo</option>
-      <option value="retorno_intervalo">Retorno do intervalo</option>
-      <option value="saida">Saída</option>
-    </select>
+    <p id="proxima-marcacao">O servidor determinará a próxima marcação.</p>
     <div class="card camera-card"><div class="camera-container">
       <video id="video" class="camera-video" autoplay muted playsinline></video>
       <div class="camera-overlay" aria-hidden="true">

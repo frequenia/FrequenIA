@@ -51,7 +51,6 @@ void main() {
         }
         expect(request.url.path, '/api/marcacoes/facial');
         expect(jsonDecode(request.body), {
-          'tipo': 'entrada',
           'tentativa_facial_id': 'attempt-1',
           'localizacao': testLocation.toJson(),
         });
@@ -73,7 +72,6 @@ void main() {
 
       final result = await service.submit(
         imagePath: image.path,
-        type: ClockEventType.entrada,
         location: testLocation,
       );
 
@@ -101,7 +99,6 @@ void main() {
 
       final result = await service.submit(
         imagePath: image.path,
-        type: ClockEventType.saida,
         location: testLocation,
       );
 
@@ -144,7 +141,6 @@ void main() {
     try {
       await service.submit(
         imagePath: image.path,
-        type: ClockEventType.retornoIntervalo,
         location: testLocation,
       );
       fail('A primeira marcação deveria falhar.');
@@ -152,7 +148,6 @@ void main() {
       pending = error.operation;
     }
     final result = await service.submit(
-      type: ClockEventType.retornoIntervalo,
       retryOperation: pending,
     );
 
@@ -170,13 +165,11 @@ void main() {
 
     final first = service.submit(
       imagePath: image.path,
-      type: ClockEventType.entrada,
       location: testLocation,
     );
     await expectLater(
       service.submit(
         imagePath: image.path,
-        type: ClockEventType.entrada,
         location: testLocation,
       ),
       throwsA(isA<FaceClockBusyException>()),
@@ -219,7 +212,6 @@ void main() {
 
       await FaceClockService(api).submit(
         imagePath: image.path,
-        type: ClockEventType.entrada,
         location: testLocation,
       );
 
@@ -240,7 +232,6 @@ void main() {
     await expectLater(
       FaceClockService(api).submit(
         imagePath: image.path,
-        type: ClockEventType.entrada,
         location: testLocation,
       ),
       throwsA(

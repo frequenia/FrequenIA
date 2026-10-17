@@ -206,6 +206,14 @@ class WorkflowPolicyTests(unittest.TestCase):
         self.assertIn("encaminhar-rh", javascript)
         self.assertIn("acoes_permitidas", javascript)
         self.assertIn("historico", javascript)
+        for label in (
+            "Pendente com gestor",
+            "Encaminhada ao RH",
+            "Aprovada",
+            "Rejeitada",
+            "Cancelada",
+        ):
+            self.assertIn(label, javascript)
 
 
 if __name__ == "__main__":

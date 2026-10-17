@@ -39,6 +39,14 @@ body {
   justify-content: center;
 }
 
+.landing-logo {
+  display: block;
+  width: min(560px, 82vw);
+  height: auto;
+  max-height: 190px;
+  object-fit: contain;
+}
+
 .logo-text {
   font-size: 72px;
   font-weight: var(--font-weight-bold);
@@ -88,8 +96,8 @@ body {
 
 /* responsivo */
 @media (max-width: 768px) {
-  .logo-text {
-    font-size: 56px;
+  .landing-logo {
+    width: min(470px, 82vw);
   }
 
   .subtitle {
@@ -109,8 +117,8 @@ body {
     padding: 20px;
   }
 
-  .logo-text {
-    font-size: 44px;
+  .landing-logo {
+    width: min(360px, 86vw);
   }
 
   .subtitle {

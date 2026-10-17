@@ -1,7 +1,7 @@
 function validarSenha() {
   const senha = document.getElementById("novaSenha").value;
 
-  const tamanho = senha.length >= 12;
+  const tamanho = senha.length >= 12 && senha.length <= 128;
   const letra = /[a-z]/.test(senha);
   const letraMai = /[A-Z]/.test(senha);
   const numero = /[0-9]/.test(senha);
@@ -112,7 +112,7 @@ async function redefinirSenhaFinal() {
 function senhaValida() {
   const senha = document.getElementById("novaSenha").value;
 
-  const tamanho = senha.length >= 12;
+  const tamanho = senha.length >= 12 && senha.length <= 128;
   const letra = /[a-z]/.test(senha);
   const letraMai = /[A-Z]/.test(senha);
   const numero = /[0-9]/.test(senha);

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel da plataforma — FrequenIA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/plataforma.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+</head>
+<body>
+  <main class="platform-page">
+    <header class="platform-header">
+      <div>
+        <p class="eyebrow">Administração geral</p>
+        <h1>Visão da plataforma</h1>
+        <p>Acompanhe empresas, acessos iniciais e terminais sem abrir dados individuais de ponto.</p>
+      </div>
+      <button id="refresh" type="button" class="btn btn-secondary">Atualizar</button>
+    </header>
+
+    <p id="page-message" class="page-message" role="status" hidden></p>
+
+    <section class="summary-grid" aria-label="Resumo da plataforma">
+      <article class="summary-card"><span>Empresas</span><strong id="companies-total">—</strong><small id="companies-status">—</small></article>
+      <article class="summary-card"><span>Funcionários ativos</span><strong id="employees-active">—</strong><small>Somatório das empresas</small></article>
+      <article class="summary-card"><span>Terminais ativos</span><strong id="terminals-active">—</strong><small id="terminals-status">—</small></article>
+      <article class="summary-card"><span>Primeiros acessos</span><strong id="pending-access">—</strong><small>Convites ainda pendentes</small></article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <div><h2>Detalhes da empresa</h2><p>Informações operacionais e responsáveis administrativos.</p></div>
+        <select id="company-select" aria-label="Selecionar empresa"><option value="">Selecione uma empresa</option></select>
+      </div>
+      <div id="company-empty" class="empty-state">Selecione uma empresa para consultar os detalhes.</div>
+      <div id="company-detail" hidden>
+        <div class="company-title"><div><h3 id="company-name"></h3><p id="company-document"></p></div><span id="company-status" class="status-pill"></span></div>
+        <div id="company-counts" class="mini-grid"></div>
+
+        <h3>Responsáveis administrativos</h3>
+        <div class="table-wrap"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Matrícula</th><th>Situação</th><th>Ação</th></tr></thead><tbody id="admins-body"></tbody></table></div>
+
+        <h3>Terminais</h3>
+        <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Status</th><th>Criado em</th><th>Revogado em</th></tr></thead><tbody id="terminals-body"></tbody></table></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading"><div><h2>Auditoria da plataforma</h2><p>Últimas ações administrativas relacionadas às empresas.</p></div></div>
+      <div class="table-wrap"><table><thead><tr><th>Data</th><th>Ação</th><th>Empresa</th><th>Responsável</th></tr></thead><tbody id="audit-body"></tbody></table></div>
+    </section>
+  </main>
+  <script src="{{ url_for('static', filename='js/plataforma.js') }}"></script>
+</body>
+</html>

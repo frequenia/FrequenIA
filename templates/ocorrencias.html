@@ -30,6 +30,11 @@
       <button class="close" value="cancel" aria-label="Fechar">×</button>
       <h2>Detalhes da solicitação</h2>
       <dl id="detail-content"></dl>
+      <section class="timeline-section" aria-labelledby="attachment-title">
+        <h3 id="attachment-title">Comprovante</h3>
+        <div id="attachment-detail">Nenhum comprovante enviado.</div>
+        <button id="retry-scan" type="button" class="btn-secondary" hidden>Repetir análise de segurança</button>
+      </section>
       <section class="timeline-section"><h3>Histórico</h3><ol id="timeline" class="timeline"></ol></section>
       <label>Justificativa / observação<textarea id="observation" maxlength="1000" rows="3"></textarea></label>
       <p id="decision-error" class="error"></p>

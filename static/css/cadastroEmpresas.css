@@ -1,155 +1,173 @@
 .container {
-    padding: var(--spacing-2xl);
-    margin: 0 auto;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 30px;
 }
 
-.grid-2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--spacing-lg);
+.page-heading {
+  margin-bottom: 22px;
 }
 
-.grid-3 {
-    display: grid;
-    grid-template-columns: 2fr 1fr 2fr;
-    gap: var(--spacing-lg);
+.page-heading h1 {
+  margin: 4px 0 8px;
 }
 
-.mt {
-    margin-top: var(--spacing-lg);
+.page-heading p,
+.section-heading p {
+  margin: 0;
 }
 
-.telefone-linha {
-    display: grid;
-    grid-template-columns: 120px 1fr 1fr 110px 50px;
-    gap: var(--spacing-md);
-    align-items: center;
+.eyebrow {
+  color: var(--color-primary);
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
 }
 
-.btn-primary.full {
-    width: 25%;
-    margin: var(--spacing-xl) auto 0;
-    display: block;
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 20px;
 }
 
-#emails input {
-    margin-bottom: var(--spacing-sm);
+.section-heading h2 {
+  margin: 0 0 4px;
 }
 
-@media (max-width: 768px) {
-    .grid-2,
-    .grid-3,
-    .telefone-linha {
-        grid-template-columns: 1fr;
-    }
+.step {
+  display: inline-grid;
+  place-items: center;
+  min-width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
 }
 
-.email-linha {
-    display: grid;
-    grid-template-columns: 1fr 110px 50px;
-    gap: var(--spacing-md);
-    align-items: center;
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
 }
 
-
-select {
-    height: auto !important;
-    min-height: 44px;
-    padding: var(--spacing-md) var(--spacing-lg);
-    line-height: 1.2;
+.field {
+  display: grid;
+  gap: 6px;
 }
 
-.telefone-linha select {
-    padding-right: var(--spacing-lg);
+.field label {
+  margin: 0;
 }
 
-input, select {
-    display: flex;
-    align-items: center;
+.field label span {
+  color: var(--color-text-light);
+  font-size: .75rem;
+  font-weight: 500;
+  text-transform: none;
 }
 
-/* BOTÃO + */
-.btn-add {
-    font-size: 22px;
+.field input {
+  width: 100%;
+  min-height: 46px;
+  padding: 11px 13px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: var(--color-white);
+  color: var(--color-text-dark);
+  font: inherit;
 }
 
-.btn-add-email {
-    font-size: 22px;
+.field input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(15, 92, 140, .12);
+  outline: none;
 }
 
-/* ─── DARK MODE: CADASTRO EMPRESAS ───────────────────────── */
-
-body.dark-mode .container {
-    background-color: var(--background-color);
+.structure-preview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 18px;
+  margin-bottom: 18px;
+  border: 1px solid #bfd6e4;
+  border-radius: 14px;
+  background: #eef7fb;
 }
 
-/* textos */
-body.dark-mode label,
-body.dark-mode h2 {
-    color: var(--text-color);
+.structure-preview div {
+  display: grid;
+  gap: 3px;
 }
 
-/* inputs e selects (reforço, caso algum estilo sobrescreva) */
-body.dark-mode input,
-body.dark-mode select {
-    background-color: #1e1e1e;
-    color: #f1f1f1;
-    border: 1px solid var(--card-border);
+.structure-preview span {
+  color: #527184;
+  font-size: .76rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
 }
 
-/* placeholders */
-body.dark-mode input::placeholder {
-    color: var(--muted-text);
+.structure-preview strong {
+  color: #173f57;
 }
 
-/* cards (caso não esteja herdando corretamente) */
-body.dark-mode .card {
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    color: var(--text-color);
+.form-message {
+  padding: 13px 15px;
+  border-radius: 9px;
+  background: var(--color-danger-light);
+  color: #b42318;
 }
 
-/* botões */
-body.dark-mode .btn-primary {
-    background: var(--color-primary);
-    color: #fff;
+.form-message.success {
+  background: var(--color-success-light);
+  color: #067647;
 }
 
-body.dark-mode .btn-primary:hover {
-    background: var(--color-primary-dark);
+.form-message.warning {
+  background: var(--color-warning-light);
+  color: #92400e;
 }
 
-body.dark-mode .btn-secondary {
-    background: var(--color-primary);
-    color: var(--color-primary);
-    border: 1px solid var(--muted-text);
+.actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
-/* linhas dinâmicas (telefones/emails) */
-body.dark-mode .telefone-linha,
-body.dark-mode .email-linha {
-    color: var(--text-color);
+.actions .btn-primary {
+  min-width: 320px;
 }
 
-/* selects (dropdown aberto melhora visual) */
-body.dark-mode select option {
-    background: #1e1e1e;
-    color: #f1f1f1;
+body.dark-mode .field input {
+  background: #1e1e1e;
+  border-color: var(--card-border);
+  color: var(--text-color);
 }
 
-/* ─── BOTÕES DE AÇÃO (ADICIONAR / REMOVER) NO DARK MODE ─── */
-
-body.dark-mode .btn-add,
-body.dark-mode .telefone-linha .btn-secondary,
-body.dark-mode .email-linha .btn-secondary {
-    background: var(--color-primary);
-    color: #ffffff;
-    border: none;
+body.dark-mode .structure-preview {
+  background: #173342;
+  border-color: #315c70;
 }
 
-/* hover */
-body.dark-mode .btn-add:hover,
-body.dark-mode .telefone-linha .btn-secondary:hover,
-body.dark-mode .email-linha .btn-secondary:hover {
-    background: var(--color-primary-dark);
+body.dark-mode .structure-preview span,
+body.dark-mode .structure-preview strong {
+  color: #e6f3f8;
+}
+
+@media (max-width: 760px) {
+  .container {
+    padding: 18px;
+  }
+
+  .form-grid,
+  .structure-preview {
+    grid-template-columns: 1fr;
+  }
+
+  .actions .btn-primary {
+    width: 100%;
+    min-width: 0;
+  }
 }

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meu ponto — FrequenIA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/autoatendimento.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+</head>
+<body>
+  <main class="self-service-page">
+    <section class="hero">
+      <div>
+        <span class="eyebrow">Autoatendimento</span>
+        <h1>Meu ponto</h1>
+        <p>Consulte sua jornada e suas marcações ou solicite uma correção. O registro de ponto é feito exclusivamente no quiosque.</p>
+      </div>
+      <span class="kiosk-notice">Ponto somente no quiosque</span>
+    </section>
+
+    <section class="summary-grid" aria-label="Resumo">
+      <article class="summary-card">
+        <span>Jornada de hoje</span>
+        <strong id="scheduleName">Carregando...</strong>
+        <small id="schedulePeriods"></small>
+      </article>
+      <article class="summary-card">
+        <span>Última marcação</span>
+        <strong id="lastMark">Carregando...</strong>
+        <small id="lastMarkType"></small>
+      </article>
+      <article class="summary-card">
+        <span>Solicitações em análise</span>
+        <strong id="pendingCount">—</strong>
+        <small>Com gestor ou RH</small>
+      </article>
+    </section>
+
+    <nav class="tabs" aria-label="Áreas do autoatendimento">
+      <button type="button" class="tab active" data-panel="marksPanel">Marcações</button>
+      <button type="button" class="tab" data-panel="schedulePanel">Jornada</button>
+      <button type="button" class="tab" data-panel="requestsPanel">Solicitações</button>
+    </nav>
+
+    <section id="marksPanel" class="panel active" aria-labelledby="Marcações">
+      <div class="panel-heading">
+        <div><h2>Minhas marcações</h2><p>Histórico das marcações confirmadas no sistema.</p></div>
+        <button type="button" class="btn-secondary" id="refreshMarks">Atualizar</button>
+      </div>
+      <div id="marksList" class="item-list" aria-live="polite"></div>
+    </section>
+
+    <section id="schedulePanel" class="panel" aria-labelledby="Jornada" hidden>
+      <div class="panel-heading"><div><h2>Minha jornada</h2><p>Consulte a jornada atribuída para uma data.</p></div></div>
+      <div class="date-filter">
+        <label for="scheduleDate">Data</label>
+        <input id="scheduleDate" type="date">
+        <button type="button" class="btn-primary" id="searchSchedule">Consultar</button>
+      </div>
+      <div id="scheduleDetail" class="schedule-detail" aria-live="polite"></div>
+    </section>
+
+    <section id="requestsPanel" class="panel" aria-labelledby="Solicitações" hidden>
+      <div class="panel-heading">
+        <div><h2>Minhas solicitações</h2><p>Acompanhe correções de ponto e a decisão do gestor ou RH.</p></div>
+        <button type="button" class="btn-primary" id="openRequest">Nova solicitação</button>
+      </div>
+      <div id="requestsList" class="item-list" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <dialog id="requestDialog">
+    <form id="requestForm" class="dialog-card">
+      <button type="button" class="dialog-close" id="closeRequest" aria-label="Fechar">×</button>
+      <h2>Nova solicitação</h2>
+      <p>Informe o que precisa ser corrigido. A marcação original será preservada.</p>
+
+      <label for="requestType">Tipo de solicitação</label>
+      <select id="requestType" required>
+        <option value="esquecimento_marcacao">Esquecimento de marcação</option>
+        <option value="horario_incorreto">Horário incorreto</option>
+        <option value="tipo_incorreto">Tipo incorreto</option>
+        <option value="justificativa">Justificativa</option>
+      </select>
+
+      <div id="originalMarkField" hidden>
+        <label for="originalMark">Marcação original</label>
+        <select id="originalMark"></select>
+      </div>
+
+      <div id="requestedInstantField">
+        <label for="requestedInstant">Data e horário solicitados</label>
+        <input id="requestedInstant" type="datetime-local">
+      </div>
+
+      <div id="requestedMarkTypeField">
+        <label for="requestedMarkType">Tipo da marcação</label>
+        <select id="requestedMarkType">
+          <option value="entrada">Entrada</option>
+          <option value="saida_intervalo">Saída para intervalo</option>
+          <option value="retorno_intervalo">Retorno do intervalo</option>
+          <option value="saida">Saída</option>
+        </select>
+      </div>
+
+      <label for="requestReason">Motivo</label>
+      <textarea id="requestReason" rows="4" maxlength="1000" required placeholder="Explique o que aconteceu"></textarea>
+      <label for="requestAttachment">Comprovante opcional</label>
+      <input id="requestAttachment" name="comprovante" type="file" accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png">
+      <small>PDF, JPEG ou PNG, com no máximo 10 MiB. O arquivo será baixado, nunca exibido automaticamente.</small>
+      <p id="requestError" class="form-error" role="alert"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn-secondary" id="cancelRequest">Voltar</button>
+        <button type="submit" class="btn-primary" id="submitRequest">Enviar solicitação</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="{{ url_for('static', filename='js/autoatendimento.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/dark-mode.js') }}"></script>
+</body>
+</html>

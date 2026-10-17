@@ -38,7 +38,7 @@ void main() {
     final requests = <http.Request>[];
     final client = MockClient((request) async {
       requests.add(request);
-      if (request.url.path == '/login') {
+      if (request.url.path == '/api/mobile/login') {
         expect(jsonDecode(request.body), {'cpf': '12345678901', 'senha': 'x'});
         return jsonResponse({
           'access_token': 'access-a',
@@ -59,7 +59,10 @@ void main() {
     expect(controller.user, meResponse);
     expect(store.tokens?.accessToken, 'access-a');
     expect(store.tokens?.refreshToken, 'refresh-a');
-    expect(requests.map((request) => request.url.path), ['/login', '/auth/me']);
+    expect(requests.map((request) => request.url.path), [
+      '/api/mobile/login',
+      '/auth/me',
+    ]);
   });
 
   test('login inválido não salva tokens', () async {

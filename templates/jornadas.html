@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/jornadas.css') }}">
 </head>
-<body>
+<body data-perfil="{{ perfil }}">
   <main class="jornadas-page">
     <div class="page-heading">
       <div>
@@ -117,6 +117,22 @@
           <button type="submit" id="atribuirTurno" class="btn-primary">Atribuir turno</button>
         </div>
       </form>
+    </section>
+
+    <section class="card" aria-labelledby="tituloEscalaDiaria">
+      <h2 id="tituloEscalaDiaria">Escala ou folga por data</h2>
+      <p>Uma exceção ativa tem prioridade sobre o turno vigente e preserva o histórico.</p>
+      <form id="formEscalaDiaria">
+        <div class="form-grid">
+          <div class="campo"><label for="dataEscala">Data</label><input type="date" id="dataEscala" required></div>
+          <div class="campo"><label for="tipoEscala">Regra</label><select id="tipoEscala"><option value="turno">Turno diferente</option><option value="folga">Folga</option></select></div>
+          <div class="campo"><label for="origemEscala">Origem</label><select id="origemEscala"><option value="escala">Escala</option><option value="troca">Troca</option><option value="ajuste">Ajuste</option></select></div>
+          <div class="campo"><label for="turnoEscala">Turno</label><select id="turnoEscala"><option value="">Selecione um turno</option></select></div>
+          <div class="campo campo-amplo"><label for="justificativaEscala">Justificativa</label><input id="justificativaEscala" maxlength="500" required></div>
+        </div>
+        <div class="acoes alinhada-esquerda"><button type="submit" id="salvarEscala" class="btn-primary">Salvar exceção</button></div>
+      </form>
+      <div id="historicoEscalas" class="empty-state">Selecione um funcionário.</div>
     </section>
 
     <section class="details-grid">

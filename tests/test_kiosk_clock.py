@@ -52,18 +52,19 @@ class KioskClockTests(unittest.TestCase):
     def call(self, connection, data=None, key="00000000-0000-0000-0000-000000000005"):
         with self.app.test_request_context("/api/quiosque/marcacoes/facial", method="POST", data=data or form(), headers={"Idempotency-Key": key}):
             g.terminal_context = {"terminal_id": TERMINAL_A, "empresa_id": COMPANY_A}
-            with patch("routes.kiosk.conectar_bd", return_value=connection), patch("routes.kiosk.register_vector"), patch("routes.kiosk.verify_passive_liveness", return_value=(True, .99)), patch("routes.kiosk.generate_biometric_embedding", return_value=VECTOR):
+            with patch("routes.kiosk.conectar_bd", return_value=connection), patch("routes.kiosk.register_vector"), patch("routes.kiosk._active_biometric", return_value={"embedding": VECTOR, "limiar": .68}), patch("routes.kiosk.verify_passive_liveness", return_value=(True, .99)), patch("routes.kiosk.generate_biometric_embedding", return_value=VECTOR):
                 return create_kiosk_facial_clock.__wrapped__()
 
     def test_active_terminal_company_a_marks_only_employee_resolved_in_company_a(self):
         marking = {"id": "00000000-0000-0000-0000-000000000006", "tentativa_facial_id": "00000000-0000-0000-0000-000000000007", "tipo": "entrada", "origem": "facial", "estado": "confirmada", "instante": __import__("datetime").datetime.now(__import__("datetime").timezone.utc), "chave_idempotencia": "00000000-0000-0000-0000-000000000005"}
-        cursor = Cursor([{"id": EMPLOYEE_A}, None, {"embedding": VECTOR}, None, ("00000000-0000-0000-0000-000000000007",), marking])
-        response, status = self.call(Connection(cursor))
+        cursor = Cursor([{"id": EMPLOYEE_A}, None, None, ("00000000-0000-0000-0000-000000000007",), marking])
+        with patch("routes.kiosk.confirm_expected_event", return_value={"marking": marking, "reused": False, "decision": {"estado": "aguardando"}}):
+            response, status = self.call(Connection(cursor))
         self.assertEqual(status, 201)
         employee_query = cursor.calls[0]
         self.assertIn("empresa_id=%s AND matricula=%s", employee_query[0])
         self.assertEqual(employee_query[1], (COMPANY_A, "A-01"))
-        self.assertIn("funcionario_id=%s", cursor.calls[3][0])
+        self.assertIn("funcionario_id = %s", cursor.calls[3][0])
         self.assertNotIn("<=>", " ".join(call[0] for call in cursor.calls))
 
     def test_company_b_employee_does_not_resolve_and_company_field_is_rejected(self):
@@ -75,20 +76,20 @@ class KioskClockTests(unittest.TestCase):
         self.assertEqual(status, 400)
 
     def test_liveness_and_non_match_never_insert_marking(self):
-        cursor = Cursor([{"id": EMPLOYEE_A}, None, {"embedding": VECTOR}, ("00000000-0000-0000-0000-000000000007",)])
+        cursor = Cursor([{"id": EMPLOYEE_A}, None, ("00000000-0000-0000-0000-000000000007",)])
         connection = Connection(cursor)
         with self.app.test_request_context("/api/quiosque/marcacoes/facial", method="POST", data=form(), headers={"Idempotency-Key": "00000000-0000-0000-0000-000000000005"}):
             g.terminal_context = {"terminal_id": TERMINAL_A, "empresa_id": COMPANY_A}
-            with patch("routes.kiosk.conectar_bd", return_value=connection), patch("routes.kiosk.register_vector"), patch("routes.kiosk.verify_passive_liveness", return_value=(False, .1)), patch("routes.kiosk.generate_biometric_embedding") as embedding:
+            with patch("routes.kiosk.conectar_bd", return_value=connection), patch("routes.kiosk.register_vector"), patch("routes.kiosk._active_biometric", return_value={"embedding": VECTOR, "limiar": .68}), patch("routes.kiosk.verify_passive_liveness", return_value=(False, .1)), patch("routes.kiosk.generate_biometric_embedding") as embedding:
                 _, status = create_kiosk_facial_clock.__wrapped__()
         self.assertEqual(status, 422); embedding.assert_not_called()
         self.assertNotIn("INSERT INTO marcacoes", " ".join(call[0] for call in cursor.calls))
 
-        cursor = Cursor([{"id": EMPLOYEE_A}, None, {"embedding": VECTOR}, ("00000000-0000-0000-0000-000000000007",)])
+        cursor = Cursor([{"id": EMPLOYEE_A}, None, ("00000000-0000-0000-0000-000000000007",)])
         connection = Connection(cursor)
         with self.app.test_request_context("/api/quiosque/marcacoes/facial", method="POST", data=form(), headers={"Idempotency-Key": "00000000-0000-0000-0000-000000000005"}):
             g.terminal_context = {"terminal_id": TERMINAL_A, "empresa_id": COMPANY_A}
-            with patch("routes.kiosk.conectar_bd", return_value=connection), patch("routes.kiosk.register_vector"), patch("routes.kiosk.verify_passive_liveness", return_value=(True, .99)), patch("routes.kiosk.generate_biometric_embedding", return_value=VECTOR), patch("routes.kiosk.compare_face_embeddings", return_value=(False, .9)):
+            with patch("routes.kiosk.conectar_bd", return_value=connection), patch("routes.kiosk.register_vector"), patch("routes.kiosk._active_biometric", return_value={"embedding": VECTOR, "limiar": .68}), patch("routes.kiosk.verify_passive_liveness", return_value=(True, .99)), patch("routes.kiosk.generate_biometric_embedding", return_value=VECTOR), patch("routes.kiosk.compare_face_embeddings", return_value=(False, .9)):
                 _, status = create_kiosk_facial_clock.__wrapped__()
         self.assertEqual(status, 409)
         self.assertNotIn("INSERT INTO marcacoes", " ".join(call[0] for call in cursor.calls))

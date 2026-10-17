@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minhas solicitações — FrequenIA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/autoatendimento.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/autoatendimento-separado.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+</head>
+<body>
+  <main class="self-service-page">
+    <section class="hero"><div><span class="eyebrow">Correções de ponto</span><h1>Minhas solicitações</h1><p>Solicite uma correção e acompanhe a análise do gestor e do RH.</p></div><button type="button" class="hero-action" id="openRequest">Nova solicitação</button></section>
+    <section class="summary-grid one-column" aria-label="Resumo"><article class="summary-card"><span>Solicitações em análise</span><strong id="pendingCount">—</strong><small>Pendentes com gestor ou encaminhadas ao RH</small></article></section>
+    <section class="panel">
+      <div class="panel-heading"><div><h2>Histórico de solicitações</h2><p>Acompanhe o estado e as observações de cada pedido.</p></div><button type="button" class="btn-secondary" id="refreshRequests">Atualizar</button></div>
+      <div id="requestsList" class="item-list" aria-live="polite"></div>
+    </section>
+  </main>
+  <dialog id="requestDialog">
+    <form id="requestForm" class="dialog-card">
+      <button type="button" class="dialog-close" id="closeRequest" aria-label="Fechar">×</button>
+      <h2>Nova solicitação</h2><p>Informe o que precisa ser corrigido. A marcação original será preservada.</p>
+      <label for="requestType">Tipo de solicitação</label>
+      <select id="requestType" required><option value="esquecimento_marcacao">Esquecimento de marcação</option><option value="horario_incorreto">Horário incorreto</option><option value="tipo_incorreto">Tipo incorreto</option><option value="justificativa">Justificativa</option></select>
+      <div id="originalMarkField" hidden><label for="originalMark">Marcação original</label><select id="originalMark"></select></div>
+      <div id="requestedInstantField"><label for="requestedInstant">Data e horário solicitados</label><input id="requestedInstant" type="datetime-local"></div>
+      <div id="requestedMarkTypeField"><label for="requestedMarkType">Tipo da marcação</label><select id="requestedMarkType"><option value="entrada">Entrada</option><option value="saida_intervalo">Saída para intervalo</option><option value="retorno_intervalo">Retorno do intervalo</option><option value="saida">Saída</option></select></div>
+      <label for="requestReason">Motivo</label><textarea id="requestReason" rows="4" maxlength="1000" required placeholder="Explique o que aconteceu"></textarea>
+      <label for="requestAttachment">Comprovante opcional</label>
+      <input id="requestAttachment" name="comprovante" type="file" accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png">
+      <small>PDF, JPEG ou PNG, com no máximo 10 MiB. O arquivo será baixado, nunca exibido automaticamente.</small>
+      <p id="requestError" class="form-error" role="alert"></p>
+      <div class="dialog-actions"><button type="button" class="btn-secondary" id="cancelRequest">Voltar</button><button type="submit" class="btn-primary" id="submitRequest">Enviar solicitação</button></div>
+    </form>
+  </dialog>
+  <script src="{{ url_for('static', filename='js/minhasSolicitacoes.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/dark-mode.js') }}"></script>
+</body>
+</html>

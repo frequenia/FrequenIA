@@ -24,15 +24,25 @@ class _ClockPageState extends State<ClockPage> {
   bool busy = false;
   String instruction = 'Posicione seu rosto dentro da moldura';
   String? failure;
-  ClockEventType selectedType = ClockEventType.entrada;
   FaceClockOperation? pendingOperation;
+  Map<String, dynamic>? journey;
 
   @override
   void initState() {
     super.initState();
     service = FaceClockService(widget.api);
     locationService = MobileLocationService(widget.api);
+    loadNextMarking();
     initialize();
+  }
+
+  Future<void> loadNextMarking() async {
+    try {
+      final response = await widget.api.get('/api/marcacoes/proxima');
+      if (mounted) setState(() => journey = Map<String, dynamic>.from(response['jornada'] as Map));
+    } catch (_) {
+      if (mounted) setState(() => journey = null);
+    }
   }
 
   Future<void> initialize() async {
@@ -99,7 +109,6 @@ class _ClockPageState extends State<ClockPage> {
       captured = await camera!.takePicture();
       final result = await service.submit(
         imagePath: captured.path,
-        type: selectedType,
         location: location.snapshot,
       );
       if (!mounted) return;
@@ -113,6 +122,7 @@ class _ClockPageState extends State<ClockPage> {
       }
       pendingOperation = null;
       await showReceipt(result.marking!);
+      await loadNextMarking();
       if (mounted) Navigator.pop(context, true);
     } on FaceClockMarkException catch (exception) {
       if (mounted) {
@@ -174,12 +184,12 @@ class _ClockPageState extends State<ClockPage> {
     });
     try {
       final result = await service.submit(
-        type: operation.type,
         retryOperation: operation,
       );
       if (!mounted) return;
       pendingOperation = null;
       await showReceipt(result.marking!);
+      await loadNextMarking();
       if (mounted) Navigator.pop(context, true);
     } on FaceClockMarkException catch (exception) {
       if (mounted) {
@@ -418,29 +428,11 @@ class _ClockPageState extends State<ClockPage> {
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          DropdownButtonFormField<ClockEventType>(
-                            initialValue: selectedType,
-                            dropdownColor: const Color(0xFF0B273F),
-                            style: const TextStyle(color: Colors.white),
-                            decoration: const InputDecoration(
-                              labelText: 'Tipo de marcação',
-                              labelStyle: TextStyle(color: Colors.white70),
-                            ),
-                            items: ClockEventType.values
-                                .map(
-                                  (type) => DropdownMenuItem(
-                                    value: type,
-                                    child: Text(type.label),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: busy
-                                ? null
-                                : (value) {
-                                    if (value != null) {
-                                      setState(() => selectedType = value);
-                                    }
-                                  },
+                          const SizedBox(height: 10),
+                          Text(
+                            _journeyMessage(journey),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white70),
                           ),
                           if (busy) ...[
                             const SizedBox(height: 14),
@@ -488,6 +480,20 @@ class _ClockPageState extends State<ClockPage> {
             ),
     );
   }
+}
+
+String _journeyMessage(Map<String, dynamic>? journey) {
+  if (journey == null) return 'Consultando a próxima marcação…';
+  final state = journey['estado']?.toString();
+  final next = journey['proximo'];
+  if (next is Map && next['label'] != null) return 'Próxima marcação: ${next['label']}';
+  return switch (state) {
+    'concluida' => 'Jornada concluída',
+    'folga' => 'Folga programada',
+    'sem_jornada' => 'Sem jornada configurada',
+    'excecao' => 'Jornada enviada para análise',
+    _ => 'Próxima marcação indisponível',
+  };
 }
 
 class FaceOverlayPainter extends CustomPainter {

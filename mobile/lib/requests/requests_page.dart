@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -13,6 +14,7 @@ class RequestsPage extends StatefulWidget {
 }
 
 class _RequestsPageState extends State<RequestsPage> {
+  static const int _maxAttachmentBytes = 10 * 1024 * 1024;
   List<Map<String, dynamic>> rows = [];
   bool loading = false;
   String? failure;
@@ -58,6 +60,70 @@ class _RequestsPageState extends State<RequestsPage> {
     return '${DateFormat("yyyy-MM-dd'T'HH:mm:ss").format(local)}$sign${two(offset.abs().inHours)}:${two(offset.abs().inMinutes.remainder(60))}';
   }
 
+  Future<PlatformFile?> _pickAttachment() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png'],
+      allowMultiple: false,
+      withData: false,
+    );
+    final file = result?.files.single;
+    if (file == null) return null;
+    if (file.path == null || file.path!.isEmpty) {
+      throw const ApiException(
+        'Não foi possível acessar o arquivo selecionado.',
+      );
+    }
+    if (file.size == 0) {
+      throw const ApiException('O comprovante está vazio.');
+    }
+    if (file.size > _maxAttachmentBytes) {
+      throw const ApiException('O comprovante deve ter no máximo 10 MiB.');
+    }
+    return file;
+  }
+
+  String _attachmentMime(String name) {
+    final extension = name.toLowerCase().split('.').last;
+    return extension == 'pdf'
+        ? 'application/pdf'
+        : extension == 'png'
+        ? 'image/png'
+        : 'image/jpeg';
+  }
+
+  Future<void> replaceAttachment(String correctionId) async {
+    try {
+      final file = await _pickAttachment();
+      if (file == null) return;
+      await widget.api.postMultipart(
+        '/api/ocorrencias/$correctionId/comprovante',
+        fieldName: 'comprovante',
+        filePath: file.path!,
+        method: 'PUT',
+        mimeType: _attachmentMime(file.name),
+      );
+      await load();
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    }
+  }
+
+  Future<void> removeAttachment(String correctionId) async {
+    try {
+      await widget.api.delete('/api/ocorrencias/$correctionId/comprovante');
+      await load();
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    }
+  }
+
   Future<void> createRequest() async {
     List<Map<String, dynamic>> markings = [];
     try {
@@ -76,6 +142,7 @@ class _RequestsPageState extends State<RequestsPage> {
         requestedTime = TextEditingController(text: '08:00');
     String category = 'esquecimento_marcacao', markingType = 'entrada';
     String? markingId;
+    PlatformFile? attachment;
     DateTime day = DateTime.now();
     final created = await showModalBottomSheet<bool>(
       context: context,
@@ -212,6 +279,38 @@ class _RequestsPageState extends State<RequestsPage> {
                         ? 'Informe o motivo'
                         : null,
                   ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      try {
+                        final selected = await _pickAttachment();
+                        if (selected != null) {
+                          update(() => attachment = selected);
+                        }
+                      } on ApiException catch (error) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(error.message)),
+                          );
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.attach_file),
+                    label: Text(
+                      attachment == null
+                          ? 'Adicionar comprovante opcional'
+                          : attachment!.name,
+                    ),
+                  ),
+                  const Text(
+                    'PDF, JPEG ou PNG, com no máximo 10 MiB.',
+                    textAlign: TextAlign.center,
+                  ),
+                  if (attachment != null)
+                    TextButton(
+                      onPressed: () => update(() => attachment = null),
+                      child: const Text('Remover arquivo selecionado'),
+                    ),
                   const SizedBox(height: 18),
                   FilledButton(
                     onPressed: () async {
@@ -249,7 +348,19 @@ class _RequestsPageState extends State<RequestsPage> {
                         body['tipo_marcacao_solicitado'] = markingType;
                       }
                       try {
-                        await widget.api.post('/api/ocorrencias', body);
+                        if (attachment == null) {
+                          await widget.api.post('/api/ocorrencias', body);
+                        } else {
+                          await widget.api.postMultipart(
+                            '/api/ocorrencias',
+                            fieldName: 'comprovante',
+                            filePath: attachment!.path!,
+                            fields: body.map(
+                              (key, value) => MapEntry(key, value.toString()),
+                            ),
+                            mimeType: _attachmentMime(attachment!.name),
+                          );
+                        }
                         if (context.mounted) {
                           Navigator.pop(context, true);
                         }
@@ -351,13 +462,42 @@ class _RequestsPageState extends State<RequestsPage> {
                         _dateLabel(item['criada_em']),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
+                      const SizedBox(height: 8),
+                      if (item['comprovante'] case final Map attachment)
+                        Text(
+                          '${attachment['nome']} · ${attachment['tipo_mime']} · ${_sizeLabel(attachment['tamanho_bytes'])} · ${_attachmentSecurityLabel(attachment)}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        )
+                      else
+                        Text(
+                          'Sem comprovante',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                       if (item['status'] == 'pendente_gestor')
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () => cancel(item['id'].toString()),
-                            child: const Text('Cancelar'),
-                          ),
+                        Wrap(
+                          alignment: WrapAlignment.end,
+                          children: [
+                            TextButton.icon(
+                              onPressed: () =>
+                                  replaceAttachment(item['id'].toString()),
+                              icon: const Icon(Icons.attach_file),
+                              label: Text(
+                                item['comprovante'] == null
+                                    ? 'Adicionar comprovante'
+                                    : 'Substituir comprovante',
+                              ),
+                            ),
+                            if (item['comprovante'] != null)
+                              TextButton(
+                                onPressed: () =>
+                                    removeAttachment(item['id'].toString()),
+                                child: const Text('Remover comprovante'),
+                              ),
+                            TextButton(
+                              onPressed: () => cancel(item['id'].toString()),
+                              child: const Text('Cancelar'),
+                            ),
+                          ],
                         ),
                     ],
                   ),
@@ -395,3 +535,17 @@ String _dateLabel(dynamic value) {
       ? 'Data não informada'
       : DateFormat('dd/MM/yyyy HH:mm').format(parsed.toLocal());
 }
+
+String _sizeLabel(dynamic value) {
+  final bytes = int.tryParse(value?.toString() ?? '') ?? 0;
+  return '${(bytes / 1024).toStringAsFixed(1)} KiB';
+}
+
+String _attachmentSecurityLabel(Map attachment) =>
+    const {
+      'analisando': 'Analisando',
+      'disponivel': 'Disponível',
+      'bloqueado': 'Bloqueado',
+      'falha_temporaria': 'Falha temporária',
+    }[attachment['situacao']] ??
+    'Bloqueado';

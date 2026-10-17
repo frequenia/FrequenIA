@@ -26,9 +26,7 @@ def _load_persistent_authentication():
                 token.strip(),
                 current_app.config["JWT_SECRET_KEY"],
                 algorithms=[JWT_ALGORITHM],
-                options={
-                    "require": ["sub", "funcionario_id", "sid", "iat", "exp"]
-                },
+                options={"require": ["sub", "sid", "iat", "exp"]},
             )
         except jwt.ExpiredSignatureError:
             return None, _unauthorized("Token de acesso expirado.")
@@ -41,24 +39,31 @@ def _load_persistent_authentication():
         auth_session = buscar_sessao_access(
             payload["sid"],
             payload["sub"],
-            payload["funcionario_id"],
+            payload.get("funcionario_id"),
         )
         if not auth_session:
             return None, _unauthorized("Token de acesso inválido.")
 
         context = {
             "user_id": str(payload["sub"]),
-            "funcionario_id": str(payload["funcionario_id"]),
+            "funcionario_id": (
+                str(auth_session["funcionario_id"])
+                if auth_session["funcionario_id"] is not None
+                else None
+            ),
             "session_id": str(payload["sid"]),
             "familia_id": str(auth_session["familia_id"]),
-            "empresa_id": str(auth_session["empresa_id"]),
+            "empresa_id": (
+                str(auth_session["empresa_id"])
+                if auth_session["empresa_id"] is not None
+                else None
+            ),
             "perfil": auth_session["perfil"],
         }
         return context, None
 
     required_session_fields = (
         "user_id",
-        "funcionario_id",
         "auth_session_id",
     )
     if not all(session.get(field) for field in required_session_fields):
@@ -67,7 +72,7 @@ def _load_persistent_authentication():
     auth_session = buscar_sessao_access(
         session["auth_session_id"],
         session["user_id"],
-        session["funcionario_id"],
+        session.get("funcionario_id"),
     )
     if not auth_session:
         session.clear()
@@ -75,10 +80,18 @@ def _load_persistent_authentication():
 
     context = {
         "user_id": str(auth_session["user_id"]),
-        "funcionario_id": str(auth_session["funcionario_id"]),
+        "funcionario_id": (
+            str(auth_session["funcionario_id"])
+            if auth_session["funcionario_id"] is not None
+            else None
+        ),
         "session_id": str(auth_session["session_id"]),
         "familia_id": str(auth_session["familia_id"]),
-        "empresa_id": str(auth_session["empresa_id"]),
+        "empresa_id": (
+            str(auth_session["empresa_id"])
+            if auth_session["empresa_id"] is not None
+            else None
+        ),
         "perfil": auth_session["perfil"],
     }
     return context, None

@@ -24,7 +24,7 @@
 <body>
 
   {% set perfil_labels = {
-    'administrador': 'Administrador',
+    'administrador': 'Gestor de RH / Administrador da empresa',
     'funcionario': 'Funcionário',
     'gestor': 'Gestor',
     'rh': 'RH'
@@ -130,7 +130,37 @@
       </div>
     </section>
 
+    <section class="card" id="governanca-biometrica" aria-live="polite">
+      <h3>Biometria</h3>
+      <p id="biometria-estado">Consultando estado biométrico…</p>
+      <p id="biometria-aviso"></p>
+      <p id="biometria-atendimento"></p>
+    </section>
+
   </div>
+
+  <script>
+    (() => {
+      const labels = {
+        ativa: "Ativa", bloqueada: "Bloqueada",
+        recadastro_necessario: "Recadastro necessário",
+        exclusao_pendente: "Exclusão pendente", eliminada: "Eliminada"
+      };
+      fetch("/api/biometria/estado", {credentials: "same-origin"})
+        .then((response) => response.ok ? response.json() : Promise.reject())
+        .then((data) => {
+          document.getElementById("biometria-estado").textContent = `Estado: ${labels[data.estado] || "Indisponível"}`;
+          document.getElementById("biometria-aviso").textContent = data.explicacao || "";
+          const policy = data.politica;
+          document.getElementById("biometria-atendimento").textContent = policy
+            ? `Aviso ${policy.versao_aviso}; retenção configurada: ${policy.retencao_dias} dias; atendimento: ${policy.canal_atendimento}.`
+            : "Política aprovada pendente. Novas operações biométricas permanecem bloqueadas.";
+        })
+        .catch(() => {
+          document.getElementById("biometria-estado").textContent = "Estado biométrico temporariamente indisponível.";
+        });
+    })();
+  </script>
 
 </body>
 

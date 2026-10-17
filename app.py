@@ -16,6 +16,16 @@ def positive_int_env(name, default):
         raise RuntimeError(f"{name} must be a positive integer.")
     return value
 
+
+def nonnegative_int_env(name, default):
+    try:
+        value = int(os.getenv(name, str(default)))
+    except ValueError as exc:
+        raise RuntimeError(f"{name} must be a non-negative integer.") from exc
+    if value < 0:
+        raise RuntimeError(f"{name} must be a non-negative integer.")
+    return value
+
 APP_ENV = os.getenv("APP_ENV", "production").strip().lower()
 VALID_APP_ENVIRONMENTS = {"development", "homologation", "production"}
 
@@ -132,6 +142,14 @@ app.config["FACE_VERIFICATION_MAX_COSINE_DISTANCE"] = (
     face_verification_max_cosine_distance
 )
 app.config["FACIAL_ATTEMPT_MAX_AGE_SECONDS"] = facial_attempt_max_age_seconds
+biometric_away_policy = os.getenv("BIOMETRIC_AWAY_POLICY", "bloquear").strip().lower()
+if biometric_away_policy not in {"bloquear", "revogar", "preservar"}:
+    raise RuntimeError("BIOMETRIC_AWAY_POLICY must be bloquear, revogar or preservar.")
+app.config["BIOMETRIC_AWAY_POLICY"] = biometric_away_policy
+app.config["JOURNEY_DEFAULT_TIMEZONE"] = os.getenv("JOURNEY_DEFAULT_TIMEZONE", "UTC").strip() or "UTC"
+app.config["JOURNEY_OPEN_GRACE_HOURS"] = positive_int_env("JOURNEY_OPEN_GRACE_HOURS", 12)
+app.config["JOURNEY_EARLY_TOLERANCE_MINUTES"] = nonnegative_int_env("JOURNEY_EARLY_TOLERANCE_MINUTES", 10)
+app.config["JOURNEY_LATE_TOLERANCE_MINUTES"] = nonnegative_int_env("JOURNEY_LATE_TOLERANCE_MINUTES", 10)
 
 if cors_origins:
     CORS(app, origins=cors_origins, supports_credentials=True)
@@ -142,6 +160,34 @@ def health():
     return jsonify(status="ok")
 
 
+@app.get("/ready")
+def ready():
+    from services.attachment_scanner import ScannerError, get_attachment_scanner
+    from services.correction_attachment_storage import (
+        AttachmentStorageError,
+        get_attachment_storage,
+    )
+    from services.attachment_outbox import asynchronous_scan_enabled
+    from services.attachment_queue import AttachmentQueueError, get_attachment_queue
+    dependencies = {"storage": False, "scanner": False, "signatures": False, "queue": False}
+    try:
+        dependencies["storage"] = bool(get_attachment_storage().healthcheck())
+    except AttachmentStorageError:
+        pass
+    try:
+        scanner=get_attachment_scanner()
+        dependencies["scanner"] = bool(scanner.healthcheck())
+        dependencies["signatures"] = bool(scanner.signatures_current())
+    except ScannerError:
+        pass
+    try:
+        dependencies["queue"] = bool(get_attachment_queue().healthcheck()) if asynchronous_scan_enabled() else True
+    except (AttachmentQueueError, RuntimeError):
+        pass
+    ready_state = all(dependencies.values())
+    return jsonify(status="ready" if ready_state else "not_ready", dependencies=dependencies), (200 if ready_state else 503)
+
+
 from routes.views import views_bp
 from routes.face import face_bp
 from routes.biometrics import biometrics_bp
@@ -149,6 +195,7 @@ from routes.timekeeping import timekeeping_bp
 from routes.occurrences import occurrences_bp
 from routes.kiosk import kiosk_bp
 from routes.mobile_location import mobile_location_bp
+from routes.journeys import journeys_bp
 
 app.register_blueprint(views_bp)
 app.register_blueprint(face_bp)
@@ -157,6 +204,7 @@ app.register_blueprint(timekeeping_bp)
 app.register_blueprint(occurrences_bp)
 app.register_blueprint(kiosk_bp)
 app.register_blueprint(mobile_location_bp)
+app.register_blueprint(journeys_bp)
 
 if __name__ == "__main__":
     app.run(

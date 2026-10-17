@@ -1,6 +1,5 @@
 const video = document.getElementById("video");
 const matricula = document.getElementById("matricula");
-const tipo = document.getElementById("tipo");
 const button = document.getElementById("btnRegistrar");
 const retryButton = document.getElementById("btnTentarCamera");
 const status = document.getElementById("kiosk-status");
@@ -114,7 +113,6 @@ function idempotencyKey() {
 async function resetAfterAttempt(message, state) {
   stopCamera();
   matricula.value = "";
-  tipo.value = "entrada";
   setStatus(message, state);
   resetTimer = setTimeout(openCamera, 2500);
 }
@@ -140,7 +138,6 @@ async function registerClock() {
 
     const formData = new FormData();
     formData.append("matricula", matricula.value.trim());
-    formData.append("tipo", tipo.value);
     formData.append("imagem", photo, "captura.jpg");
     const response = await fetch("/api/quiosque/marcacoes/facial", {
       method: "POST",
@@ -152,7 +149,10 @@ async function registerClock() {
       await resetAfterAttempt(body.erro || "Não foi possível concluir a tentativa.", "error");
       return;
     }
-    await resetAfterAttempt("Ponto registrado com sucesso.", "success");
+    const label = body.marcacao && body.marcacao.tipo
+      ? body.marcacao.tipo.replaceAll("_", " ")
+      : "marcação";
+    await resetAfterAttempt(`Ponto registrado com sucesso: ${label}.`, "success");
   } catch (error) {
     await resetAfterAttempt(error.message || "Não foi possível concluir a tentativa.", "error");
   } finally {

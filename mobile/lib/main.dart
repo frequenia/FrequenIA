@@ -4,11 +4,13 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'auth/auth_controller.dart';
 import 'auth/login_page.dart';
 import 'core/api_client.dart';
+import 'core/api_config.dart';
 import 'core/theme.dart';
 import 'home/home_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  ApiConfig.validate();
   await initializeDateFormatting('pt_BR');
   final controller = AuthController(ApiClient());
   runApp(FrequenIAApp(controller: controller));

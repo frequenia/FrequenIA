@@ -1,0 +1,171 @@
+name: Phases 25-31 quality
+
+on:
+  pull_request:
+    paths:
+      - "**.py"
+      - "requirements*.txt"
+      - "supabase/migrations/**"
+      - "static/**"
+      - "templates/**"
+      - "tests/**"
+      - "mobile/**"
+      - "infra/**"
+      - "docs/**"
+      - "README.md"
+      - ".env.example"
+      - ".github/workflows/**"
+  push:
+    branches: ["**"]
+    paths:
+      - "**.py"
+      - "requirements*.txt"
+      - "supabase/migrations/**"
+      - "static/**"
+      - "templates/**"
+      - "tests/**"
+      - "mobile/**"
+      - "infra/**"
+      - "docs/**"
+      - "README.md"
+      - ".env.example"
+      - ".github/workflows/**"
+
+permissions:
+  contents: read
+
+jobs:
+  backend-postgresql:
+    name: Backend and PostgreSQL/pgvector
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: phase26-disposable
+          POSTGRES_DB: frequenia_phase25_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d frequenia_phase25_test"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-ci.txt
+      - name: Install pinned test dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-ci.txt
+      - name: Install PostgreSQL restore tools for disposable continuity exercise
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Start disposable S3-compatible and ClamAV services
+        run: |
+          docker run -d --name phase27-s3 -p 127.0.0.1:9000:5000 motoserver/moto:5.1.22
+          docker run -d --name phase27-clamav -p 127.0.0.1:3310:3310 clamav/clamav:1.4
+          for i in $(seq 1 90); do curl -fsS -o /dev/null http://127.0.0.1:9000/ && break; sleep 2; done
+          for i in $(seq 1 180); do docker exec phase27-clamav clamdscan --ping 1 && break; sleep 2; done
+          curl -fsS -o /dev/null http://127.0.0.1:9000/
+          docker exec phase27-clamav clamdscan --ping 1
+      - name: Apply all migrations to a clean disposable database
+        env:
+          PHASE26_TEST_DATABASE_URL: postgresql://postgres:phase26-disposable@127.0.0.1:5432/frequenia_phase25_test
+        run: python tools/apply_test_migrations.py
+      - name: Run standard unit discovery with explicit integration skips
+        env:
+          ATTACHMENT_STORAGE_ROOT: ${{ runner.temp }}/frequenia-attachments
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+      - name: Run Phase 25 PostgreSQL workflow and concurrency suite
+        env:
+          PHASE25_TEST_DATABASE_URL: postgresql://postgres:phase26-disposable@127.0.0.1:5432/frequenia_phase25_test
+          ATTACHMENT_STORAGE_ROOT: ${{ runner.temp }}/frequenia-attachments
+        run: python -m unittest discover -s tests -p "test_phase25_postgres_integration.py" -v
+      - name: Run Phase 26 PostgreSQL attachment and concurrency suite
+        env:
+          PHASE25_TEST_DATABASE_URL: postgresql://postgres:phase26-disposable@127.0.0.1:5432/frequenia_phase25_test
+          APP_ENV: test
+          ATTACHMENT_STORAGE_PROVIDER: local
+          ATTACHMENT_STORAGE_ROOT: ${{ runner.temp }}/frequenia-attachments
+          ATTACHMENT_SCANNER_PROVIDER: fake-clean
+        run: python -m unittest discover -s tests -p "test_phase26_postgres_attachments.py" -v
+      - name: Run Phase 27 durable storage, ClamAV and retention suite
+        env:
+          PHASE27_TEST_DATABASE_URL: postgresql://postgres:phase26-disposable@127.0.0.1:5432/frequenia_phase25_test
+          PHASE27_S3_ENDPOINT_URL: http://127.0.0.1:9000
+          PHASE27_CLAMAV_HOST: 127.0.0.1
+          PHASE27_CLAMAV_PORT: "3310"
+          AWS_ACCESS_KEY_ID: phase27
+          AWS_SECRET_ACCESS_KEY: phase27-local-only
+          AWS_DEFAULT_REGION: us-east-1
+          APP_ENV: test
+          ATTACHMENT_STORAGE_PROVIDER: local
+          ATTACHMENT_STORAGE_ROOT: ${{ runner.temp }}/frequenia-attachments
+          ATTACHMENT_SCANNER_PROVIDER: clamav
+          CLAMAV_HOST: 127.0.0.1
+        run: python -m unittest discover -s tests -p "test_phase27_postgres_integration.py" -v
+      - name: Run Phase 28 outbox, worker, queue and continuity suite
+        env:
+          PHASE28_TEST_DATABASE_URL: postgresql://postgres:phase26-disposable@127.0.0.1:5432/frequenia_phase25_test
+          PHASE28_SQS_ENDPOINT_URL: http://127.0.0.1:9000
+          AWS_ACCESS_KEY_ID: phase28-disposable
+          AWS_SECRET_ACCESS_KEY: phase28-disposable-only
+          AWS_DEFAULT_REGION: us-east-1
+          APP_ENV: test
+          ATTACHMENT_STORAGE_PROVIDER: local
+          ATTACHMENT_STORAGE_ROOT: ${{ runner.temp }}/frequenia-attachments
+          ATTACHMENT_SCANNER_PROVIDER: fake-clean
+          ATTACHMENT_SCAN_MODE: async
+          ATTACHMENT_QUEUE_PROVIDER: memory
+        run: python -m unittest discover -s tests -p "test_phase28_postgres_integration.py" -v
+      - name: Run Phase 29 backup, redrive, chaos and purge eligibility suite
+        env:
+          PHASE29_TEST_DATABASE_URL: postgresql://postgres:phase26-disposable@127.0.0.1:5432/frequenia_phase25_test
+          APP_ENV: test
+          ATTACHMENT_STORAGE_PROVIDER: local
+          ATTACHMENT_STORAGE_ROOT: ${{ runner.temp }}/frequenia-attachments
+          ATTACHMENT_SCANNER_PROVIDER: fake-clean
+          ATTACHMENT_SCAN_MODE: async
+          ATTACHMENT_QUEUE_PROVIDER: memory
+          FREQUENIA_CHAOS_TEST_TOKEN: phase29-test-only
+          CONTINUITY_PRODUCTION_APPROVED: "false"
+        run: python -m unittest discover -s tests -p "test_phase29_postgres_integration.py" -v
+      - name: Run Phase 30 journey engine, schedules and concurrency suite
+        env:
+          PHASE30_TEST_DATABASE_URL: postgresql://postgres:phase26-disposable@127.0.0.1:5432/frequenia_phase25_test
+          APP_ENV: test
+        run: python -m unittest discover -s tests -p "test_phase30_postgres_integration.py" -v
+      - name: Run Phase 31 biometric governance, lifecycle and concurrency suite
+        env:
+          PHASE31_TEST_DATABASE_URL: postgresql://postgres:phase26-disposable@127.0.0.1:5432/frequenia_phase25_test
+          APP_ENV: development
+          BIOMETRIC_AWAY_POLICY: bloquear
+        run: python -m unittest discover -s tests -p "test_phase31_postgres_integration.py" -v
+      - name: Validate CloudFormation and local compliance contracts
+        run: |
+          python -c "from cfnlint.runner import main; import sys; sys.argv=['cfn-lint','infra/aws/attachments.template.yaml','--format','json']; main()"
+          python -m unittest discover -s tests -p "test_phase29_continuity_contracts.py" -v
+      - name: Remove disposable private attachment files
+        if: always()
+        run: |
+          rm -rf "${{ runner.temp }}/frequenia-attachments"
+          docker rm -f phase27-s3 phase27-clamav 2>/dev/null || true
+
+  flutter:
+    name: Flutter analyze and test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v6
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test

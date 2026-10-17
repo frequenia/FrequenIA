@@ -1,11 +1,12 @@
 """Solicitações pessoais e análise auditável de correções de ponto."""
 
 from datetime import date, datetime, time, timedelta, timezone
+from io import BytesIO
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import psycopg2.extras
-from flask import Blueprint, g, jsonify, render_template, request
+from flask import Blueprint, g, jsonify, render_template, request, send_file
 
 from db import conectar_bd
 from services.correction_workflow import (
@@ -16,15 +17,30 @@ from services.correction_workflow import (
     normalize_justification,
     transition_correction,
 )
+from services.correction_attachments import (
+    CorrectionAttachmentError,
+    attach_to_new_correction,
+    download_attachment,
+    get_attachment,
+    remove_attachment,
+    request_scan_retry,
+    serialize_attachment,
+    scan_attachment,
+    upload_attachment,
+    validate_attachment,
+)
+from services.attachment_observability import emit
+from services.attachment_outbox import asynchronous_scan_enabled
 from services.facial_failure_workflow import (
     FacialFailureWorkflowError,
     transition_facial_failure_occurrence,
 )
 from services.management_scope import employee_scope_clause
-from utils.auth_decorator import access_token_required, require_roles
+from utils.auth_decorator import require_roles
 
 occurrences_bp = Blueprint("occurrences", __name__)
 MANAGEMENT_ROLES = ("administrador", "gestor", "rh")
+EMPLOYEE_ROLES = ("administrador", "gestor", "rh", "funcionario")
 FACIAL_FAILURE_STATES = {"aberta", "em_analise", "resolvida", "descartada"}
 CATEGORIES = {
     "esquecimento_marcacao": "inclusao",
@@ -83,7 +99,10 @@ def _utc_bounds(start, end):
 
 
 def _payload():
-    data = request.get_json(silent=True)
+    if request.mimetype == "multipart/form-data":
+        data = request.form.to_dict()
+    else:
+        data = request.get_json(silent=True)
     if not isinstance(data, dict):
         raise ValueError("JSON inválido.")
     forbidden = (set(data) & SERVER_FIELDS) | (set(data) - CLIENT_FIELDS)
@@ -166,6 +185,25 @@ def _serialize(row, management=False):
     serialized["acoes_permitidas"] = allowed_actions(
         g.auth_context["perfil"], row["estado"], own=not management
     )
+    if row.get("anexo_id"):
+        serialized["comprovante"] = {
+            "id": str(row["anexo_id"]),
+            "nome": row["anexo_nome"],
+            "tipo_mime": row["anexo_mime"],
+            "tamanho_bytes": row["anexo_tamanho"],
+            "sha256": row["anexo_sha256"],
+            "estado": {"quarentena":"Analisando","limpo":"Disponível","infectado":"Bloqueado","erro_varredura":"Falha temporária"}.get(row.get("anexo_estado_seguranca", "quarentena"), "Bloqueado"),
+            "estado_historico": "ativo",
+            "estado_seguranca": row.get("anexo_estado_seguranca", "quarentena"),
+            "situacao": {
+                "quarentena": "analisando", "limpo": "disponivel",
+                "infectado": "bloqueado", "erro_varredura": "falha_temporaria",
+            }.get(row.get("anexo_estado_seguranca", "quarentena"), "bloqueado"),
+            "criado_em": row["anexo_created_at"].isoformat(),
+            "pode_alterar": not management and row["estado"] == PENDING_MANAGER,
+        }
+    else:
+        serialized["comprovante"] = None
     return serialized
 
 
@@ -189,7 +227,8 @@ def _notify(cursor, user_id, title, message):
 DETAIL_SQL = """
     SELECT c.*, m.instante AS instante_original, m.tipo AS tipo_original,
            u.nome AS funcionario_nome, f.matricula,
-           us.nome AS solicitante_nome, ua.nome AS analisador_nome
+           us.nome AS solicitante_nome, ua.nome AS analisador_nome,
+           attachment.*
     FROM correcoes c
     INNER JOIN funcionarios f ON f.id = c.funcionario_id AND f.empresa_id = c.empresa_id
     INNER JOIN usuarios u ON u.id = f.usuario_id
@@ -197,6 +236,17 @@ DETAIL_SQL = """
     LEFT JOIN usuarios ua ON ua.id = c.responsavel_decisao_usuario_id
     LEFT JOIN marcacoes m ON m.id = c.marcacao_original_id
        AND m.empresa_id = c.empresa_id AND m.funcionario_id = c.funcionario_id
+    LEFT JOIN LATERAL (
+        SELECT a.id AS anexo_id, a.nome_original AS anexo_nome,
+               a.tipo_mime AS anexo_mime, a.tamanho_bytes AS anexo_tamanho,
+               a.sha256 AS anexo_sha256, a.created_at AS anexo_created_at
+               , a.estado_seguranca AS anexo_estado_seguranca
+        FROM anexos_correcao a
+        WHERE a.empresa_id = c.empresa_id AND a.correcao_id = c.id
+          AND a.estado = 'ativo'
+        ORDER BY a.created_at DESC, a.id DESC
+        LIMIT 1
+    ) attachment ON TRUE
 """
 
 
@@ -213,11 +263,16 @@ def facial_failure_occurrences_page():
 
 
 @occurrences_bp.post("/api/ocorrencias")
-@access_token_required
+@require_roles(*EMPLOYEE_ROLES)
 def create_occurrence():
     connection = None
+    attachment_key = None
+    attachment_storage = None
+    validated_attachment = None
     try:
         category, operation, marking_id, reason, instant, marking_type = _validate_request(_payload())
+        attachment_file = request.files.get("comprovante") if request.mimetype == "multipart/form-data" else None
+        validated_attachment = validate_attachment(attachment_file) if attachment_file else None
         connection = conectar_bd()
         cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         if marking_id:
@@ -255,17 +310,177 @@ def create_occurrence():
             "empresa_id": str(g.auth_context["empresa_id"]),
             "funcionario_id": str(g.auth_context["funcionario_id"]),
         })
+        if validated_attachment:
+            attached, attachment_key, attachment_storage = attach_to_new_correction(
+                cursor, g.auth_context, row, validated_attachment
+            )
+            row["anexo_id"] = attached["id"]
+            row["anexo_nome"] = attached["nome_original"]
+            row["anexo_mime"] = attached["tipo_mime"]
+            row["anexo_tamanho"] = attached["tamanho_bytes"]
+            row["anexo_sha256"] = attached["sha256"]
+            row["anexo_created_at"] = attached["created_at"]
         connection.commit()
+        if validated_attachment:
+            attachment_key = None
+        if validated_attachment and not asynchronous_scan_enabled():
+            attached = scan_attachment(
+                conectar_bd, g.auth_context, attached["id"], storage=attachment_storage
+            )
+            row["anexo_estado_seguranca"] = attached["estado_seguranca"]
+            emit("upload_accepted", attachment_id=str(attached["id"]), company_id=str(g.auth_context["empresa_id"]), result=attached["estado_seguranca"])
         return jsonify(_serialize(row)), 201
-    except ValueError as exc:
-        return jsonify({"erro": str(exc)}), 400
+    except (ValueError, CorrectionAttachmentError) as exc:
+        if connection:
+            connection.rollback()
+        if attachment_key and attachment_storage:
+            attachment_storage.delete(attachment_key)
+        status = exc.status if isinstance(exc, CorrectionAttachmentError) else 400
+        message = exc.message if isinstance(exc, CorrectionAttachmentError) else str(exc)
+        return jsonify({"erro": message}), status
     except Exception:
         if connection:
             connection.rollback()
+        if attachment_key and attachment_storage:
+            attachment_storage.delete(attachment_key)
+        if validated_attachment:
+            emit("storage_failed", company_id=str(g.auth_context["empresa_id"]), reason="creation")
         return jsonify({"erro": "Não foi possível criar a ocorrência."}), 500
     finally:
         if connection:
             connection.close()
+
+
+def _attachment_error_response(exc):
+    return jsonify({"erro": exc.message}), exc.status
+
+
+def _attachment_download_response(attachment, content):
+    response = send_file(
+        BytesIO(content),
+        mimetype=attachment["tipo_mime"],
+        as_attachment=True,
+        download_name=attachment["nome_original"],
+        max_age=0,
+    )
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Cache-Control"] = "private, no-store, max-age=0"
+    return response
+
+
+@occurrences_bp.put("/api/ocorrencias/<correction_id>/comprovante")
+@occurrences_bp.post("/api/ocorrencias/<correction_id>/comprovante")
+@require_roles(*EMPLOYEE_ROLES)
+def upload_own_correction_attachment(correction_id):
+    try:
+        identifier = _uuid(correction_id, "Ocorrência")
+        row = upload_attachment(
+            conectar_bd,
+            g.auth_context,
+            identifier,
+            request.files.get("comprovante"),
+        )
+        return jsonify(serialize_attachment(row, can_mutate=True)), 200
+    except (ValueError, CorrectionAttachmentError) as exc:
+        if isinstance(exc, CorrectionAttachmentError):
+            return _attachment_error_response(exc)
+        return jsonify({"erro": str(exc)}), 400
+
+
+@occurrences_bp.get("/api/ocorrencias/<correction_id>/comprovante")
+@require_roles(*EMPLOYEE_ROLES)
+def own_correction_attachment(correction_id):
+    try:
+        identifier = _uuid(correction_id, "Ocorrência")
+        _correction, row, can_mutate = get_attachment(
+            conectar_bd, g.auth_context, identifier, management=False
+        )
+        return jsonify(serialize_attachment(row, can_mutate=can_mutate))
+    except (ValueError, CorrectionAttachmentError) as exc:
+        if isinstance(exc, CorrectionAttachmentError):
+            return _attachment_error_response(exc)
+        return jsonify({"erro": str(exc)}), 400
+
+
+@occurrences_bp.get("/api/ocorrencias/<correction_id>/comprovante/download")
+@require_roles(*EMPLOYEE_ROLES)
+def download_own_correction_attachment(correction_id):
+    try:
+        identifier = _uuid(correction_id, "Ocorrência")
+        row, content = download_attachment(
+            conectar_bd, g.auth_context, identifier, management=False
+        )
+        return _attachment_download_response(row, content)
+    except (ValueError, CorrectionAttachmentError) as exc:
+        if isinstance(exc, CorrectionAttachmentError):
+            return _attachment_error_response(exc)
+        return jsonify({"erro": str(exc)}), 400
+
+
+@occurrences_bp.delete("/api/ocorrencias/<correction_id>/comprovante")
+@require_roles(*EMPLOYEE_ROLES)
+def remove_own_correction_attachment(correction_id):
+    try:
+        identifier = _uuid(correction_id, "Ocorrência")
+        remove_attachment(conectar_bd, g.auth_context, identifier)
+        return "", 204
+    except (ValueError, CorrectionAttachmentError) as exc:
+        if isinstance(exc, CorrectionAttachmentError):
+            return _attachment_error_response(exc)
+        return jsonify({"erro": str(exc)}), 400
+
+
+@occurrences_bp.get("/api/gestao/ocorrencias/<correction_id>/comprovante")
+@require_roles(*MANAGEMENT_ROLES)
+def management_correction_attachment(correction_id):
+    try:
+        identifier = _uuid(correction_id, "Ocorrência")
+        _correction, row, _can_mutate = get_attachment(
+            conectar_bd, g.auth_context, identifier, management=True
+        )
+        return jsonify(serialize_attachment(row, can_mutate=False))
+    except (ValueError, CorrectionAttachmentError) as exc:
+        if isinstance(exc, CorrectionAttachmentError):
+            return _attachment_error_response(exc)
+        return jsonify({"erro": str(exc)}), 400
+
+
+@occurrences_bp.get("/api/gestao/ocorrencias/<correction_id>/comprovante/download")
+@require_roles(*MANAGEMENT_ROLES)
+def download_management_correction_attachment(correction_id):
+    try:
+        identifier = _uuid(correction_id, "Ocorrência")
+        row, content = download_attachment(
+            conectar_bd, g.auth_context, identifier, management=True
+        )
+        return _attachment_download_response(row, content)
+    except (ValueError, CorrectionAttachmentError) as exc:
+        if isinstance(exc, CorrectionAttachmentError):
+            return _attachment_error_response(exc)
+        return jsonify({"erro": str(exc)}), 400
+
+
+@occurrences_bp.post("/api/gestao/ocorrencias/<correction_id>/comprovante/retry-scan")
+@require_roles(*MANAGEMENT_ROLES)
+def retry_management_correction_attachment_scan(correction_id):
+    try:
+        identifier = _uuid(correction_id, "Ocorrência")
+        _correction, attachment, _ = get_attachment(
+            conectar_bd, g.auth_context, identifier, management=True
+        )
+        if asynchronous_scan_enabled():
+            row = request_scan_retry(
+                conectar_bd, g.auth_context, attachment["id"], management=True
+            )
+        else:
+            row = scan_attachment(
+                conectar_bd, g.auth_context, attachment["id"], management=True
+            )
+        return jsonify(serialize_attachment(row, can_mutate=False))
+    except (ValueError, CorrectionAttachmentError) as exc:
+        if isinstance(exc, CorrectionAttachmentError):
+            return _attachment_error_response(exc)
+        return jsonify({"erro": str(exc)}), 400
 
 
 def _list_filters(management=False):
@@ -312,7 +527,7 @@ def _list_rows(management=False):
 
 
 @occurrences_bp.get("/api/ocorrencias")
-@access_token_required
+@require_roles(*EMPLOYEE_ROLES)
 def list_own_occurrences():
     try:
         return jsonify({"ocorrencias": _list_rows(False)})
@@ -367,7 +582,7 @@ def _detail(correction_id, management):
 
 
 @occurrences_bp.get("/api/ocorrencias/<correction_id>")
-@access_token_required
+@require_roles(*EMPLOYEE_ROLES)
 def own_occurrence_detail(correction_id):
     try:
         body, status = _detail(correction_id, False); return jsonify(body), status
@@ -642,7 +857,7 @@ def _transition(correction_id, target, observation, own=False):
 
 
 @occurrences_bp.post("/api/ocorrencias/<correction_id>/cancelar")
-@access_token_required
+@require_roles(*EMPLOYEE_ROLES)
 def cancel_occurrence(correction_id):
     body, status = _transition(correction_id, "cancelada", None, True); return jsonify(body), status
 

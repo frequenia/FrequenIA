@@ -17,6 +17,7 @@ class _ProfilePageState extends State<ProfilePage> {
   String? failure;
   bool loading = false;
   Map<String, dynamic>? profile;
+  Map<String, dynamic>? biometric;
 
   @override
   void initState() {
@@ -40,7 +41,15 @@ class _ProfilePageState extends State<ProfilePage> {
     });
     try {
       final result = await widget.controller.api.get('/api/perfil');
-      if (mounted) setState(() => profile = result);
+      final biometricResult = await widget.controller.api.get(
+        '/api/biometria/estado',
+      );
+      if (mounted) {
+        setState(() {
+          profile = result;
+          biometric = biometricResult;
+        });
+      }
     } on ApiException catch (error) {
       if (mounted) setState(() => failure = error.message);
     } catch (_) {
@@ -104,6 +113,38 @@ class _ProfilePageState extends State<ProfilePage> {
                 _ProfileItem(
                   label: 'E-mail',
                   value: _display(profile!['email']),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _ProfileSection(
+              title: 'Biometria',
+              items: [
+                _ProfileItem(
+                  label: 'Estado',
+                  value: _biometricStateLabel(biometric?['estado']),
+                ),
+                _ProfileItem(
+                  label: 'Finalidade',
+                  value: _display(biometric?['politica']?['finalidade']),
+                ),
+                _ProfileItem(
+                  label: 'Versão do aviso',
+                  value: _display(biometric?['politica']?['versao_aviso']),
+                ),
+                _ProfileItem(
+                  label: 'Retenção configurada',
+                  value: biometric?['politica']?['retencao_dias'] == null
+                      ? 'Pendente de política aprovada'
+                      : '${biometric!['politica']['retencao_dias']} dias',
+                ),
+                _ProfileItem(
+                  label: 'Atendimento',
+                  value: _display(biometric?['politica']?['canal_atendimento']),
+                ),
+                _ProfileItem(
+                  label: 'Como funciona',
+                  value: _display(biometric?['explicacao']),
                 ),
               ],
             ),
@@ -184,6 +225,15 @@ String _profileLabel(dynamic value) => switch (value?.toString()) {
   'gestor' => 'Gestor',
   'rh' => 'RH',
   _ => _display(value),
+};
+
+String _biometricStateLabel(dynamic value) => switch (value?.toString()) {
+  'ativa' => 'Ativa',
+  'bloqueada' => 'Bloqueada',
+  'recadastro_necessario' => 'Recadastro necessário',
+  'exclusao_pendente' => 'Exclusão pendente',
+  'eliminada' => 'Eliminada',
+  _ => 'Recadastro necessário',
 };
 
 class _ProfileSection extends StatelessWidget {

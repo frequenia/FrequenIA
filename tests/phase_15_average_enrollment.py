@@ -2,6 +2,7 @@ import io
 import math
 import os
 import unittest
+from types import SimpleNamespace
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
@@ -84,6 +85,12 @@ class AverageEnrollmentRouteTests(unittest.TestCase):
             patch("routes.biometrics.generate_biometric_embedding", side_effect=vectors) as generate,
             patch("routes.biometrics.conectar_bd", return_value=connection),
             patch("routes.biometrics.register_vector"),
+            patch("routes.biometrics.resolve_governance", return_value=SimpleNamespace(
+                model="ArcFace", model_version="deepface-0.0.99", dimension=512,
+                policy_id="00000000-0000-0000-0000-000000000007",
+                profile_id="00000000-0000-0000-0000-000000000008",
+            )),
+            patch("routes.biometrics.record_lifecycle"),
         ):
             response = self.client.post(URL, data=image_form(count))
 

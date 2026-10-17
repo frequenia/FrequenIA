@@ -16,13 +16,11 @@ enum ClockEventType {
 
 class FaceClockOperation {
   const FaceClockOperation({
-    required this.type,
     required this.attemptId,
     required this.idempotencyKey,
     required this.location,
   });
 
-  final ClockEventType type;
   final String attemptId;
   final String idempotencyKey;
   final MobileLocationSnapshot location;
@@ -61,7 +59,6 @@ class FaceClockService {
 
   Future<FaceClockResult> submit({
     String? imagePath,
-    required ClockEventType type,
     FaceClockOperation? retryOperation,
     MobileLocationSnapshot? location,
   }) async {
@@ -90,7 +87,6 @@ class FaceClockService {
           );
         }
         operation = FaceClockOperation(
-          type: type,
           attemptId: attemptId,
           idempotencyKey: _idempotencyKeyFactory(),
           location: location,
@@ -101,7 +97,6 @@ class FaceClockService {
         final response = await api.postWithHeaders(
           '/api/marcacoes/facial',
           {
-            'tipo': operation.type.value,
             'tentativa_facial_id': operation.attemptId,
             'localizacao': operation.location.toJson(),
           },

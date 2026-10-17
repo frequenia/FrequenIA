@@ -37,6 +37,13 @@
     dataConsulta: document.getElementById("dataConsulta"),
     jornadaAtual: document.getElementById("jornadaAtual"),
     tabelaHistorico: document.getElementById("tabelaHistorico"),
+    formEscala: document.getElementById("formEscalaDiaria"),
+    dataEscala: document.getElementById("dataEscala"),
+    tipoEscala: document.getElementById("tipoEscala"),
+    origemEscala: document.getElementById("origemEscala"),
+    turnoEscala: document.getElementById("turnoEscala"),
+    justificativaEscala: document.getElementById("justificativaEscala"),
+    historicoEscalas: document.getElementById("historicoEscalas"),
   };
 
   function hojeLocal() {
@@ -189,12 +196,16 @@
     if ([...elementos.turnoAtribuicao.options].some((item) => item.value === selecionado)) {
       elementos.turnoAtribuicao.value = selecionado;
     }
+    elementos.turnoEscala.replaceChildren(new Option("Selecione um turno", ""));
+    state.turnos.filter((turno) => turno.status === "ativo").forEach((turno) => {
+      elementos.turnoEscala.add(new Option(turno.nome, turno.id));
+    });
   }
 
   function renderizarFuncionarios() {
     elementos.funcionario.replaceChildren(new Option("Selecione um funcionário", ""));
     state.funcionarios
-      .filter((funcionario) => funcionario.status === "ativo")
+      .filter((funcionario) => !funcionario.status || funcionario.status === "ativo")
       .forEach((funcionario) => {
         const complemento = funcionario.matricula ? ` — ${funcionario.matricula}` : "";
         elementos.funcionario.add(
@@ -210,7 +221,7 @@
   }
 
   async function carregarFuncionarios() {
-    const payload = await apiRequest("/listarUsuarios");
+    const payload = await apiRequest("/api/gestao/funcionarios");
     state.funcionarios = Array.isArray(payload) ? payload : [];
     renderizarFuncionarios();
   }
@@ -395,6 +406,10 @@
     }
 
     elementos.jornadaAtual.className = "";
+    if (jornada.folga) {
+      elementos.jornadaAtual.textContent = `Folga programada em ${formatarData(data)}.`;
+      return;
+    }
     const resumo = document.createElement("div");
     resumo.className = "jornada-resumo";
     [
@@ -446,7 +461,36 @@
       elementos.jornadaAtual.textContent = "Selecione um funcionário.";
       return;
     }
-    await Promise.all([carregarHistorico(funcionarioId), carregarJornada(funcionarioId)]);
+    await Promise.all([carregarHistorico(funcionarioId), carregarJornada(funcionarioId), carregarEscalas(funcionarioId)]);
+  }
+
+  async function carregarEscalas(funcionarioId) {
+    const payload = await apiRequest(`/api/admin/funcionarios/${encodeURIComponent(funcionarioId)}/escalas`);
+    const escalas = payload.escalas || [];
+    elementos.historicoEscalas.textContent = escalas.length
+      ? escalas.map((item) => `${formatarData(item.data_operacional)} · ${item.tipo} · ${item.origem}${item.cancelada ? " · cancelada" : ""}`).join(" | ")
+      : "Nenhuma escala específica registrada.";
+  }
+
+  async function salvarEscala(event) {
+    event.preventDefault();
+    const funcionarioId = elementos.funcionario.value;
+    if (!funcionarioId) return exibirMensagem("Selecione um funcionário.");
+    try {
+      await apiRequest(`/api/admin/funcionarios/${encodeURIComponent(funcionarioId)}/escalas`, {
+        method: "POST",
+        body: JSON.stringify({
+          data_operacional: elementos.dataEscala.value,
+          tipo: elementos.tipoEscala.value,
+          origem: elementos.origemEscala.value,
+          turno_id: elementos.tipoEscala.value === "turno" ? elementos.turnoEscala.value : null,
+          justificativa: elementos.justificativaEscala.value.trim(),
+        }),
+      });
+      elementos.justificativaEscala.value = "";
+      await Promise.all([carregarEscalas(funcionarioId), carregarJornada(funcionarioId)]);
+      exibirMensagem("Escala diária registrada com histórico preservado.", "sucesso");
+    } catch (error) { exibirMensagem(error.message); }
   }
 
   async function atribuirTurno(event) {
@@ -478,6 +522,8 @@
   async function inicializar() {
     elementos.vigenciaInicio.value = hojeLocal();
     elementos.dataConsulta.value = hojeLocal();
+    elementos.dataEscala.value = hojeLocal();
+    if (document.body.dataset.perfil === "gestor") elementos.formEscala.hidden = true;
     try {
       await Promise.all([carregarTurnos(), carregarFuncionarios()]);
     } catch (error) {
@@ -507,6 +553,10 @@
   elementos.funcionario.addEventListener("change", carregarDadosFuncionario);
   elementos.formTurno.addEventListener("submit", salvarTurno);
   elementos.formAtribuicao.addEventListener("submit", atribuirTurno);
+  elementos.formEscala.addEventListener("submit", salvarEscala);
+  elementos.tipoEscala.addEventListener("change", () => {
+    elementos.turnoEscala.disabled = elementos.tipoEscala.value === "folga";
+  });
 
   inicializar();
 })();

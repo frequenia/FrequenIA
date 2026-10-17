@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gerenciar Usuários — FrequenIA</title>
+      <title>Gerenciar Empresas — FrequenIA</title>
 
   <!-- Fonte Montserrat -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -94,7 +94,7 @@
         tabela.innerHTML = `
           <tr>
             <td colspan="4" style="text-align:center; color: var(--color-text-light); padding: 30px 14px;">
-              Nenhum usuário encontrado.
+              Nenhuma empresa encontrada.
             </td>
           </tr>
         `;
@@ -104,16 +104,33 @@
 lista.forEach(item => {
   tabela.innerHTML += `
     <tr>
-      <td class="col-nome">${item.razao || "-"}</td>
+      <td class="col-nome">${item.nome || "-"}</td>
       <td class="col-cpf">${item.cnpj}</td>
-      <td class="col-status">-</td>
+      <td class="col-status">${item.status || "-"}</td>
       <td class="col-perfil">
-        <a href="#" class="btn-acao">Perfil</a>
-        <a href="#" class="btn-acao">Horários</a>
+        <button type="button" class="btn-acao" onclick="alterarStatus('${item.id}', '${item.status === "ativa" ? "inativa" : "ativa"}')">
+          ${item.status === "ativa" ? "Inativar" : "Ativar"}
+        </button>
       </td>
     </tr>
   `;
 });
+    }
+
+    async function alterarStatus(empresaId, status) {
+      const acao = status === "ativa" ? "ativar" : "inativar";
+      if (!window.confirm(`Deseja ${acao} esta empresa?`)) return;
+      const response = await fetch(`/api/plataforma/empresas/${encodeURIComponent(empresaId)}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        window.alert(result.erro || "Não foi possível alterar a empresa.");
+        return;
+      }
+      await carregarEmpresas();
     }
 
     function filtrar() {
@@ -125,8 +142,8 @@ lista.forEach(item => {
 
       if (texto) {
         lista = lista.filter(item =>
-         item.razao.toLowerCase().includes(texto) ||
-         item.cnpj.includes(texto)
+         item.nome.toLowerCase().includes(texto) ||
+         (item.cnpj || "").includes(texto)
         );
       }
 
@@ -137,7 +154,7 @@ lista.forEach(item => {
       if (ordem === "nome") {
         lista.sort((a, b) => a.nome.localeCompare(b.nome));
       } else {
-        lista.sort((a, b) => a.cpf.localeCompare(b.cpf));
+        lista.sort((a, b) => (a.cnpj || "").localeCompare(b.cnpj || ""));
       }
 
       render(lista);

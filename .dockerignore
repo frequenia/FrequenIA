@@ -9,11 +9,20 @@ credentials.local.*
 .codex-worktrees
 .pytest_cache
 __pycache__
+**/__pycache__
 *.py[cod]
+**/*.py[cod]
 *.log
 
 AGENTS.md
 mobile
+tests
+tools/*
+!tools/dispatch_attachment_scan_jobs.py
+!tools/run_attachment_scan_worker.py
+output
+document-assets
+infra
 Scripts
 python
 env
@@ -21,3 +30,11 @@ venv
 
 temp_cadastros
 static/fotos
+supabase/migrations_data
+supabase/backups
+**/*.sql.gz
+**/*.dump
+**/*.backup
+**/*.tar
+**/*.tar.gz
+**/*.sqlite

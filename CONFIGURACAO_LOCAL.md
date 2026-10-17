@@ -41,6 +41,57 @@ Obrigatoria para login e APIs que consultam dados:
 
 - `DATABASE_URL`.
 
+Para comprovantes opcionais de correção, configure `ATTACHMENT_STORAGE_ROOT`
+com um diretório privado, gravável pelo backend e fora do repositório, de
+`static/` e de qualquer servidor web. O backend recusa uploads quando a
+variável está vazia e nunca usa o nome enviado pelo usuário como caminho. Para
+desenvolvimento, prefira um diretório temporário descartável; esta fase não
+define nem provisiona armazenamento de produção.
+
+Na Fase 27, `ATTACHMENT_STORAGE_PROVIDER=s3` seleciona o adaptador durável.
+Configure somente no servidor `ATTACHMENT_S3_BUCKET`, `ATTACHMENT_S3_REGION` e,
+para serviços compatíveis locais, `ATTACHMENT_S3_ENDPOINT_URL`. Credenciais vêm
+da cadeia padrão do SDK/role; não existem variáveis de access key no contrato.
+Produção rejeita o provedor local e endpoints sem TLS. O scanner usa
+`ATTACHMENT_SCANNER_PROVIDER=clamav`, `CLAMAV_HOST`, `CLAMAV_PORT` e timeout.
+Scanners falsos só funcionam com `APP_ENV=test`. Retenção padrão: 90 dias para
+substituídos/removidos e 30 dias para infectados.
+
+Na Fase 28, use `ATTACHMENT_SCAN_MODE=async`,
+`ATTACHMENT_QUEUE_PROVIDER=sqs` e `ATTACHMENT_QUEUE_URL`. Um endpoint SQS
+compatível local é aceito somente em testes. Produção rejeita fila em memória e
+modo síncrono. Execute o dispatcher com
+`python tools/dispatch_attachment_scan_jobs.py --continuous` e o worker com
+`python tools/run_attachment_scan_worker.py`; nenhum consumidor roda como
+thread do Gunicorn. `CLAMAV_SIGNATURE_MAX_AGE_HOURS` controla o fail-closed de
+assinaturas. S3 e SQS usam exclusivamente a cadeia padrão de credenciais.
+`ATTACHMENT_DLQ_URL` identifica a DLQ apenas por configuração server-side para
+o comando administrativo de redrive; ela nunca vem de payload ou parâmetro do
+operador.
+
+Na Fase 29, `CONTINUITY_RPO_SECONDS`, `CONTINUITY_RTO_SECONDS`,
+`CONTINUITY_FREQUENCY_HOURS`, `CONTINUITY_BACKUP_RETENTION_DAYS`,
+`CONTINUITY_EXERCISE_WINDOW_MINUTES` e `CONTINUITY_MAX_SET_BYTES` controlam
+somente exercícios isolados. Os defaults locais não constituem SLO. Produção
+permanece recusada enquanto `CONTINUITY_PRODUCTION_APPROVED` não estiver
+formalmente aprovado e acompanhado por `CONTINUITY_APPROVAL_REFERENCE`.
+Conjuntos devem ficar fora do repositório, `static/` e diretórios públicos.
+
+Na Fase 30, o backend é a única autoridade sobre o tipo da próxima marcação.
+`JOURNEY_DEFAULT_TIMEZONE` é usado apenas quando não existe turno aplicável;
+`JOURNEY_OPEN_GRACE_HOURS` limita a busca de jornada anterior ainda aberta.
+`JOURNEY_EARLY_TOLERANCE_MINUTES` e `JOURNEY_LATE_TOLERANCE_MINUTES` são
+informativos e não calculam desconto, hora extra ou efeito trabalhista. Os
+valores devem ser inteiros não negativos (a janela aberta deve ser positiva).
+Mobile e quiosque não configuram empresa, funcionário, timezone ou tipo.
+
+Na Fase 31, defina `BIOMETRIC_AWAY_POLICY` explicitamente como `bloquear`,
+`revogar` ou `preservar`. A migration `026` deve seguir a `025`. Política
+aprovada e perfil técnico ativo são dados versionados no PostgreSQL; não há
+base legal, retenção ou fixture silenciosa padrão. Canal de atendimento,
+referência jurídica, retenção e aprovação devem vir do controlador. Ausência ou
+incompatibilidade bloqueia novas operações sensíveis sem apagar cadastros.
+
 Configuracao geral:
 
 - `APP_ENV`;
@@ -57,7 +108,7 @@ pelo cliente e deve ser calibrado com amostras controladas antes de qualquer
 piloto com pessoas reais.
 
 `FACIAL_ATTEMPT_MAX_AGE_SECONDS` define por quantos segundos uma tentativa
-facial `sucesso/match` pode autorizar uma marcacao. O padrao e `120`; o cliente
+facial permanece válida nos fluxos biométricos legados. O padrão é `120`; o cliente
 nao pode informar nem alterar essa janela.
 
 `PASSWORD_RESET_TEST_KEY` e opcional e deve existir apenas em homologacao
@@ -74,27 +125,35 @@ entregues por um gerenciador de senhas ou cofre aprovado.
 
 ## Construir e executar
 
-Com Docker disponivel no PowerShell:
+O fluxo recomendado sobe o backend, aguarda o health check e abre o Flutter no
+primeiro emulador Android disponivel:
 
 ```powershell
-docker build --tag frequenia-backend:local .
-docker run --detach --name frequenia-backend-local --env-file .env --publish 5013:5000 frequenia-backend:local
+.\iniciar_mobile.bat
 ```
 
-Quando o Docker estiver disponivel somente no Ubuntu/WSL:
+O emulador recebe `BASE_URL=http://10.0.2.2:5013`. Para escolher um dispositivo
+ou usar um celular fisico, informe os parametros ao launcher:
 
 ```powershell
-wsl -d Ubuntu -- bash -lc "cd /mnt/c/CAMINHO/PARA/FrequenIA && docker build --tag frequenia-backend:local ."
-wsl -d Ubuntu -- bash -lc "cd /mnt/c/CAMINHO/PARA/FrequenIA && docker run --detach --name frequenia-backend-local --env-file .env --publish 5013:5000 frequenia-backend:local"
+.\iniciar_mobile.bat -DeviceId ID_DO_DISPOSITIVO
+.\iniciar_mobile.bat -DeviceId ID_DO_CELULAR -BaseUrl http://IP_DA_MAQUINA:5013
 ```
 
-Teste sem imprimir configuracao:
+O IP da maquina deve ser alcancavel pelo celular na mesma rede. O firewall deve
+permitir a porta somente na rede privada autorizada. Para subir apenas o
+backend ou consultar logs:
 
 ```powershell
+docker compose up --build --detach
 (Invoke-WebRequest http://localhost:5013/health).StatusCode
+docker compose logs --tail 100 backend
 ```
 
 O resultado esperado e HTTP `200`.
+
+Para homologacao ou producao no Cloud Run, consulte `DEPLOY_CLOUD_RUN.md`. O
+Flutter mobile e executado ou compilado separadamente com a URL HTTPS publicada.
 
 ## Executar em outro computador
 
@@ -118,3 +177,8 @@ Devem ser rotacionados nos respectivos provedores:
 
 Depois da rotacao, atualize somente o `.env` local. Nao preserve credenciais
 antigas em arquivos paralelos.
+Para busca de endereço e prévia de mapa da geofence, configure
+`TOMTOM_API_KEY`. `TOMTOM_TIMEOUT_SECONDS` controla o timeout das chamadas
+externas e assume 5 segundos. A chave fica apenas no backend; sem ela a
+validação do perímetro continua funcionando, mas mapa e endereço ficam
+indisponíveis.

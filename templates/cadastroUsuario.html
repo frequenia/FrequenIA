@@ -21,18 +21,22 @@
           <div class="campo"><label for="email">E-mail</label><input type="email" id="email" required></div>
           <div class="campo"><label for="telefone">Telefone</label><input type="text" id="telefone" maxlength="15" oninput="mascaraTelefone(this)" required></div>
           <div class="campo"><label for="cpf">CPF</label><input type="text" id="cpf" maxlength="14" oninput="mascaraCPF(this)" required></div>
-          <div class="campo"><label for="senha">Senha inicial</label><input type="password" id="senha" minlength="12" autocomplete="new-password" required></div>
+          <div class="campo"><label>Primeiro acesso</label><input type="text" value="Convite enviado por e-mail para definição da senha" disabled></div>
         </div>
       </section>
 
       <section class="card">
         <h3>Vínculo funcional</h3>
         <div class="grid">
-          <div class="campo"><label for="empresa">Empresa</label><select id="empresa" required><option value="">Selecione</option></select></div>
+          <div class="campo">
+            <label for="empresa_nome">Empresa</label>
+            <input type="text" id="empresa_nome" value="Carregando empresa…" readonly>
+            <input type="hidden" id="empresa">
+          </div>
           <div class="campo"><label for="unidade">Unidade</label><select id="unidade" required disabled><option value="">Selecione</option></select></div>
           <div class="campo"><label for="equipe">Equipe</label><select id="equipe" required disabled><option value="">Selecione</option></select></div>
           <div class="campo"><label for="cargo">Cargo</label><select id="cargo" required disabled><option value="">Selecione</option></select></div>
-          <div class="campo"><label for="matricula">Matrícula</label><input type="text" id="matricula" required></div>
+          <div class="campo"><label>Matrícula</label><input type="text" value="Gerada automaticamente conforme o cargo" disabled></div>
           <div class="campo">
             <label for="perfil">Perfil funcional</label>
             <select id="perfil" required>
@@ -40,7 +44,7 @@
               <option value="funcionario">Funcionário</option>
               <option value="gestor">Gestor</option>
               <option value="rh">RH</option>
-              <option value="administrador">Administrador</option>
+              <option value="administrador">Gestor de RH / Administrador da empresa</option>
             </select>
           </div>
           <div class="campo">

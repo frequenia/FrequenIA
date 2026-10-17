@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meu ponto — FrequenIA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/autoatendimento.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/autoatendimento-separado.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+</head>
+<body>
+  <main class="self-service-page">
+    <section class="hero">
+      <div><span class="eyebrow">Consulta pessoal</span><h1>Meu ponto</h1><p>Consulte sua jornada e as marcações já registradas no sistema.</p></div>
+      <span class="kiosk-notice">Ponto somente no quiosque</span>
+    </section>
+    <section class="summary-grid two-columns" aria-label="Resumo">
+      <article class="summary-card"><span>Jornada de hoje</span><strong id="scheduleName">Carregando...</strong><small id="schedulePeriods"></small></article>
+      <article class="summary-card"><span>Última marcação</span><strong id="lastMark">Carregando...</strong><small id="lastMarkType"></small></article>
+    </section>
+    <nav class="tabs" aria-label="Consultas de ponto">
+      <button type="button" class="tab active" data-panel="marksPanel">Marcações</button>
+      <button type="button" class="tab" data-panel="schedulePanel">Jornada</button>
+    </nav>
+    <section id="marksPanel" class="panel active">
+      <div class="panel-heading"><div><h2>Minhas marcações</h2><p>Histórico das marcações confirmadas no sistema.</p></div><button type="button" class="btn-secondary" id="refreshMarks">Atualizar</button></div>
+      <div id="marksList" class="item-list" aria-live="polite"></div>
+    </section>
+    <section id="schedulePanel" class="panel" hidden>
+      <div class="panel-heading"><div><h2>Minha jornada</h2><p>Consulte a jornada atribuída para uma data.</p></div></div>
+      <div class="date-filter"><label for="scheduleDate">Data</label><input id="scheduleDate" type="date"><button type="button" class="btn-primary" id="searchSchedule">Consultar</button></div>
+      <div id="scheduleDetail" class="schedule-detail" aria-live="polite"></div>
+    </section>
+  </main>
+  <script src="{{ url_for('static', filename='js/meuPonto.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/dark-mode.js') }}"></script>
+</body>
+</html>
