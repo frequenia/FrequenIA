@@ -152,8 +152,8 @@ docker compose logs --tail 100 backend
 
 O resultado esperado e HTTP `200`.
 
-Para homologacao ou producao no Cloud Run, consulte `DEPLOY_CLOUD_RUN.md`. O
-Flutter mobile e executado ou compilado separadamente com a URL HTTPS publicada.
+Para homologacao no piloto AWS, consulte `infra/aws/README.md`. O Flutter mobile
+e executado ou compilado separadamente com a URL HTTPS publicada pelo piloto.
 
 ## Executar em outro computador
 

@@ -30,44 +30,12 @@ class DeploymentReadinessTests(unittest.TestCase):
         self.assertIn("libpq5", dockerfile)
         self.assertIn("0.0.0.0:${PORT:-5000}", dockerfile)
 
-    def test_cloud_build_uses_pilot_resource_and_rollout_policy(self):
-        config = (PROJECT_ROOT / "cloudbuild.yaml").read_text(encoding="utf-8")
-
-        expected_fragments = (
-            "_REGION: southamerica-east1",
-            "_SERVICE: frequenia-api",
-            "--execution-environment=gen2",
-            "--cpu=2",
-            "--memory=4Gi",
-            "--concurrency=1",
-            "--timeout=300",
-            "--min=1",
-            "--max=3",
-            "--no-traffic",
-            "--tag=candidate",
-            "--to-latest",
-            "DATABASE_URL=frequenia-database-url:latest",
-            "id: unit-tests",
-            "python\n      - -m\n      - unittest",
-        )
-        for fragment in expected_fragments:
-            with self.subTest(fragment=fragment):
-                self.assertIn(fragment, config)
-
     def test_compose_exposes_the_documented_local_port_and_healthcheck(self):
         compose = (PROJECT_ROOT / "compose.yaml").read_text(encoding="utf-8")
 
         self.assertIn('"5013:5000"', compose)
         self.assertIn("/health", compose)
         self.assertIn(".env", compose)
-
-    def test_cloud_build_source_excludes_local_secrets(self):
-        ignore = (PROJECT_ROOT / ".gcloudignore").read_text(encoding="utf-8")
-
-        self.assertIn(".env\n", ignore)
-        self.assertIn(".secrets/", ignore)
-        self.assertIn("*.pem", ignore)
-        self.assertIn("*.key", ignore)
 
     def test_docker_context_excludes_local_artifacts(self):
         ignore = (PROJECT_ROOT / ".dockerignore").read_text(encoding="utf-8")

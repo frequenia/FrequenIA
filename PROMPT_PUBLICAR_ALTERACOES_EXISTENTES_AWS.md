@@ -34,7 +34,7 @@ Não criar ECS/EKS, novo VPC, ALB, NAT Gateway, RDS, ECR, domínio pago, CMK ou 
 2. Registre `git status --short`; preserve todas as mudanças preexistentes e não publique arquivos não relacionados por conveniência.
 3. Identifique a versão exata do checkout/imagem que será publicada e faça inventário dos arquivos incluídos.
 4. Rode a validação já definida para essa imagem e a suíte de contratos da infraestrutura; não declare validação que não foi executada.
-5. Revise `.dockerignore`, `Dockerfile.arm64`, `.gcloudignore` e o conteúdo do arquivo compactado para excluir `.env`, `.secrets`, credenciais, chaves, dados pessoais, imagens, embeddings, dumps, caches, saídas e temporários.
+5. Revise `.dockerignore`, `Dockerfile.arm64` e o conteúdo do arquivo compactado para excluir `.env`, `.secrets`, credenciais, chaves, dados pessoais, imagens, embeddings, dumps, caches, saídas e temporários.
 6. Confirme que a versão contém migrations até `026` e que o banco alvo é um branch/projeto de homologação dedicado com TLS.
 7. Gere uma cópia/backup recuperável do banco de teste e confirme a restauração antes de aplicar migrations.
 8. Não ler nem imprimir o conteúdo de arquivos locais secretos. Validar presença/formato sem exibir valores.

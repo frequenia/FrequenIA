@@ -34,10 +34,10 @@ void main() {
     }
   });
 
-  test('production aceita a URL HTTPS do Cloud Run', () {
+  test('production aceita a URL HTTPS do piloto AWS', () {
     final uri = ApiConfig.validate(
       appEnvironment: 'production',
-      apiBaseUrl: 'https://frequenia-api-example.a.run.app',
+      apiBaseUrl: 'https://frequenia-piloto.duckdns.org',
     );
 
     expect(uri.scheme, 'https');
