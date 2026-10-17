@@ -1,0 +1,575 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Runtime economico do piloto FrequenIA em EC2 com desligamento automatico.
+
+Parameters:
+  ArtifactBucketName:
+    Type: String
+    AllowedPattern: '^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+  AttachmentBucketName:
+    Type: String
+    AllowedPattern: '^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+  AttachmentScanQueueUrl:
+    Type: String
+    AllowedPattern: '^https://sqs\.[a-z0-9-]+\.amazonaws\.com/[0-9]{12}/[A-Za-z0-9_-]+$'
+  AttachmentPublisherPolicyArn:
+    Type: String
+    AllowedPattern: '^arn:[^:]+:iam::[0-9]{12}:policy/.+$'
+  AttachmentWorkerPolicyArn:
+    Type: String
+    AllowedPattern: '^arn:[^:]+:iam::[0-9]{12}:policy/.+$'
+  ContainerArchiveKey:
+    Type: String
+    Default: runtime/frequenia-arm64.tar.gz
+    AllowedPattern: '^runtime/[A-Za-z0-9._/-]+$'
+  DynamicDnsSubdomain:
+    Type: String
+    AllowedPattern: '^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$'
+    Description: Subdominio previamente reservado no DuckDNS, sem .duckdns.org.
+  RuntimeEnvParameterName:
+    Type: String
+    Default: /frequenia/pilot/runtime-env
+    AllowedPattern: '^/[A-Za-z0-9_.\-/]+$'
+  DuckDnsTokenParameterName:
+    Type: String
+    Default: /frequenia/pilot/duckdns-token
+    AllowedPattern: '^/[A-Za-z0-9_.\-/]+$'
+  NotificationEmail:
+    Type: String
+    AllowedPattern: '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+  InstanceType:
+    Type: String
+    Default: t4g.small
+    AllowedValues: [t4g.small, t4g.medium, t3.small, t3.medium]
+  BiometricAwayPolicy:
+    Type: String
+    Default: bloquear
+    AllowedValues: [bloquear, revogar, preservar]
+
+Conditions:
+  IsT4gSmall: !Equals [!Ref InstanceType, t4g.small]
+  IsT4gMedium: !Equals [!Ref InstanceType, t4g.medium]
+  IsArm: !Or [!Condition IsT4gSmall, !Condition IsT4gMedium]
+
+Resources:
+  PilotVpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.24.0.0/24
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-vpc'
+        - Key: Project
+          Value: FrequenIA
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-igw'
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref PilotVpc
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: 10.24.0.0/27
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref PilotVpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-public'
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref PilotVpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-public'
+
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet
+
+  PilotSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Acesso publico HTTPS/HTTP ao piloto FrequenIA.
+      VpcId: !Ref PilotVpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: Validacao ACME e redirecionamento HTTPS.
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: Aplicacao e API HTTPS.
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          CidrIp: 0.0.0.0/0
+          Description: Dependencias externas, Supabase e servicos AWS.
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-web'
+
+  RuntimeTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Project
+          Value: FrequenIA
+        - Key: Environment
+          Value: pilot
+
+  RuntimeAlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId: alias/aws/sns
+      Tags:
+        - Key: Project
+          Value: FrequenIA
+
+  RuntimeAlertEmail:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: !Ref NotificationEmail
+      Protocol: email
+      TopicArn: !Ref RuntimeAlertTopic
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - !Ref AttachmentPublisherPolicyArn
+        - !Ref AttachmentWorkerPolicyArn
+      Policies:
+        - PolicyName: ReadPilotRuntimeArtifactsAndSecrets
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${ArtifactBucketName}/runtime/*'
+              - Effect: Allow
+                Action: ssm:GetParameter
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${RuntimeEnvParameterName}'
+                  - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${DuckDnsTokenParameterName}'
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${AttachmentBucketName}'
+                Condition:
+                  StringLike:
+                    s3:prefix: ['production/*']
+              - Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:DeleteObject]
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${AttachmentBucketName}/production/*'
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref InstanceRole]
+
+  PilotInstance:
+    Type: AWS::EC2::Instance
+    DependsOn: DefaultPublicRoute
+    Properties:
+      ImageId: !If
+        - IsArm
+        - '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64}}'
+        - '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}'
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref InstanceProfile
+      InstanceInitiatedShutdownBehavior: stop
+      MetadataOptions:
+        HttpEndpoint: enabled
+        HttpTokens: required
+        # Containers need two hops to obtain temporary instance-role credentials.
+        HttpPutResponseHopLimit: 2
+      CreditSpecification:
+        CPUCredits: standard
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            DeleteOnTermination: true
+            Encrypted: true
+            VolumeSize: 30
+            VolumeType: gp3
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeleteOnTermination: true
+          DeviceIndex: '0'
+          GroupSet: [!Ref PilotSecurityGroup]
+          SubnetId: !Ref PublicSubnet
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-app'
+        - Key: Project
+          Value: FrequenIA
+        - Key: Environment
+          Value: pilot
+        - Key: CostControl
+          Value: usd-5
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euo pipefail
+          # A primeira inicializacao e somente de preparacao. Mesmo que qualquer
+          # etapa falhe, a instancia volta ao estado stopped e nao fica cobrando.
+          trap '/sbin/shutdown -h now || true' EXIT
+          dnf upgrade -y
+          dnf install -y docker jq gzip
+          systemctl enable --now docker
+
+          if [ ! -f /swapfile ]; then
+            fallocate -l 4G /swapfile
+            chmod 600 /swapfile
+            mkswap /swapfile
+            echo '/swapfile swap swap defaults 0 0' >> /etc/fstab
+          fi
+          swapon -a
+          sysctl vm.swappiness=20
+          echo 'vm.swappiness=20' > /etc/sysctl.d/99-frequenia.conf
+
+          mkdir -p /opt/frequenia/caddy
+          cat > /usr/local/sbin/frequenia-boot <<'SCRIPT'
+          #!/bin/bash
+          set -euo pipefail
+          REGION='${AWS::Region}'
+          BUCKET='${ArtifactBucketName}'
+          ARCHIVE_KEY='${ContainerArchiveKey}'
+          DOMAIN='${DynamicDnsSubdomain}.duckdns.org'
+          TOKEN_PARAMETER='${DuckDnsTokenParameterName}'
+          ENV_PARAMETER='${RuntimeEnvParameterName}'
+
+          TOKEN=$(aws ssm get-parameter --region "$REGION" --name "$TOKEN_PARAMETER" --with-decryption --query 'Parameter.Value' --output text)
+          IMDS_TOKEN=$(curl -fsS -X PUT -H 'X-aws-ec2-metadata-token-ttl-seconds: 60' http://169.254.169.254/latest/api/token)
+          PUBLIC_IP=$(curl -fsS -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4)
+          test "$(curl -fsS "https://www.duckdns.org/update?domains=${DynamicDnsSubdomain}&token=$TOKEN&ip=$PUBLIC_IP")" = 'OK'
+
+          aws ssm get-parameter --region "$REGION" --name "$ENV_PARAMETER" --with-decryption --query 'Parameter.Value' --output text > /opt/frequenia/.env.new
+          chmod 600 /opt/frequenia/.env.new
+          mv /opt/frequenia/.env.new /opt/frequenia/.env
+
+          # O objeto e imutavel e enderecado pelo SHA-256 no nome. Carregar em
+          # todo boot evita manter uma tag local antiga depois da publicacao.
+          aws s3 cp "s3://$BUCKET/$ARCHIVE_KEY" - | gzip -dc | docker load
+          docker pull caddy:2-alpine
+          docker pull clamav/clamav:1.5.4-debian13-slim
+          docker network inspect frequenia >/dev/null 2>&1 || docker network create frequenia
+
+          cat > /opt/frequenia/Caddyfile <<CADDY
+          $DOMAIN {
+            reverse_proxy frequenia-app:5000
+          }
+          CADDY
+
+          docker rm -f frequenia-app frequenia-dispatcher frequenia-worker frequenia-caddy frequenia-clamav >/dev/null 2>&1 || true
+          docker volume inspect frequenia-clamav-db >/dev/null 2>&1 || docker volume create frequenia-clamav-db
+          docker run -d --name frequenia-clamav --restart unless-stopped \
+            --network frequenia --memory 1250m --memory-swap 2g \
+            -v frequenia-clamav-db:/var/lib/clamav \
+            clamav/clamav:1.5.4-debian13-slim
+
+          for attempt in $(seq 1 60); do
+            CLAMAV_STATUS=$(docker inspect --format '{{.State.Health.Status}}' frequenia-clamav 2>/dev/null || true)
+            if [ "$CLAMAV_STATUS" = 'healthy' ]; then
+              break
+            fi
+            if [ "$attempt" = '60' ]; then
+              docker logs --tail 100 frequenia-clamav
+              exit 1
+            fi
+            sleep 10
+          done
+
+          docker run -d --name frequenia-app --restart unless-stopped \
+            --network frequenia --env-file /opt/frequenia/.env \
+            -e AWS_REGION="$REGION" -e AWS_DEFAULT_REGION="$REGION" \
+            -e ATTACHMENT_SCAN_MODE=async -e ATTACHMENT_QUEUE_PROVIDER=sqs \
+            -e ATTACHMENT_QUEUE_URL='${AttachmentScanQueueUrl}' \
+            -e ATTACHMENT_QUEUE_VISIBILITY_SECONDS=120 -e ATTACHMENT_QUEUE_MAX_RECEIVES=5 \
+            -e BIOMETRIC_AWAY_POLICY='${BiometricAwayPolicy}' \
+            --memory 1700m --memory-swap 5g \
+            -p 127.0.0.1:5000:5000 frequenia:pilot
+          docker run -d --name frequenia-dispatcher --restart unless-stopped --stop-timeout 30 \
+            --network frequenia --env-file /opt/frequenia/.env \
+            -e AWS_REGION="$REGION" -e AWS_DEFAULT_REGION="$REGION" \
+            -e ATTACHMENT_SCAN_MODE=async -e ATTACHMENT_QUEUE_PROVIDER=sqs \
+            -e ATTACHMENT_QUEUE_URL='${AttachmentScanQueueUrl}' \
+            -e ATTACHMENT_QUEUE_VISIBILITY_SECONDS=120 -e ATTACHMENT_QUEUE_MAX_RECEIVES=5 \
+            -e BIOMETRIC_AWAY_POLICY='${BiometricAwayPolicy}' \
+            --memory 256m --memory-swap 512m \
+            frequenia:pilot python tools/dispatch_attachment_scan_jobs.py --continuous
+          docker run -d --name frequenia-worker --restart unless-stopped --stop-timeout 30 \
+            --network frequenia --env-file /opt/frequenia/.env \
+            -e AWS_REGION="$REGION" -e AWS_DEFAULT_REGION="$REGION" \
+            -e ATTACHMENT_SCAN_MODE=async -e ATTACHMENT_QUEUE_PROVIDER=sqs \
+            -e ATTACHMENT_QUEUE_URL='${AttachmentScanQueueUrl}' \
+            -e ATTACHMENT_QUEUE_VISIBILITY_SECONDS=120 -e ATTACHMENT_QUEUE_MAX_RECEIVES=5 \
+            -e BIOMETRIC_AWAY_POLICY='${BiometricAwayPolicy}' \
+            --memory 384m --memory-swap 768m \
+            frequenia:pilot python tools/run_attachment_scan_worker.py
+          docker run -d --name frequenia-caddy --restart unless-stopped \
+            --network frequenia -p 80:80 -p 443:443 \
+            -v /opt/frequenia/Caddyfile:/etc/caddy/Caddyfile:ro \
+            -v frequenia-caddy-data:/data -v frequenia-caddy-config:/config \
+            caddy:2-alpine
+
+          for attempt in $(seq 1 36); do
+            if curl -fsS --max-time 5 http://127.0.0.1:5000/ready >/dev/null \
+              && [ "$(docker inspect --format '{{.State.Running}}' frequenia-dispatcher 2>/dev/null || true)" = 'true' ] \
+              && [ "$(docker inspect --format '{{.State.Running}}' frequenia-worker 2>/dev/null || true)" = 'true' ]; then
+              exit 0
+            fi
+            sleep 5
+          done
+          docker logs --tail 100 frequenia-app
+          docker logs --tail 100 frequenia-dispatcher
+          docker logs --tail 100 frequenia-worker
+          exit 1
+          SCRIPT
+          chmod 700 /usr/local/sbin/frequenia-boot
+
+          cat > /etc/systemd/system/frequenia.service <<'UNIT'
+          [Unit]
+          Description=FrequenIA pilot containers
+          After=network-online.target docker.service
+          Wants=network-online.target
+          Requires=docker.service
+
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/local/sbin/frequenia-boot
+          RemainAfterExit=yes
+          Restart=on-failure
+          RestartSec=60
+
+          [Install]
+          WantedBy=multi-user.target
+          UNIT
+          systemctl daemon-reload
+          systemctl enable --now frequenia.service
+
+  RuntimeGuardRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: RuntimeGuard
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*'
+              - Effect: Allow
+                Action: ec2:DescribeInstances
+                Resource: '*'
+              - Effect: Allow
+                Action: ec2:StopInstances
+                Resource: !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${PilotInstance}'
+              - Effect: Allow
+                Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem]
+                Resource: !GetAtt RuntimeTable.Arn
+              - Effect: Allow
+                Action: sns:Publish
+                Resource: !Ref RuntimeAlertTopic
+
+  RuntimeGuardFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Architectures: [arm64]
+      Code: lambdas/runtime_guard
+      Environment:
+        Variables:
+          ALERT_TOPIC_ARN: !Ref RuntimeAlertTopic
+          INSTANCE_ID: !Ref PilotInstance
+          SESSION_SECONDS: '14400'
+          TABLE_NAME: !Ref RuntimeTable
+          TARGET_REGION: !Ref AWS::Region
+      Handler: handler.lambda_handler
+      MemorySize: 128
+      Role: !GetAtt RuntimeGuardRole.Arn
+      Runtime: python3.13
+      Timeout: 30
+      Tags:
+        - Key: Project
+          Value: FrequenIA
+
+  RuntimeGuardSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Confere prazo, trava de custo e horas do piloto a cada cinco minutos.
+      ScheduleExpression: rate(5 minutes)
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt RuntimeGuardFunction.Arn
+          Id: RuntimeGuard
+
+  RuntimeGuardInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref RuntimeGuardFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt RuntimeGuardSchedule.Arn
+
+  SessionControlRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SessionControl
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*'
+              - Effect: Allow
+                Action: ec2:DescribeInstances
+                Resource: '*'
+              - Effect: Allow
+                Action: [ec2:StartInstances, ec2:StopInstances]
+                Resource: !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${PilotInstance}'
+              - Effect: Allow
+                Action: [dynamodb:GetItem, dynamodb:UpdateItem]
+                Resource: !GetAtt RuntimeTable.Arn
+
+  SessionControlFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Architectures: [arm64]
+      Code: lambdas/session_control
+      Environment:
+        Variables:
+          INSTANCE_ID: !Ref PilotInstance
+          SESSION_SECONDS: '14400'
+          TABLE_NAME: !Ref RuntimeTable
+          TARGET_REGION: !Ref AWS::Region
+      Handler: handler.lambda_handler
+      MemorySize: 128
+      Role: !GetAtt SessionControlRole.Arn
+      Runtime: python3.13
+      Timeout: 30
+      Tags:
+        - Key: Project
+          Value: FrequenIA
+
+  OperatorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root'
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokePilotSessionControl
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt SessionControlFunction.Arn
+
+  CostLockDenyPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Bloqueia novas sessoes quando o limite financeiro for atingido.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenySessionControl
+            Effect: Deny
+            Action: lambda:InvokeFunction
+            Resource: !GetAtt SessionControlFunction.Arn
+          - Sid: DenyDirectComputeStart
+            Effect: Deny
+            Action: [ec2:RunInstances, ec2:StartInstances]
+            Resource: '*'
+
+Outputs:
+  ApplicationUrl:
+    Description: URL HTTPS fixa usada como BASE_URL do aplicativo.
+    Value: !Sub 'https://${DynamicDnsSubdomain}.duckdns.org'
+  InstanceId:
+    Description: Identificador da instancia de teste.
+    Value: !Ref PilotInstance
+  RuntimeTableName:
+    Description: Tabela que conserva sessoes, horas e trava de custo.
+    Value: !Ref RuntimeTable
+  RuntimeTableArn:
+    Description: ARN da tabela de controle.
+    Value: !GetAtt RuntimeTable.Arn
+  RuntimeAlertTopicArn:
+    Description: Topico regional para alertas operacionais.
+    Value: !Ref RuntimeAlertTopic
+  SessionControlFunctionName:
+    Description: Funcao usada pelos scripts start, renew, stop e status.
+    Value: !Ref SessionControlFunction
+  OperatorRoleName:
+    Description: Role operacional que pode invocar somente o controle de sessao.
+    Value: !Ref OperatorRole
+  OperatorRoleArn:
+    Description: ARN da role operacional.
+    Value: !GetAtt OperatorRole.Arn
+  CostLockDenyPolicyArn:
+    Description: Politica anexada quando o teto financeiro e atingido.
+    Value: !Ref CostLockDenyPolicy
+

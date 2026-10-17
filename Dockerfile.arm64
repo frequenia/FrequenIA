@@ -1,0 +1,64 @@
+FROM --platform=$TARGETPLATFORM python:3.10-slim AS builder
+
+ARG TARGETARCH
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+RUN test "$TARGETARCH" = "arm64" \
+    && apt-get update \
+    && apt-get install --no-install-recommends --yes \
+        build-essential \
+        libglib2.0-0 \
+        libgl1 \
+        libgomp1 \
+        libpq-dev \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements-runtime.txt ./
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir --prefer-binary -r requirements-runtime.txt
+
+RUN mkdir -p /root/.deepface/weights \
+    && python -c "from deepface.modules import modeling; modeling.build_model(task='spoofing', model_name='Fasnet')" \
+    && curl --fail --location \
+        --retry 8 --retry-all-errors --retry-delay 5 --retry-max-time 1200 \
+        --continue-at - \
+        --output /root/.deepface/weights/arcface_weights.h5 \
+        https://github.com/serengil/deepface_models/releases/download/v1.0/arcface_weights.h5 \
+    && python -c "from deepface.modules import modeling; modeling.build_model(task='facial_recognition', model_name='ArcFace')"
+
+FROM --platform=$TARGETPLATFORM python:3.10-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install --no-install-recommends --yes \
+        libglib2.0-0 \
+        libgl1 \
+        libgomp1 \
+        libpq5 \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/local /usr/local
+COPY --from=builder /root/.deepface /root/.deepface
+COPY app.py db.py ./
+COPY routes ./routes
+COPY services ./services
+COPY utils ./utils
+COPY templates ./templates
+COPY static ./static
+COPY supabase/migrations ./supabase/migrations
+COPY tools/dispatch_attachment_scan_jobs.py tools/run_attachment_scan_worker.py ./tools/
+
+EXPOSE 5000
+
+CMD ["sh", "-c", "exec gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 1 --threads 1 --timeout 300 app:app"]
+

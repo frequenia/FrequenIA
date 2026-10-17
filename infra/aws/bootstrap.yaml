@@ -1,0 +1,81 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Bucket regional para artefatos do piloto FrequenIA.
+
+Parameters:
+  PublicApkDownloads:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Permite leitura publica somente do prefixo apk/.
+
+Conditions:
+  IsPublicApkBucket: !Equals [!Ref PublicApkDownloads, 'true']
+
+Resources:
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      LifecycleConfiguration:
+        Rules:
+          - Id: RemoveTemporaryLambdaPackages
+            Prefix: lambda-temp/
+            Status: Enabled
+            ExpirationInDays: 7
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: !If [IsPublicApkBucket, false, true]
+        RestrictPublicBuckets: !If [IsPublicApkBucket, false, true]
+      Tags:
+        - Key: Project
+          Value: FrequenIA
+        - Key: Environment
+          Value: pilot
+        - Key: CostControl
+          Value: usd-5
+
+  ArtifactBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ArtifactBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource:
+              - !GetAtt ArtifactBucket.Arn
+              - !Sub '${ArtifactBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+          - !If
+            - IsPublicApkBucket
+            - Sid: PublicReadOnlyForApk
+              Effect: Allow
+              Principal: '*'
+              Action: s3:GetObject
+              Resource: !Sub '${ArtifactBucket.Arn}/apk/*'
+            - !Ref AWS::NoValue
+
+Outputs:
+  BucketName:
+    Description: Nome do bucket regional de artefatos.
+    Value: !Ref ArtifactBucket
+  BucketArn:
+    Description: ARN do bucket regional de artefatos.
+    Value: !GetAtt ArtifactBucket.Arn
+  ApkBaseUrl:
+    Description: Prefixo HTTPS para downloads de APK quando habilitados.
+    Value: !Sub 'https://${ArtifactBucket}.s3.${AWS::Region}.${AWS::URLSuffix}/apk/'

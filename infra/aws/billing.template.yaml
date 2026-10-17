@@ -1,0 +1,261 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Orcamento global e disjuntor financeiro do piloto FrequenIA.
+
+Parameters:
+  NotificationEmail:
+    Type: String
+    AllowedPattern: '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+  MonthlyBudgetUsd:
+    Type: Number
+    Default: 5
+    MinValue: 5
+    MaxValue: 100
+  TargetRegion:
+    Type: String
+    Default: sa-east-1
+    AllowedValues: [sa-east-1]
+  InstanceId:
+    Type: String
+    AllowedPattern: '^i-[0-9a-f]+$'
+  RuntimeTableName:
+    Type: String
+    AllowedPattern: '^[A-Za-z0-9_.-]+$'
+  RuntimeTableArn:
+    Type: String
+    AllowedPattern: '^arn:[^:]+:dynamodb:[^:]+:[0-9]{12}:table/.+$'
+  RuntimeAlertTopicArn:
+    Type: String
+    AllowedPattern: '^arn:[^:]+:sns:[^:]+:[0-9]{12}:.+$'
+  OperatorRoleName:
+    Type: String
+    AllowedPattern: '^[A-Za-z0-9+=,.@_-]+$'
+  OperatorRoleArn:
+    Type: String
+    AllowedPattern: '^arn:[^:]+:iam::[0-9]{12}:role/.+$'
+  CostLockDenyPolicyArn:
+    Type: String
+    AllowedPattern: '^arn:[^:]+:iam::[0-9]{12}:policy/.+$'
+
+Resources:
+  BudgetStopTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Tags:
+        - Key: Project
+          Value: FrequenIA
+        - Key: CostControl
+          Value: stop-at-80-percent
+
+  BudgetLockTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Tags:
+        - Key: Project
+          Value: FrequenIA
+        - Key: CostControl
+          Value: lock-at-100-percent
+
+  BudgetTopicsPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics: [!Ref BudgetStopTopic, !Ref BudgetLockTopic]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowBudgetsToPublishStop
+            Effect: Allow
+            Principal:
+              Service: budgets.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref BudgetStopTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+          - Sid: AllowBudgetsToPublishLock
+            Effect: Allow
+            Principal:
+              Service: budgets.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref BudgetLockTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  BudgetGuardRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: StopAndLockPilot
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*'
+              - Effect: Allow
+                Action: ec2:DescribeInstances
+                Resource: '*'
+              - Effect: Allow
+                Action: ec2:StopInstances
+                Resource: !Sub 'arn:${AWS::Partition}:ec2:${TargetRegion}:${AWS::AccountId}:instance/${InstanceId}'
+              - Effect: Allow
+                Action: dynamodb:UpdateItem
+                Resource: !Ref RuntimeTableArn
+              - Effect: Allow
+                Action: iam:AttachRolePolicy
+                Resource: !Ref OperatorRoleArn
+              - Effect: Allow
+                Action: sns:Publish
+                Resource: !Ref RuntimeAlertTopicArn
+
+  BudgetStopFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code: lambdas/budget_guard
+      Environment:
+        Variables:
+          ACTION: STOP
+          ALERT_TOPIC_ARN: !Ref RuntimeAlertTopicArn
+          DENY_POLICY_ARN: !Ref CostLockDenyPolicyArn
+          INSTANCE_ID: !Ref InstanceId
+          OPERATOR_ROLE_NAME: !Ref OperatorRoleName
+          TABLE_NAME: !Ref RuntimeTableName
+          TARGET_REGION: !Ref TargetRegion
+      Handler: handler.lambda_handler
+      MemorySize: 128
+      Role: !GetAtt BudgetGuardRole.Arn
+      Runtime: python3.13
+      Timeout: 30
+      Tags:
+        - Key: Project
+          Value: FrequenIA
+
+  BudgetLockFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code: lambdas/budget_guard
+      Environment:
+        Variables:
+          ACTION: LOCK
+          ALERT_TOPIC_ARN: !Ref RuntimeAlertTopicArn
+          DENY_POLICY_ARN: !Ref CostLockDenyPolicyArn
+          INSTANCE_ID: !Ref InstanceId
+          OPERATOR_ROLE_NAME: !Ref OperatorRoleName
+          TABLE_NAME: !Ref RuntimeTableName
+          TARGET_REGION: !Ref TargetRegion
+      Handler: handler.lambda_handler
+      MemorySize: 128
+      Role: !GetAtt BudgetGuardRole.Arn
+      Runtime: python3.13
+      Timeout: 30
+      Tags:
+        - Key: Project
+          Value: FrequenIA
+
+  BudgetStopSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: !GetAtt BudgetStopFunction.Arn
+      Protocol: lambda
+      TopicArn: !Ref BudgetStopTopic
+
+  BudgetLockSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: !GetAtt BudgetLockFunction.Arn
+      Protocol: lambda
+      TopicArn: !Ref BudgetLockTopic
+
+  BudgetStopInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref BudgetStopFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref BudgetStopTopic
+
+  BudgetLockInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref BudgetLockFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref BudgetLockTopic
+
+  BudgetStopEmail:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: !Ref NotificationEmail
+      Protocol: email
+      TopicArn: !Ref BudgetStopTopic
+
+  BudgetLockEmail:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: !Ref NotificationEmail
+      Protocol: email
+      TopicArn: !Ref BudgetLockTopic
+
+  MonthlyBudget:
+    Type: AWS::Budgets::Budget
+    DependsOn: BudgetTopicsPolicy
+    Properties:
+      Budget:
+        BudgetLimit:
+          Amount: !Ref MonthlyBudgetUsd
+          Unit: USD
+        BudgetName: !Sub '${AWS::StackName}-monthly'
+        BudgetType: COST
+        TimeUnit: MONTHLY
+      NotificationsWithSubscribers:
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: ACTUAL
+            Threshold: 50
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - Address: !Ref NotificationEmail
+              SubscriptionType: EMAIL
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: ACTUAL
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - Address: !Ref BudgetStopTopic
+              SubscriptionType: SNS
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: FORECASTED
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - Address: !Ref BudgetStopTopic
+              SubscriptionType: SNS
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: ACTUAL
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - Address: !Ref BudgetLockTopic
+              SubscriptionType: SNS
+
+Outputs:
+  BudgetName:
+    Description: Nome do orcamento mensal global.
+    Value: !Ref MonthlyBudget
+  StopTopicArn:
+    Description: Topico acionado em 80 por cento do orcamento.
+    Value: !Ref BudgetStopTopic
+  LockTopicArn:
+    Description: Topico acionado em 100 por cento do orcamento.
+    Value: !Ref BudgetLockTopic
+

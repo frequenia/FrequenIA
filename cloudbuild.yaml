@@ -1,0 +1,102 @@
+substitutions:
+  _REGION: southamerica-east1
+  _REPOSITORY: frequenia
+  _SERVICE: frequenia-api
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --tag
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID
+      - .
+
+  - id: unit-tests
+    waitFor:
+      - build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - run
+      - --rm
+      - --env=APP_ENV=production
+      - --env=FLASK_SECRET_KEY=test-only-flask-key-test-only-flask-key
+      - --env=JWT_SECRET_KEY=test-only-jwt-key-test-only-jwt-key-test
+      - --env=DATABASE_URL=postgresql://unused:unused@127.0.0.1:5432/unused
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID
+      - python
+      - -m
+      - unittest
+      - discover
+      - -s
+      - tests
+      - -p
+      - test_*.py
+
+  - id: push
+    waitFor:
+      - unit-tests
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID
+
+  - id: deploy-smoke-promote
+    waitFor:
+      - push
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        IMAGE="${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID"
+        RUNTIME_SERVICE_ACCOUNT="frequenia-cloud-run@$PROJECT_ID.iam.gserviceaccount.com"
+
+        gcloud run deploy "${_SERVICE}" \
+          --image="$${IMAGE}" \
+          --region="${_REGION}" \
+          --platform=managed \
+          --execution-environment=gen2 \
+          --service-account="$${RUNTIME_SERVICE_ACCOUNT}" \
+          --port=8080 \
+          --cpu=2 \
+          --memory=4Gi \
+          --concurrency=1 \
+          --timeout=300 \
+          --min=1 \
+          --max=3 \
+          --cpu-boost \
+          --ingress=all \
+          --allow-unauthenticated \
+          --set-env-vars="APP_ENV=production,JWT_ACCESS_TOKEN_MINUTES=15,JWT_REFRESH_TOKEN_DAYS=30,PASSWORD_RESET_TOKEN_MINUTES=30,EMAILJS_TIMEOUT_SECONDS=10,FACE_VERIFICATION_MAX_COSINE_DISTANCE=0.68,FACIAL_ATTEMPT_MAX_AGE_SECONDS=120" \
+          --set-secrets="DATABASE_URL=frequenia-database-url:latest,FLASK_SECRET_KEY=frequenia-flask-secret-key:latest,JWT_SECRET_KEY=frequenia-jwt-secret-key:latest,CLOUDINARY_CLOUD_NAME=frequenia-cloudinary-cloud-name:latest,CLOUDINARY_API_KEY=frequenia-cloudinary-api-key:latest,CLOUDINARY_API_SECRET=frequenia-cloudinary-api-secret:latest,EMAILJS_SERVICE_ID=frequenia-emailjs-service-id:latest,EMAILJS_TEMPLATE_ID=frequenia-emailjs-template-id:latest,EMAILJS_PUBLIC_KEY=frequenia-emailjs-public-key:latest,EMAILJS_PRIVATE_KEY=frequenia-emailjs-private-key:latest" \
+          --startup-probe="httpGet.path=/health,httpGet.port=8080,initialDelaySeconds=0,timeoutSeconds=5,periodSeconds=10,failureThreshold=24" \
+          --labels="app=frequenia,managed-by=cloud-build" \
+          --no-traffic \
+          --tag=candidate \
+          --quiet
+
+        CANDIDATE_URL="$$(gcloud run services describe "${_SERVICE}" \
+          --region="${_REGION}" \
+          --format="value(status.traffic[?tag='candidate'].url)")"
+        test -n "$${CANDIDATE_URL}"
+
+        HEALTHY=0
+        for attempt in {1..20}; do
+          if curl --fail --silent --show-error --max-time 15 "$${CANDIDATE_URL}/health"; then
+            HEALTHY=1
+            break
+          fi
+          sleep 6
+        done
+        test "$${HEALTHY}" = "1"
+
+        gcloud run services update-traffic "${_SERVICE}" \
+          --region="${_REGION}" \
+          --to-latest \
+          --quiet
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID
+
+timeout: 1800s
