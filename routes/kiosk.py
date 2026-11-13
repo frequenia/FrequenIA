@@ -4,6 +4,7 @@ import hashlib
 import logging
 import math
 import secrets
+import time
 from uuid import UUID, uuid4
 
 import psycopg2.extras
@@ -14,8 +15,6 @@ from db import conectar_bd
 from routes.biometrics import (
     _read_image_upload,
     _validate_embedding,
-    verify_passive_liveness,
-    generate_biometric_embedding,
     compare_face_embeddings,
 )
 from routes.views import (
@@ -27,7 +26,13 @@ from routes.views import (
     resposta_marcacao_recente,
     serializar_marcacao,
 )
-from services.face_service import FaceServiceUnavailableError, InvalidFaceCountError, InvalidFaceImageError, LivenessServiceUnavailableError
+from services.face_service import (
+    FaceServiceUnavailableError,
+    InvalidFaceCountError,
+    InvalidFaceImageError,
+    LivenessServiceUnavailableError,
+    verify_liveness_and_generate_embedding,
+)
 from services.facial_failure_occurrences import (
     COUNTED_FAILURE_REASONS,
     consume_facial_failure_cycle,
@@ -290,11 +295,22 @@ def create_kiosk_facial_clock():
         if not biometric:
             _record_attempt(cursor, company_id, employee_id, "falha", "biometria_ausente")
             connection.commit(); return _verification_failed()
-        approved, _score = verify_passive_liveness(image)
+        facial_started_at = time.perf_counter()
+        approved, _score, generated_embedding = (
+            verify_liveness_and_generate_embedding(image)
+        )
+        facial_duration_ms = round(
+            (time.perf_counter() - facial_started_at) * 1000
+        )
+        LOGGER.info(
+            "kiosk_facial_pipeline duration_ms=%d approved=%d",
+            facial_duration_ms,
+            int(approved),
+        )
         if not approved:
             _record_attempt(cursor, company_id, employee_id, "falha", "liveness_reprovado")
             connection.commit(); return _verification_failed()
-        candidate = _validate_embedding(generate_biometric_embedding(image))
+        candidate = _validate_embedding(generated_embedding)
         verified, distance = compare_face_embeddings(
             biometric["embedding"], candidate,
             biometric.get("limiar", current_app.config["FACE_VERIFICATION_MAX_COSINE_DISTANCE"]),

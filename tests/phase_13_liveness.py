@@ -154,6 +154,40 @@ class PassiveLivenessTests(unittest.TestCase):
 
         loader.assert_not_called()
 
+    def test_combined_pipeline_detects_once_and_reuses_approved_face(self):
+        expected_embedding = [1.0] + [0.0] * 511
+        with patch.object(
+            face_service, "_load_deepface_class", return_value=LiveDeepFace
+        ), patch.object(
+            face_service,
+            "generate_arcface_embedding",
+            return_value=expected_embedding,
+        ) as generator:
+            approved, score, embedding = (
+                face_service.verify_liveness_and_generate_embedding(synthetic_png())
+            )
+
+        self.assertTrue(approved)
+        self.assertTrue(math.isclose(score, 0.97))
+        self.assertEqual(embedding, expected_embedding)
+        self.assertEqual(LiveDeepFace.calls, 1)
+        detected_face = generator.call_args.args[0]
+        self.assertEqual(detected_face.shape, (112, 112, 3))
+
+    def test_combined_pipeline_never_generates_embedding_for_spoof(self):
+        with patch.object(
+            face_service, "_load_deepface_class", return_value=SpoofDeepFace
+        ), patch.object(face_service, "generate_arcface_embedding") as generator:
+            approved, score, embedding = (
+                face_service.verify_liveness_and_generate_embedding(synthetic_png())
+            )
+
+        self.assertFalse(approved)
+        self.assertTrue(math.isclose(score, 0.94))
+        self.assertIsNone(embedding)
+        self.assertEqual(SpoofDeepFace.calls, 1)
+        generator.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

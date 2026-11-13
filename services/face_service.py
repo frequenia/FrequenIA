@@ -207,6 +207,90 @@ def verify_passive_liveness(image_bytes, detector_backend="opencv"):
     return is_real, score
 
 
+def verify_liveness_and_generate_embedding(image_bytes, detector_backend="opencv"):
+    """Executa liveness e embedding reutilizando a mesma face detectada.
+
+    A imagem e decodificada uma vez e a deteccao com anti-spoofing ocorre uma
+    unica vez. Somente uma face aprovada pelo liveness segue para o ArcFace.
+    Nenhuma imagem, face, score ou embedding e persistido por esta funcao.
+    """
+    image = _decode_image_bytes(image_bytes)
+    try:
+        faces = _extract_faces_with_passive_liveness(image, detector_backend)
+    except FaceServiceUnavailableError as exc:
+        raise LivenessServiceUnavailableError(
+            "Servico de liveness temporariamente indisponivel."
+        ) from exc
+    except (ImportError, ModuleNotFoundError) as exc:
+        raise LivenessServiceUnavailableError(
+            "Servico de liveness temporariamente indisponivel."
+        ) from exc
+    except ValueError as exc:
+        message = str(exc).lower()
+        if "torch" in message or "weight" in message:
+            raise LivenessServiceUnavailableError(
+                "Servico de liveness temporariamente indisponivel."
+            ) from exc
+        raise InvalidFaceCountError(
+            "Nao foi possivel detectar uma face valida na imagem."
+        ) from exc
+    except Exception as exc:
+        raise LivenessServiceUnavailableError(
+            "Servico de liveness temporariamente indisponivel."
+        ) from exc
+
+    if len(faces) != 1:
+        raise InvalidFaceCountError("A imagem deve conter exatamente uma face.")
+
+    result = faces[0] if isinstance(faces[0], dict) else None
+    if (
+        not result
+        or "is_real" not in result
+        or "antispoof_score" not in result
+        or "face" not in result
+    ):
+        raise LivenessServiceUnavailableError(
+            "Servico de liveness retornou resultado invalido."
+        )
+
+    is_real = result["is_real"]
+    if not isinstance(is_real, bool):
+        raise LivenessServiceUnavailableError(
+            "Servico de liveness retornou resultado invalido."
+        )
+    try:
+        score = float(result["antispoof_score"])
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise LivenessServiceUnavailableError(
+            "Servico de liveness retornou resultado invalido."
+        ) from exc
+    if not math.isfinite(score) or not 0 <= score <= 1:
+        raise LivenessServiceUnavailableError(
+            "Servico de liveness retornou resultado invalido."
+        )
+
+    if not is_real:
+        return False, score, None
+
+    face = result["face"]
+    if face is None or not hasattr(face, "size") or face.size == 0:
+        raise InvalidFaceCountError("A face detectada nao e valida.")
+    try:
+        embedding = generate_arcface_embedding(face)
+    except FaceServiceUnavailableError:
+        raise
+    except Exception as exc:
+        raise InvalidFaceImageError(
+            "Nao foi possivel gerar a representacao facial."
+        ) from exc
+
+    if len(embedding) != EMBEDDING_DIMENSION or not all(
+        math.isfinite(value) for value in embedding
+    ):
+        raise InvalidFaceImageError("A representacao facial gerada e invalida.")
+    return True, score, embedding
+
+
 def generate_arcface_embedding(face_img):
     """Gera e normaliza o embedding usado pelas rotas faciais legadas."""
     import numpy as np

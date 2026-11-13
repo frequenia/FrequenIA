@@ -52,7 +52,7 @@ class KioskClockTests(unittest.TestCase):
     def call(self, connection, data=None, key="00000000-0000-0000-0000-000000000005"):
         with self.app.test_request_context("/api/quiosque/marcacoes/facial", method="POST", data=data or form(), headers={"Idempotency-Key": key}):
             g.terminal_context = {"terminal_id": TERMINAL_A, "empresa_id": COMPANY_A}
-            with patch("routes.kiosk.conectar_bd", return_value=connection), patch("routes.kiosk.register_vector"), patch("routes.kiosk._active_biometric", return_value={"embedding": VECTOR, "limiar": .68}), patch("routes.kiosk.verify_passive_liveness", return_value=(True, .99)), patch("routes.kiosk.generate_biometric_embedding", return_value=VECTOR):
+            with patch("routes.kiosk.conectar_bd", return_value=connection), patch("routes.kiosk.register_vector"), patch("routes.kiosk._active_biometric", return_value={"embedding": VECTOR, "limiar": .68}), patch("routes.kiosk.verify_liveness_and_generate_embedding", return_value=(True, .99, VECTOR)):
                 return create_kiosk_facial_clock.__wrapped__()
 
     def test_active_terminal_company_a_marks_only_employee_resolved_in_company_a(self):
@@ -110,16 +110,16 @@ class KioskClockTests(unittest.TestCase):
         connection = Connection(cursor)
         with self.app.test_request_context("/api/quiosque/marcacoes/facial", method="POST", data=form(), headers={"Idempotency-Key": "00000000-0000-0000-0000-000000000005"}):
             g.terminal_context = {"terminal_id": TERMINAL_A, "empresa_id": COMPANY_A}
-            with patch("routes.kiosk.conectar_bd", return_value=connection), patch("routes.kiosk.register_vector"), patch("routes.kiosk._active_biometric", return_value={"embedding": VECTOR, "limiar": .68}), patch("routes.kiosk.verify_passive_liveness", return_value=(False, .1)), patch("routes.kiosk.generate_biometric_embedding") as embedding:
+            with patch("routes.kiosk.conectar_bd", return_value=connection), patch("routes.kiosk.register_vector"), patch("routes.kiosk._active_biometric", return_value={"embedding": VECTOR, "limiar": .68}), patch("routes.kiosk.verify_liveness_and_generate_embedding", return_value=(False, .1, None)) as pipeline:
                 _, status = create_kiosk_facial_clock.__wrapped__()
-        self.assertEqual(status, 409); embedding.assert_not_called()
+        self.assertEqual(status, 409); pipeline.assert_called_once()
         self.assertNotIn("INSERT INTO marcacoes", " ".join(call[0] for call in cursor.calls))
 
         cursor = Cursor([{"id": EMPLOYEE_A}, None, {"id": "00000000-0000-0000-0000-000000000007"}])
         connection = Connection(cursor)
         with self.app.test_request_context("/api/quiosque/marcacoes/facial", method="POST", data=form(), headers={"Idempotency-Key": "00000000-0000-0000-0000-000000000005"}):
             g.terminal_context = {"terminal_id": TERMINAL_A, "empresa_id": COMPANY_A}
-            with patch("routes.kiosk.conectar_bd", return_value=connection), patch("routes.kiosk.register_vector"), patch("routes.kiosk._active_biometric", return_value={"embedding": VECTOR, "limiar": .68}), patch("routes.kiosk.verify_passive_liveness", return_value=(True, .99)), patch("routes.kiosk.generate_biometric_embedding", return_value=VECTOR), patch("routes.kiosk.compare_face_embeddings", return_value=(False, .9)):
+            with patch("routes.kiosk.conectar_bd", return_value=connection), patch("routes.kiosk.register_vector"), patch("routes.kiosk._active_biometric", return_value={"embedding": VECTOR, "limiar": .68}), patch("routes.kiosk.verify_liveness_and_generate_embedding", return_value=(True, .99, VECTOR)), patch("routes.kiosk.compare_face_embeddings", return_value=(False, .9)):
                 _, status = create_kiosk_facial_clock.__wrapped__()
         self.assertEqual(status, 409)
         self.assertNotIn("INSERT INTO marcacoes", " ".join(call[0] for call in cursor.calls))
@@ -155,6 +155,8 @@ class KioskClockTests(unittest.TestCase):
         self.assertIn("buscar_marcacao_por_idempotencia", source)
         self.assertNotIn("FROM fotos", source)
         self.assertNotIn("<=>", source)
+        self.assertIn("verify_liveness_and_generate_embedding(image)", source)
+        self.assertNotIn("generate_biometric_embedding(image)", source)
 
 
 if __name__ == "__main__": unittest.main(verbosity=2)
