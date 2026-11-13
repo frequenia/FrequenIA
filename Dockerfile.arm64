@@ -20,7 +20,8 @@ RUN test "$TARGETARCH" = "arm64" \
 
 COPY requirements-runtime.txt ./
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir --prefer-binary -r requirements-runtime.txt
+    && pip install --no-cache-dir --prefer-binary -r requirements-runtime.txt \
+    && python -c "import docx, openpyxl, reportlab"
 
 RUN mkdir -p /root/.deepface/weights \
     && python -c "from deepface.modules import modeling; modeling.build_model(task='spoofing', model_name='Fasnet')" \
@@ -40,12 +41,19 @@ WORKDIR /app
 
 RUN apt-get update \
     && apt-get install --no-install-recommends --yes \
+        ca-certificates \
         libglib2.0-0 \
         libgl1 \
         libgomp1 \
         libpq5 \
         curl \
     && rm -rf /var/lib/apt/lists/*
+
+RUN curl --fail --location --retry 5 --retry-all-errors \
+        --output /etc/ssl/certs/supabase-prod-ca-2021.crt \
+        https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt \
+    && echo "700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7  /etc/ssl/certs/supabase-prod-ca-2021.crt" \
+        | sha256sum --check --strict
 
 COPY --from=builder /usr/local /usr/local
 COPY --from=builder /root/.deepface /root/.deepface

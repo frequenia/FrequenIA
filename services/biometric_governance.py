@@ -149,17 +149,26 @@ def resolve_verification_material(cursor, company_id: str, employee_id: str):
     governance = resolve_governance(cursor, company_id, lock=True)
     cursor.execute(
         """
-        SELECT b.id, b.embedding, b.modelo, b.versao_modelo,
+        SELECT b.id,
+               CASE WHEN b.created_at + (%s * interval '1 day') > statement_timestamp()
+                    THEN b.embedding ELSE NULL END AS embedding,
+               COALESCE(b.created_at + (%s * interval '1 day') > statement_timestamp(),
+                        FALSE) AS retencao_valida,
+               b.modelo, b.versao_modelo,
                b.politica_biometrica_id, b.perfil_tecnico_id
         FROM biometrias b
         WHERE b.empresa_id=%s AND b.funcionario_id=%s AND b.status='ativa'
         ORDER BY b.created_at DESC, b.id DESC LIMIT 1 FOR SHARE
         """,
-        (company_id, employee_id),
+        (governance.retention_days, governance.retention_days, company_id, employee_id),
     )
     biometric = cursor.fetchone()
     if not biometric:
         return None, governance
+    if biometric["retencao_valida"] is not True:
+        raise BiometricGovernanceError(
+            "biometria_expirada", "Recadastro biometrico necessario.", 409
+        )
     compatible = (
         str(biometric["politica_biometrica_id"] or "") == governance.policy_id
         and str(biometric["perfil_tecnico_id"] or "") == governance.profile_id
@@ -222,13 +231,16 @@ def transition_biometric(
     reason = _validate_reason(reason)
     key = _validate_idempotency_key(idempotency_key)
     cursor.execute(
-        """SELECT biometria_id,operacao,estado_resultante FROM operacoes_biometricas
+        """SELECT biometria_id,funcionario_id,operacao,estado_resultante FROM operacoes_biometricas
            WHERE empresa_id=%s AND chave_idempotencia=%s""",
         (company_id, key),
     )
     prior = cursor.fetchone()
     if prior:
-        if prior["operacao"] != operation:
+        if (
+            prior["operacao"] != operation
+            or str(prior["funcionario_id"]) != str(employee_id)
+        ):
             raise BiometricGovernanceError(
                 "idempotencia_conflitante", "Chave de idempotencia indisponivel.", 409
             )
@@ -312,12 +324,15 @@ def manage_hold(
     if not reference or len(reference) > 240:
         raise BiometricGovernanceError("referencia_invalida", "Referencia obrigatoria.", 400)
     cursor.execute(
-        """SELECT biometria_id,operacao,estado_resultante FROM operacoes_biometricas
+        """SELECT biometria_id,funcionario_id,operacao,estado_resultante FROM operacoes_biometricas
            WHERE empresa_id=%s AND chave_idempotencia=%s""", (company_id, key)
     )
     prior = cursor.fetchone()
     if prior:
-        if prior["operacao"] != operation:
+        if (
+            prior["operacao"] != operation
+            or str(prior["funcionario_id"]) != str(employee_id)
+        ):
             raise BiometricGovernanceError("idempotencia_conflitante", "Chave de idempotencia indisponivel.", 409)
         return {"biometria_id": str(prior["biometria_id"]), "hold": prior["estado_resultante"] == "hold_ativo", "reutilizada": True}
     cursor.execute(
@@ -459,7 +474,7 @@ def governance_readiness(cursor, company_id: str) -> dict[str, bool]:
 def create_approved_policy(cursor, *, company_id, actor_id, payload):
     required = {
         "versao", "referencia_base_legal", "versao_aviso", "referencia_documental",
-        "canal_atendimento", "retencao_dias", "vigencia_inicio",
+        "canal_atendimento", "retencao_dias", "vigencia_inicio", "vigencia_fim",
     }
     if set(payload) != required:
         raise BiometricGovernanceError("politica_invalida", "Campos da politica invalidos.", 400)
@@ -467,13 +482,13 @@ def create_approved_policy(cursor, *, company_id, actor_id, payload):
         """INSERT INTO politicas_biometricas
            (empresa_id,finalidade,versao,referencia_base_legal,versao_aviso,
             referencia_documental,canal_atendimento,retencao_dias,estado,
-            vigencia_inicio,aprovado_por_usuario_id,aprovado_at)
-           VALUES(%s,%s,%s,%s,%s,%s,%s,%s,'aprovada',%s,%s,clock_timestamp())
-           RETURNING id,versao,versao_aviso,finalidade,retencao_dias""",
+            vigencia_inicio,vigencia_fim,aprovado_por_usuario_id,aprovado_at)
+           VALUES(%s,%s,%s,%s,%s,%s,%s,%s,'aprovada',%s,%s,%s,clock_timestamp())
+           RETURNING id,versao,versao_aviso,finalidade,retencao_dias,vigencia_fim""",
         (company_id, PURPOSE, payload["versao"], payload["referencia_base_legal"],
          payload["versao_aviso"], payload["referencia_documental"],
          payload["canal_atendimento"], payload["retencao_dias"],
-         payload["vigencia_inicio"], actor_id),
+         payload["vigencia_inicio"], payload["vigencia_fim"], actor_id),
     )
     row = cursor.fetchone()
     _audit(cursor, company_id, actor_id, "biometria.politica_aprovada", row["id"],
@@ -483,7 +498,7 @@ def create_approved_policy(cursor, *, company_id, actor_id, payload):
 
 
 def create_active_profile(cursor, *, company_id, actor_id, payload):
-    required = {"versao", "modelo", "versao_modelo", "dimensao", "metrica", "limiar", "versao_liveness", "vigencia_inicio", "referencia_relatorio"}
+    required = {"versao", "modelo", "versao_modelo", "dimensao", "metrica", "limiar", "versao_liveness", "vigencia_inicio", "vigencia_fim", "referencia_relatorio"}
     if set(payload) != required:
         raise BiometricGovernanceError("perfil_invalido", "Campos do perfil invalidos.", 400)
     threshold = float(payload["limiar"])
@@ -496,13 +511,15 @@ def create_active_profile(cursor, *, company_id, actor_id, payload):
     cursor.execute(
         """INSERT INTO perfis_tecnicos_biometricos
            (empresa_id,finalidade,versao,modelo,versao_modelo,dimensao,metrica,
-            limiar,versao_liveness,referencia_relatorio,estado,vigencia_inicio,aprovado_por_usuario_id,aprovado_at)
-           VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'ativo',%s,%s,clock_timestamp())
-           RETURNING id,versao,modelo,versao_modelo,dimensao,metrica,limiar,versao_liveness""",
+            limiar,versao_liveness,referencia_relatorio,estado,vigencia_inicio,
+            vigencia_fim,aprovado_por_usuario_id,aprovado_at)
+           VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'ativo',%s,%s,%s,clock_timestamp())
+           RETURNING id,versao,modelo,versao_modelo,dimensao,metrica,limiar,
+                     versao_liveness,vigencia_fim""",
         (company_id, PURPOSE, payload["versao"], payload["modelo"],
          payload["versao_modelo"], payload["dimensao"], payload["metrica"],
          threshold, payload["versao_liveness"], report_reference,
-         payload["vigencia_inicio"], actor_id),
+         payload["vigencia_inicio"], payload["vigencia_fim"], actor_id),
     )
     row = cursor.fetchone()
     _audit(cursor, company_id, actor_id, "biometria.perfil_ativado", row["id"],
@@ -511,6 +528,46 @@ def create_active_profile(cursor, *, company_id, actor_id, payload):
             "metrica": row["metrica"], "limiar": row["limiar"],
             "versao_liveness": row["versao_liveness"],
             "referencia_relatorio": report_reference})
+    return row
+
+
+def deactivate_active_profile(cursor, *, company_id, actor_id, payload):
+    required = {"versao", "motivo_codigo"}
+    if set(payload) != required:
+        raise BiometricGovernanceError(
+            "perfil_desativacao_invalida", "Campos da desativacao invalidos.", 400
+        )
+    version = str(payload["versao"] or "").strip()
+    if not version or len(version) > 80:
+        raise BiometricGovernanceError(
+            "perfil_desativacao_invalida", "Versao do perfil invalida.", 400
+        )
+    reason = _validate_reason(payload["motivo_codigo"])
+    cursor.execute(
+        """SELECT id,versao FROM perfis_tecnicos_biometricos
+           WHERE empresa_id=%s AND finalidade=%s AND versao=%s
+             AND estado='ativo'
+             AND (vigencia_fim IS NULL OR vigencia_fim > clock_timestamp())
+           FOR UPDATE""",
+        (company_id, PURPOSE, version),
+    )
+    current = cursor.fetchone()
+    if not current:
+        raise BiometricGovernanceError(
+            "perfil_ativo_nao_encontrado", "Perfil tecnico ativo nao encontrado.", 404
+        )
+    cursor.execute(
+        """UPDATE perfis_tecnicos_biometricos
+           SET estado='inativo',vigencia_fim=clock_timestamp()
+           WHERE empresa_id=%s AND id=%s
+           RETURNING id,versao,estado,vigencia_fim""",
+        (company_id, current["id"]),
+    )
+    row = cursor.fetchone()
+    _audit(
+        cursor, company_id, actor_id, "biometria.perfil_desativado", row["id"],
+        {"versao": row["versao"], "motivo_codigo": reason},
+    )
     return row
 
 
@@ -560,6 +617,104 @@ def purge_eligible(connection, *, company_id: str, execute: bool = False, limit:
                 )
         connection.commit()
         return {"dry_run": False, "elegiveis": len(rows), "eliminadas": len(rows)}
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        cursor.close()
+
+
+def reconcile_restored_biometrics(
+    connection, *, company_id: str, execute: bool = False, limit: int = 100
+):
+    """Compara a linha restaurada com o ultimo estado ainda presente no historico.
+
+    A reparacao automatica e deliberadamente estreita: somente um ultimo estado
+    ``eliminada`` pode remover material que reapareceu. Outras divergencias sao
+    reportadas para analise humana e nunca reativam ou mudam uma biometria.
+    """
+    if not 1 <= int(limit) <= 500:
+        raise ValueError("limit deve estar entre 1 e 500")
+    cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cursor.execute(
+            """
+            WITH ultimo_estado AS (
+                SELECT DISTINCT ON (h.biometria_id)
+                       h.biometria_id, h.estado_novo, h.ocorrido_at
+                FROM historico_ciclo_biometrico h
+                WHERE h.empresa_id=%s
+                ORDER BY h.biometria_id, h.ocorrido_at DESC, h.id DESC
+            )
+            SELECT b.id,b.status,u.estado_novo,u.ocorrido_at,
+                   (b.embedding IS NOT NULL OR
+                    b.referencia_arquivo_privado IS NOT NULL) AS material_presente
+            FROM biometrias b
+            JOIN ultimo_estado u ON u.biometria_id=b.id
+            WHERE b.empresa_id=%s
+              AND (b.status IS DISTINCT FROM u.estado_novo
+                   OR (u.estado_novo='eliminada' AND
+                       (b.embedding IS NOT NULL OR
+                        b.referencia_arquivo_privado IS NOT NULL)))
+            ORDER BY u.ocorrido_at,b.id
+            LIMIT %s
+            FOR UPDATE OF b SKIP LOCKED
+            """,
+            (company_id, company_id, int(limit)),
+        )
+        rows = cursor.fetchall()
+        authoritative_deletions = [
+            row for row in rows if row["estado_novo"] == "eliminada"
+        ]
+        other_divergences = len(rows) - len(authoritative_deletions)
+        if not execute:
+            connection.rollback()
+            return {
+                "dry_run": True,
+                "divergencias": len(rows),
+                "eliminacoes_autoritativas": len(authoritative_deletions),
+                "pendentes_manuais": other_divergences,
+                "reparadas": 0,
+            }
+
+        repaired = 0
+        for row in authoritative_deletions:
+            cursor.execute(
+                """UPDATE biometrias
+                   SET embedding=NULL,referencia_arquivo_privado=NULL,
+                       status='eliminada',
+                       eliminada_at=COALESCE(eliminada_at,%s,clock_timestamp()),
+                       motivo_codigo='reconciliacao_pos_restore',
+                       updated_at=clock_timestamp()
+                   WHERE empresa_id=%s AND id=%s
+                     AND (status IS DISTINCT FROM 'eliminada'
+                          OR embedding IS NOT NULL
+                          OR referencia_arquivo_privado IS NOT NULL)""",
+                (row["ocorrido_at"], company_id, row["id"]),
+            )
+            repaired += cursor.rowcount
+        if repaired:
+            _audit(
+                cursor,
+                company_id,
+                None,
+                "biometria.reconciliacao_pos_restore",
+                company_id,
+                {
+                    "divergencias": len(rows),
+                    "eliminacoes_autoritativas": len(authoritative_deletions),
+                    "pendentes_manuais": other_divergences,
+                    "reparadas": repaired,
+                },
+            )
+        connection.commit()
+        return {
+            "dry_run": False,
+            "divergencias": len(rows),
+            "eliminacoes_autoritativas": len(authoritative_deletions),
+            "pendentes_manuais": other_divergences,
+            "reparadas": repaired,
+        }
     except Exception:
         connection.rollback()
         raise

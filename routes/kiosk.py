@@ -243,10 +243,19 @@ def _record_attempt(cursor, company_id, employee_id, result, reason, distance=No
            VALUES (%s, %s, clock_timestamp(), %s, %s, %s) RETURNING id""",
         (company_id, employee_id, result, reason, distance),
     )
-    attempt_id = str(cursor.fetchone()[0])
+    attempt = cursor.fetchone()
+    attempt_id = str(attempt["id"])
     if result == "falha" and reason in COUNTED_FAILURE_REASONS:
         consume_facial_failure_cycle(cursor, company_id, employee_id)
     return attempt_id
+
+
+def _verification_failed():
+    """Mantem falhas do quiosque indistinguiveis para evitar enumeracao."""
+    return jsonify({
+        "verificado": False,
+        "erro": "Não foi possível concluir a verificação.",
+    }), 409
 
 
 @kiosk_bp.post("/api/quiosque/marcacoes/facial")
@@ -268,7 +277,7 @@ def create_kiosk_facial_clock():
         cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         employee = _find_employee_by_registration(cursor, company_id, registration)
         if not employee:
-            connection.rollback(); return jsonify({"erro": "Funcionário não encontrado."}), 404
+            connection.rollback(); return _verification_failed()
         employee_id = str(employee["id"])
         bloquear_funcionario_para_marcacao(cursor, company_id, employee_id)
         existing = buscar_marcacao_por_idempotencia(cursor, company_id, key)
@@ -280,11 +289,11 @@ def create_kiosk_facial_clock():
         biometric = _active_biometric(cursor, company_id, employee_id)
         if not biometric:
             _record_attempt(cursor, company_id, employee_id, "falha", "biometria_ausente")
-            connection.commit(); return jsonify({"verificado": False, "erro": "Não foi possível concluir a verificação."}), 409
+            connection.commit(); return _verification_failed()
         approved, _score = verify_passive_liveness(image)
         if not approved:
             _record_attempt(cursor, company_id, employee_id, "falha", "liveness_reprovado")
-            connection.commit(); return jsonify({"verificado": False, "erro": "Não foi possível concluir a verificação."}), 422
+            connection.commit(); return _verification_failed()
         candidate = _validate_embedding(generate_biometric_embedding(image))
         verified, distance = compare_face_embeddings(
             biometric["embedding"], candidate,
@@ -292,7 +301,7 @@ def create_kiosk_facial_clock():
         )
         if not verified:
             _record_attempt(cursor, company_id, employee_id, "falha", "nao_corresponde", distance)
-            connection.commit(); return jsonify({"verificado": False, "erro": "Não foi possível concluir a verificação."}), 409
+            connection.commit(); return _verification_failed()
         recent = buscar_marcacao_recente(cursor, company_id, employee_id)
         if recent:
             connection.rollback(); return resposta_marcacao_recente(recent)

@@ -35,6 +35,7 @@ from services.biometric_governance import (
     BiometricGovernanceError,
     create_active_profile,
     create_approved_policy,
+    deactivate_active_profile,
     governance_readiness,
     manage_hold,
     record_lifecycle,
@@ -379,31 +380,29 @@ def revoke_biometric(funcionario_id):
     try:
         employee_id = _uuid(funcionario_id, "Funcionario")
         company_id = g.auth_context["empresa_id"]
+        idempotency_key = request.headers.get("Idempotency-Key")
         connection = conectar_bd()
-        with connection.cursor() as cursor:
+        with connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             if not _find_employee(cursor, employee_id, company_id, lock=True):
                 connection.rollback()
                 return jsonify({"erro": "Funcionario nao encontrado."}), 404
-            cursor.execute(
-                """
-                UPDATE biometrias
-                SET status = 'revogada',
-                    revoked_at = clock_timestamp(),
-                    updated_at = clock_timestamp()
-                WHERE empresa_id = %s
-                  AND funcionario_id = %s
-                  AND status = 'ativa'
-                """,
-                (company_id, employee_id),
+            result = transition_biometric(
+                cursor,
+                company_id=company_id,
+                employee_id=employee_id,
+                actor_id=g.auth_user_id,
+                operation="revogar",
+                reason="revogacao_administrativa",
+                idempotency_key=idempotency_key,
             )
-            revoked_count = cursor.rowcount
         connection.commit()
         return (
             jsonify(
                 {
                     "funcionario_id": employee_id,
                     "possui_biometria": False,
-                    "revogadas": revoked_count,
+                    "revogadas": 0 if result["reutilizada"] else 1,
+                    "reutilizada": result["reutilizada"],
                 }
             ),
             200,
@@ -412,6 +411,10 @@ def revoke_biometric(funcionario_id):
         if connection:
             connection.rollback()
         return jsonify({"erro": str(exc)}), 400
+    except BiometricGovernanceError as exc:
+        if connection:
+            connection.rollback()
+        return jsonify({"erro": str(exc), "codigo": exc.code}), exc.status
     except Exception:
         if connection:
             connection.rollback()
@@ -720,5 +723,28 @@ def activate_biometric_profile():
         code = exc.code if isinstance(exc, BiometricGovernanceError) else "perfil_conflitante"
         status = exc.status if isinstance(exc, BiometricGovernanceError) else 409
         return jsonify({"erro": "Perfil tecnico invalido ou conflitante.", "codigo": code}), status
+    finally:
+        if connection: connection.close()
+
+
+@biometrics_bp.post("/api/admin/governanca-biometrica/perfis/desativar")
+@require_roles("administrador", "rh")
+def deactivate_biometric_profile():
+    connection = None
+    try:
+        payload = request.get_json(silent=True) or {}
+        connection = conectar_bd()
+        with connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            row = deactivate_active_profile(
+                cursor, company_id=g.auth_context["empresa_id"],
+                actor_id=g.auth_user_id, payload=payload,
+            )
+        connection.commit()
+        return jsonify({"perfil": _serialize_governance_row(row)}), 200
+    except (BiometricGovernanceError, psycopg2.Error) as exc:
+        if connection: connection.rollback()
+        code = exc.code if isinstance(exc, BiometricGovernanceError) else "perfil_desativacao_conflitante"
+        status = exc.status if isinstance(exc, BiometricGovernanceError) else 409
+        return jsonify({"erro": "Perfil tecnico nao foi desativado.", "codigo": code}), status
     finally:
         if connection: connection.close()

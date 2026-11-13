@@ -87,9 +87,9 @@
             <section class="card tabela-container">
                 <div class="tabela-header">
                     <div class="legenda">
-                        <span class="legenda-item"><span class="dot ok-dot"></span> No horário</span>
-                        <span class="legenda-item"><span class="dot alerta-dot"></span> Tolerância</span>
-                        <span class="legenda-item"><span class="dot erro-dot"></span> Atraso</span>
+                        <span class="legenda-item"><span class="dot ok-dot"></span> Horário coincidente</span>
+                        <span class="legenda-item"><span class="dot alerta-dot"></span> Diferença factual</span>
+                        <span class="legenda-item">Classificação trabalhista pendente de RH/jurídico</span>
                     </div>
                     <!-- EXPORT SECTION -->
                     <div class="export-section">
@@ -98,6 +98,7 @@
                                 <option value="">Exportar como...</option>
                                 <option value="csv">CSV</option>
                                 <option value="pdf">PDF</option>
+                                <option value="xlsx">Excel (XLSX)</option>
                                 <option value="word">Word</option>
                                 <option value="doc">DOC</option>
                             </select>
@@ -121,11 +122,12 @@
                             <th>Volta Int.</th>
                             <th>Saída</th>
                             <th>Total</th>
+                            <th>Estado informativo</th>
                         </tr>
                     </thead>
                     <tbody id="tabela-pontos-body">
                         <tr>
-                            <td colspan="6" style="text-align: center;">Carregando registros...</td>
+                            <td colspan="7" style="text-align: center;">Carregando registros...</td>
                         </tr>
                     </tbody>
                 </table>

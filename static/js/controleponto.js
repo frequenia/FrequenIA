@@ -1,29 +1,9 @@
-const TOLERANCIA_MINUTOS = 5;
 const TIMEZONE_LOCAL = "America/Sao_Paulo";
 let jornadaPadrao = null;
 
-function horaParaMinutos(hora) {
-    if (!hora || hora === "--:--") return null;
-    const correspondencia = String(hora).match(/^(\d{2}):(\d{2})/);
-    if (!correspondencia) return null;
-    return Number(correspondencia[1]) * 60 + Number(correspondencia[2]);
-}
-
-function classificarHorario(tipo, valor) {
-    if (!valor || valor === "--:--" || !jornadaPadrao) return "";
-    const real = horaParaMinutos(valor);
-    const esperado = horaParaMinutos(jornadaPadrao[tipo]);
-    if (real === null || esperado === null) return "";
-    const diferencaLinear = Math.abs(real - esperado);
-    const diferenca = Math.min(diferencaLinear, 1440 - diferencaLinear);
-    if (diferenca === 0) return "ok";
-    if (diferenca <= TOLERANCIA_MINUTOS) return "alerta";
-    return "erro";
-}
-
-function criarCelulaHora(valor, tipo) {
+function criarCelulaHora(valor, indicador = "") {
     if (!valor || valor === "--:--") return '<div class="hora">--:--</div>';
-    const classe = classificarHorario(tipo, valor);
+    const classe = indicador === "no_horario" ? "ok" : (indicador ? "alerta" : "");
     return `<div class="hora ${classe}">${valor}</div>`;
 }
 
@@ -48,6 +28,18 @@ function hojeEmSaoPaulo() {
     }).formatToParts(new Date());
     const valor = Object.fromEntries(partes.map((parte) => [parte.type, parte.value]));
     return `${valor.year}-${valor.month}-${valor.day}`;
+}
+
+function preencherPeriodoPadrao() {
+    const fimIso = hojeEmSaoPaulo();
+    const fim = new Date(`${fimIso}T00:00:00Z`);
+    const inicio = new Date(fim);
+    inicio.setUTCDate(inicio.getUTCDate() - 30);
+    const inicioIso = inicio.toISOString().slice(0, 10);
+    const campoInicio = document.getElementById("dataInicio");
+    const campoFim = document.getElementById("dataFim");
+    if (!campoInicio.value) campoInicio.value = formatarDataBR(inicioIso);
+    if (!campoFim.value) campoFim.value = formatarDataBR(fimIso);
 }
 
 function mensagemPadrao(status) {
@@ -199,7 +191,7 @@ function mostrarMensagemTabela(texto) {
     const tbody = document.getElementById("tabela-pontos-body");
     const linha = document.createElement("tr");
     const celula = document.createElement("td");
-    celula.colSpan = 6;
+    celula.colSpan = 7;
     celula.style.textAlign = "center";
     celula.textContent = texto;
     linha.appendChild(celula);
@@ -210,22 +202,40 @@ async function carregarTabelaPontos() {
     const tbody = document.getElementById("tabela-pontos-body");
     try {
         const params = parametrosSelecionados();
-        const dados = await apiJson(`/api/gestao/pontos?${params.toString()}`);
+        const payload = await apiJson(`/api/gestao/espelho?${params.toString()}`);
+        const dados = payload.dias || [];
         if (!dados.length) {
             mostrarMensagemTabela("Nenhum registro encontrado.");
             return;
         }
         const hoje = hojeEmSaoPaulo();
         tbody.innerHTML = dados.map((item) => {
-            const ehHoje = item.data === hoje;
-            const retorno = item.retorno_intervalo || item.volta_intervalo;
+            const ehHoje = item.data_operacional === hoje;
+            const porTipo = Object.fromEntries(
+                (item.eventos || []).map((evento) => [evento.tipo, evento])
+            );
+            const hora = (tipo) => porTipo[tipo]?.efetiva?.horario || "--:--";
+            const indicador = (tipo) => porTipo[tipo]?.indicador_tempo || "";
+            const ajustada = (item.eventos || []).some((evento) => evento.efetiva?.ajustada);
+            const estados = {
+                completo: "Completo",
+                incompleto: "Incompleto",
+                sem_marcacao: "Sem marcação (indicativo)",
+                folga: "Folga",
+                folga_com_marcacao: "Folga com marcação",
+                sem_jornada: "Sem jornada",
+                sem_jornada_com_marcacao: "Sem jornada com marcação",
+                snapshot_ausente: "Snapshot ausente",
+                sem_evidencia: "Sem evidência",
+            };
             return `<tr class="${ehHoje ? "hoje" : ""}">
-                <td><span class="dia-label">${item.dia}</span>${ehHoje ? '<span class="hoje-badge">Hoje</span>' : ""}${item.ajustada ? '<span class="hoje-badge">Ajustado</span>' : ""}<br><small>${formatarDataBR(item.data)}</small></td>
-                <td>${criarCelulaHora(item.entrada, "entrada")}</td>
-                <td>${criarCelulaHora(item.saida_intervalo, "saida_intervalo")}</td>
-                <td>${criarCelulaHora(retorno, "retorno_intervalo")}</td>
-                <td>${criarCelulaHora(item.saida, "saida")}</td>
-                <td><span class="total-horas">${item.total}</span></td>
+                <td>${ehHoje ? '<span class="hoje-badge">Hoje</span>' : ""}${ajustada ? '<span class="hoje-badge">Ajustado</span>' : ""}<br><small>${formatarDataBR(item.data_operacional)}</small></td>
+                <td>${criarCelulaHora(hora("entrada"), indicador("entrada"))}</td>
+                <td>${criarCelulaHora(hora("saida_intervalo"), indicador("saida_intervalo"))}</td>
+                <td>${criarCelulaHora(hora("retorno_intervalo"), indicador("retorno_intervalo"))}</td>
+                <td>${criarCelulaHora(hora("saida"), indicador("saida"))}</td>
+                <td><span class="total-horas">${item.duracao_descritiva || "--"}</span></td>
+                <td>${estados[item.estado_informativo] || "Informativo"}</td>
             </tr>`;
         }).join("");
     } catch (erro) {
@@ -251,7 +261,7 @@ async function atualizarFuncionarioSelecionado() {
 async function exportarPontos() {
     try {
         const params = parametrosSelecionados(true);
-        const resposta = await fetch(`/exportar-pontos?${params.toString()}`, {
+        const resposta = await fetch(`/api/gestao/espelho/exportar?${params.toString()}`, {
             credentials: "same-origin",
         });
         if (!resposta.ok) {
@@ -264,7 +274,7 @@ async function exportarPontos() {
         const extensao = formato === "word" || formato === "doc" ? "docx" : formato;
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `controle_ponto.${extensao}`;
+        link.download = `espelho_ponto.${extensao}`;
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -275,6 +285,7 @@ async function exportarPontos() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+    preencherPeriodoPadrao();
     if (window.flatpickr) {
         const config = { dateFormat: "d/m/Y", locale: "pt", disableMobile: true };
         window.flatpickr("#dataInicio", config);

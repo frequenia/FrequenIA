@@ -221,25 +221,24 @@ void main() {
     },
   );
 
-  test('409 preserva motivo biometria_ausente sem criar marcação', () async {
+  test('409 biometria_ausente vira decisão negativa sem criar marcação', () async {
+    var markingCalls = 0;
     final api = await authenticatedApi((request) async {
+      if (request.url.path == '/api/marcacoes/facial') markingCalls++;
       return jsonResponse({
         'verificado': false,
         'motivo': 'biometria_ausente',
       }, statusCode: 409);
     });
 
-    await expectLater(
-      FaceClockService(api).submit(
-        imagePath: image.path,
-        location: testLocation,
-      ),
-      throwsA(
-        isA<ApiException>()
-            .having((error) => error.statusCode, 'status', 409)
-            .having((error) => error.code, 'motivo', 'biometria_ausente'),
-      ),
+    final result = await FaceClockService(api).submit(
+      imagePath: image.path,
+      location: testLocation,
     );
+
+    expect(result.wasMarked, isFalse);
+    expect(result.reason, 'biometria_ausente');
+    expect(markingCalls, 0);
   });
 
   test('UUID gerado segue versão 4', () {

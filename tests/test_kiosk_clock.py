@@ -57,7 +57,7 @@ class KioskClockTests(unittest.TestCase):
 
     def test_active_terminal_company_a_marks_only_employee_resolved_in_company_a(self):
         marking = {"id": "00000000-0000-0000-0000-000000000006", "tentativa_facial_id": "00000000-0000-0000-0000-000000000007", "tipo": "entrada", "origem": "facial", "estado": "confirmada", "instante": __import__("datetime").datetime.now(__import__("datetime").timezone.utc), "chave_idempotencia": "00000000-0000-0000-0000-000000000005"}
-        cursor = Cursor([{"id": EMPLOYEE_A}, None, None, ("00000000-0000-0000-0000-000000000007",), marking])
+        cursor = Cursor([{"id": EMPLOYEE_A}, None, None, {"id": "00000000-0000-0000-0000-000000000007"}, marking])
         with patch("routes.kiosk.confirm_expected_event", return_value={"marking": marking, "reused": False, "decision": {"estado": "aguardando"}}):
             response, status = self.call(Connection(cursor))
         self.assertEqual(status, 201)
@@ -70,22 +70,52 @@ class KioskClockTests(unittest.TestCase):
     def test_company_b_employee_does_not_resolve_and_company_field_is_rejected(self):
         connection = Connection(Cursor([None]))
         response, status = self.call(connection)
-        self.assertEqual(status, 404)
+        self.assertEqual(status, 409)
+        self.assertEqual(
+            response.get_json(),
+            {"verificado": False, "erro": "Não foi possível concluir a verificação."},
+        )
         self.assertEqual(connection.cursor_value.calls[0][1], (COMPANY_A, "A-01"))
         response, status = self.call(Connection(Cursor([])), form(empresa_id=COMPANY_B))
         self.assertEqual(status, 400)
 
+    def test_unknown_registration_and_known_biometric_failures_are_non_enumerable(self):
+        unknown_response, unknown_status = self.call(Connection(Cursor([None])))
+
+        cursor = Cursor([
+            {"id": EMPLOYEE_A},
+            None,
+            {"id": "00000000-0000-0000-0000-000000000007"},
+        ])
+        connection = Connection(cursor)
+        with self.app.test_request_context(
+            "/api/quiosque/marcacoes/facial",
+            method="POST",
+            data=form(),
+            headers={"Idempotency-Key": "00000000-0000-0000-0000-000000000005"},
+        ):
+            g.terminal_context = {"terminal_id": TERMINAL_A, "empresa_id": COMPANY_A}
+            with (
+                patch("routes.kiosk.conectar_bd", return_value=connection),
+                patch("routes.kiosk.register_vector"),
+                patch("routes.kiosk._active_biometric", return_value=None),
+            ):
+                missing_response, missing_status = create_kiosk_facial_clock.__wrapped__()
+
+        self.assertEqual(unknown_status, missing_status)
+        self.assertEqual(unknown_response.get_json(), missing_response.get_json())
+
     def test_liveness_and_non_match_never_insert_marking(self):
-        cursor = Cursor([{"id": EMPLOYEE_A}, None, ("00000000-0000-0000-0000-000000000007",)])
+        cursor = Cursor([{"id": EMPLOYEE_A}, None, {"id": "00000000-0000-0000-0000-000000000007"}])
         connection = Connection(cursor)
         with self.app.test_request_context("/api/quiosque/marcacoes/facial", method="POST", data=form(), headers={"Idempotency-Key": "00000000-0000-0000-0000-000000000005"}):
             g.terminal_context = {"terminal_id": TERMINAL_A, "empresa_id": COMPANY_A}
             with patch("routes.kiosk.conectar_bd", return_value=connection), patch("routes.kiosk.register_vector"), patch("routes.kiosk._active_biometric", return_value={"embedding": VECTOR, "limiar": .68}), patch("routes.kiosk.verify_passive_liveness", return_value=(False, .1)), patch("routes.kiosk.generate_biometric_embedding") as embedding:
                 _, status = create_kiosk_facial_clock.__wrapped__()
-        self.assertEqual(status, 422); embedding.assert_not_called()
+        self.assertEqual(status, 409); embedding.assert_not_called()
         self.assertNotIn("INSERT INTO marcacoes", " ".join(call[0] for call in cursor.calls))
 
-        cursor = Cursor([{"id": EMPLOYEE_A}, None, ("00000000-0000-0000-0000-000000000007",)])
+        cursor = Cursor([{"id": EMPLOYEE_A}, None, {"id": "00000000-0000-0000-0000-000000000007"}])
         connection = Connection(cursor)
         with self.app.test_request_context("/api/quiosque/marcacoes/facial", method="POST", data=form(), headers={"Idempotency-Key": "00000000-0000-0000-0000-000000000005"}):
             g.terminal_context = {"terminal_id": TERMINAL_A, "empresa_id": COMPANY_A}

@@ -16,6 +16,7 @@ from routes.timekeeping import (
     _export_csv,
     _export_docx,
     _export_pdf,
+    _export_xlsx,
     _fetch_employee_records,
     _serialize_daily_records,
     _utc_bounds,
@@ -172,6 +173,7 @@ class TimekeepingPureTests(unittest.TestCase):
         self.assertIn("08:00", _export_csv(records).getvalue().decode("utf-8-sig"))
         self.assertTrue(_export_pdf(records).getvalue().startswith(b"%PDF"))
         self.assertTrue(_export_docx(records).getvalue().startswith(b"PK"))
+        self.assertTrue(_export_xlsx(records).getvalue().startswith(b"PK"))
 
 
 class TimekeepingRouteTests(unittest.TestCase):
@@ -382,7 +384,7 @@ class TimekeepingPageAndScheduleTests(unittest.TestCase):
         template = (root / "templates" / "controleponto.html").read_text(
             encoding="utf-8"
         )
-        self.assertIn("/api/gestao/pontos", javascript)
+        self.assertIn("/api/gestao/espelho", javascript)
         self.assertIn("/api/admin/funcionarios/", javascript)
         self.assertIn(
             'addEventListener("change", atualizarFuncionarioSelecionado)', javascript

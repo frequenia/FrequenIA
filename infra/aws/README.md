@@ -124,12 +124,13 @@ venceu, o watchdog desliga a máquina em até cinco minutos.
 
 ## Publicação do APK
 
-O APK deve ser release assinado com uma chave própria do piloto e compilado com:
+O APK deve ser release assinado com uma chave própria do piloto. Na primeira
+publicação, a operadora cria a chave em `.secrets/` e guarda a senha fora do
+Git e deste computador:
 
 ```powershell
-flutter build apk --release `
-  --dart-define=APP_ENV=production `
-  --dart-define=BASE_URL=https://frequenia-piloto.duckdns.org
+./infra/aws/scripts/create-android-keystore-operator.ps1
+./infra/aws/scripts/build-release-apk-operator.ps1
 ```
 
 Depois publique:
@@ -137,7 +138,8 @@ Depois publique:
 ```powershell
 ./infra/aws/scripts/upload-apk.ps1 `
   -ApkPath mobile/build/app/outputs/flutter-apk/app-release.apk `
-  -Version 1.0.0
+  -Version 1.0.1-pilot.2 `
+  -Profile frequenia-pilot-publish
 ```
 
 O bucket permite leitura pública somente em `apk/`; listagem, artefatos Lambda,

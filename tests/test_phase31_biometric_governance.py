@@ -5,8 +5,9 @@ import math
 import os
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 os.environ.setdefault("APP_ENV", "development")
 os.environ.setdefault("FLASK_SECRET_KEY", "x" * 32)
@@ -16,7 +17,9 @@ import app
 import routes.biometrics as routes
 import routes.kiosk as kiosk
 from services.biometric_calibration import CalibrationError, aggregate_authorized_dataset
-from services.biometric_governance import BiometricGovernanceError, resolve_governance
+from services.biometric_governance import (
+    BiometricGovernanceError, resolve_governance, resolve_verification_material,
+)
 from services.biometric_observability import emit_biometric_event
 
 
@@ -42,6 +45,20 @@ class Phase31GovernanceContractTests(unittest.TestCase):
         sql = MIGRATION.read_text(encoding="utf-8")
         for value in ("modelo", "versao_modelo", "dimensao", "metrica", "limiar", "versao_liveness"):
             self.assertIn(value, sql)
+
+    def test_policy_and_profile_creation_require_bounded_validity(self):
+        from services.biometric_governance import create_active_profile, create_approved_policy
+        self.assertIn('"vigencia_fim"', inspect.getsource(create_approved_policy))
+        self.assertIn('"vigencia_fim"', inspect.getsource(create_active_profile))
+
+    def test_active_profile_has_authenticated_rollback(self):
+        from services.biometric_governance import deactivate_active_profile
+        service = inspect.getsource(deactivate_active_profile)
+        route = inspect.getsource(routes.deactivate_biometric_profile)
+        self.assertIn("estado='inativo'", service)
+        self.assertIn("vigencia_fim=clock_timestamp()", service)
+        self.assertIn("FOR UPDATE", service)
+        self.assertIn("require_roles", route)
 
     def test_non_finite_or_invalid_threshold_fails_closed_in_service(self):
         for value in (float("nan"), float("inf"), 0, 2.1):
@@ -72,6 +89,39 @@ class Phase31GovernanceContractTests(unittest.TestCase):
         source = inspect.getsource(routes._active_biometric) + inspect.getsource(kiosk._active_biometric)
         self.assertNotIn("<=>", source); self.assertNotIn("<->", source)
         self.assertIn("funcionario_id", source); self.assertIn("empresa_id", source)
+
+    def test_expired_biometric_is_not_returned_for_verification(self):
+        cursor = MagicMock()
+        cursor.fetchone.side_effect = [
+            {"status": "ativo"},
+            {"id": "biometric", "retencao_valida": False, "embedding": None},
+        ]
+        governance = SimpleNamespace(retention_days=365)
+        with patch("services.biometric_governance.resolve_governance", return_value=governance):
+            with self.assertRaises(BiometricGovernanceError) as error:
+                resolve_verification_material(cursor, "company", "employee")
+        self.assertEqual(error.exception.code, "biometria_expirada")
+        sql, params = cursor.execute.call_args_list[1].args
+        self.assertIn("statement_timestamp()", sql)
+        self.assertIn("THEN b.embedding ELSE NULL", sql)
+        self.assertEqual(params, (365, 365, "company", "employee"))
+
+    def test_nonexpired_biometric_can_be_returned_for_verification(self):
+        cursor = MagicMock()
+        biometric = {
+            "id": "biometric", "retencao_valida": True, "embedding": [0.1],
+            "politica_biometrica_id": "policy", "perfil_tecnico_id": "profile",
+            "modelo": "model", "versao_modelo": "version",
+        }
+        cursor.fetchone.side_effect = [{"status": "ativo"}, biometric]
+        governance = SimpleNamespace(
+            retention_days=365, policy_id="policy", profile_id="profile",
+            model="model", model_version="version",
+        )
+        with patch("services.biometric_governance.resolve_governance", return_value=governance):
+            result, resolved = resolve_verification_material(cursor, "company", "employee")
+        self.assertIs(result, biometric)
+        self.assertIs(resolved, governance)
 
     def test_kiosk_and_mobile_paths_use_server_governance(self):
         self.assertIn("resolve_verification_material", inspect.getsource(kiosk._active_biometric))
@@ -148,6 +198,12 @@ class Phase31GovernanceContractTests(unittest.TestCase):
     def test_facial_failure_workflow_is_not_a_retention_trigger(self):
         service=(ROOT/"services/biometric_governance.py").read_text(encoding="utf-8")
         self.assertNotIn("falha_facial",service)
+
+    def test_legacy_revocation_uses_governed_idempotent_transition(self):
+        source = inspect.getsource(routes.revoke_biometric)
+        self.assertIn("transition_biometric", source)
+        self.assertIn("Idempotency-Key", source)
+        self.assertNotIn("UPDATE biometrias", source)
 
 
 if __name__ == "__main__":

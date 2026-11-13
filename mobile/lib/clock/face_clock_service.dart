@@ -70,11 +70,19 @@ class FaceClockService {
         if (imagePath == null || imagePath.isEmpty || location == null) {
           throw const ApiException('Não foi possível capturar a imagem.');
         }
-        final verification = await api.postMultipart(
-          '/api/biometria/verificar',
-          fieldName: 'imagem',
-          filePath: imagePath,
-        );
+        Map<String, dynamic> verification;
+        try {
+          verification = await api.postMultipart(
+            '/api/biometria/verificar',
+            fieldName: 'imagem',
+            filePath: imagePath,
+          );
+        } on ApiException catch (error) {
+          if (error.statusCode == 409 && error.code == 'biometria_ausente') {
+            return const FaceClockResult.notVerified('biometria_ausente');
+          }
+          rethrow;
+        }
         if (verification['verificado'] != true) {
           return FaceClockResult.notVerified(
             verification['motivo']?.toString() ?? 'nao_corresponde',

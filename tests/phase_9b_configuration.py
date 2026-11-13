@@ -23,6 +23,8 @@ class ConfigurationTests(unittest.TestCase):
             "APP_ENV",
             "PORT",
             "DATABASE_URL",
+            "DATABASE_SSLMODE",
+            "DATABASE_SSLROOTCERT",
             "ATTACHMENT_STORAGE_ROOT",
             "ATTACHMENT_STORAGE_PROVIDER",
             "ATTACHMENT_S3_BUCKET",

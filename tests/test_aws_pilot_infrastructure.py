@@ -19,6 +19,14 @@ class AwsPilotInfrastructureTests(unittest.TestCase):
         self.assertIn("model_name='ArcFace'", dockerfile)
         self.assertIn("--workers 1 --threads 1", dockerfile)
 
+    def test_arm_runtime_installs_and_smokes_report_export_dependencies(self):
+        requirements = (ROOT / "requirements-runtime.txt").read_text(encoding="utf-8")
+        dockerfile = (ROOT / "Dockerfile.arm64").read_text(encoding="utf-8")
+
+        self.assertIn("openpyxl==3.1.5", requirements)
+        self.assertIn("et-xmlfile==2.0.0", requirements)
+        self.assertIn('python -c "import docx, openpyxl, reportlab"', dockerfile)
+
     def test_runtime_uses_two_gb_floor_and_no_paid_network_appliances(self):
         template = (AWS_ROOT / "runtime.template.yaml").read_text(encoding="utf-8")
         self.assertIn("Default: t4g.small", template)
@@ -106,6 +114,35 @@ class AwsPilotInfrastructureTests(unittest.TestCase):
         self.assertIn(".env.*", gitignore)
         self.assertIn(".secrets/", gitignore)
         self.assertIn("infra/aws/dist/", gitignore)
+
+    def test_biometric_governance_operator_keeps_credentials_private(self):
+        script = (
+            AWS_ROOT / "scripts" / "biometric-governance-operator.ps1"
+        ).read_text(encoding="utf-8")
+        self.assertIn("[ValidateSet('policy', 'profile', 'disable', 'readiness')]", script)
+        self.assertIn("Read-Host 'CPF' -AsSecureString", script)
+        self.assertIn("Read-Host 'Senha' -AsSecureString", script)
+        self.assertIn("https://frequenia.duckdns.org", script)
+        self.assertIn("retencao_dias = 1825", script)
+        self.assertIn("limiar = 0.68", script)
+        self.assertIn("vigencia_fim = '2026-11-24T00:00:00-03:00'", script)
+        self.assertIn("versao = 'pilot-dev-1.1.0'", script)
+        self.assertIn("/api/admin/governanca-biometrica/perfis/desativar", script)
+        self.assertNotIn('Write-Output $login', script)
+        self.assertNotIn('Write-Host $password', script)
+
+    def test_android_release_requires_private_signing_and_current_pilot_url(self):
+        gradle = (ROOT / "mobile" / "android" / "app" / "build.gradle.kts").read_text(encoding="utf-8")
+        self.assertNotIn('signingConfigs.getByName("debug")', gradle)
+        self.assertIn("FREQUENIA_ANDROID_KEYSTORE_PATH", gradle)
+        self.assertIn('signingConfigs.getByName("release")', gradle)
+        create_script = (AWS_ROOT / "scripts" / "create-android-keystore-operator.ps1").read_text(encoding="utf-8")
+        build_script = (AWS_ROOT / "scripts" / "build-release-apk-operator.ps1").read_text(encoding="utf-8")
+        upload_script = (AWS_ROOT / "scripts" / "upload-apk.ps1").read_text(encoding="utf-8")
+        self.assertIn("Read-Host 'Senha NOVA da chave release", create_script)
+        self.assertIn("Read-Host 'Senha da chave release' -AsSecureString", build_script)
+        self.assertIn("https://frequenia.duckdns.org", build_script)
+        self.assertIn("--profile $Profile", upload_script)
 
 
 if __name__ == "__main__":

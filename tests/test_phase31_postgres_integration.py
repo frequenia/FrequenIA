@@ -15,6 +15,10 @@ import test_phase25_postgres_integration as phase25
 from services.biometric_governance import (
     BiometricGovernanceError,
     change_employee_status,
+    create_active_profile,
+    create_approved_policy,
+    deactivate_active_profile,
+    governance_readiness,
     manage_hold,
     purge_eligible,
     resolve_governance,
@@ -138,6 +142,66 @@ class Phase31PostgresIntegrationTests(unittest.TestCase):
                 self.assertEqual((context.model,context.dimension,context.threshold),("ArcFace",512,0.68))
         finally: connection.close()
 
+    def test_bounded_policy_profile_and_authenticated_rollback_cycle(self):
+        connection = connect()
+        try:
+            with connection.cursor() as cursor:
+                policy = create_approved_policy(
+                    cursor,
+                    company_id=self.ids["other_company"],
+                    actor_id=self.ids["admin"],
+                    payload={
+                        "versao": "pilot-dev-1.1.0",
+                        "referencia_base_legal": "DECISAO-SINTETICA",
+                        "versao_aviso": "1.0",
+                        "referencia_documental": "DOC-SINTETICO",
+                        "canal_atendimento": "canal@example.invalid",
+                        "retencao_dias": 1825,
+                        "vigencia_inicio": "2026-10-25T00:00:00-03:00",
+                        "vigencia_fim": "2026-11-24T00:00:00-03:00",
+                    },
+                )
+                profile = create_active_profile(
+                    cursor,
+                    company_id=self.ids["other_company"],
+                    actor_id=self.ids["admin"],
+                    payload={
+                        "versao": "pilot-dev-1.1.0",
+                        "modelo": "ArcFace",
+                        "versao_modelo": "deepface-0.0.99",
+                        "dimensao": 512,
+                        "metrica": "cosine_distance",
+                        "limiar": 0.68,
+                        "versao_liveness": "deepface-0.0.99",
+                        "vigencia_inicio": "2026-10-25T00:00:00-03:00",
+                        "vigencia_fim": "2026-11-24T00:00:00-03:00",
+                        "referencia_relatorio": "RELATORIO-SINTETICO",
+                    },
+                )
+                self.assertIsNotNone(policy["vigencia_fim"])
+                self.assertIsNotNone(profile["vigencia_fim"])
+                self.assertEqual(
+                    governance_readiness(cursor, self.ids["other_company"]),
+                    {"policy": True, "profile": True, "compatible": True},
+                )
+                disabled = deactivate_active_profile(
+                    cursor,
+                    company_id=self.ids["other_company"],
+                    actor_id=self.ids["admin"],
+                    payload={
+                        "versao": "pilot-dev-1.1.0",
+                        "motivo_codigo": "rollback_operacional",
+                    },
+                )
+                self.assertEqual(disabled["estado"], "inativo")
+                self.assertEqual(
+                    governance_readiness(cursor, self.ids["other_company"]),
+                    {"policy": False, "profile": False, "compatible": False},
+                )
+            connection.rollback()
+        finally:
+            connection.close()
+
     def test_policy_overlap_and_invalid_threshold_fail_in_database(self):
         connection=connect()
         try:
@@ -180,6 +244,35 @@ class Phase31PostgresIntegrationTests(unittest.TestCase):
                 with self.assertRaises(BiometricGovernanceError):
                     resolve_verification_material(c,self.ids["company"],self.ids["employee"])
         finally: connection.close()
+
+    def test_verification_blocks_embedding_after_policy_retention(self):
+        connection = connect()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """UPDATE biometrias
+                       SET created_at=clock_timestamp()-interval '29 days'
+                       WHERE empresa_id=%s AND id=%s""",
+                    (self.ids["company"], self.ids["biometric"]),
+                )
+                current, _ = resolve_verification_material(
+                    cursor, self.ids["company"], self.ids["employee"]
+                )
+                self.assertIsNotNone(current["embedding"])
+                cursor.execute(
+                    """UPDATE biometrias
+                       SET created_at=clock_timestamp()-interval '31 days'
+                       WHERE empresa_id=%s AND id=%s""",
+                    (self.ids["company"], self.ids["biometric"]),
+                )
+                with self.assertRaises(BiometricGovernanceError) as error:
+                    resolve_verification_material(
+                        cursor, self.ids["company"], self.ids["employee"]
+                    )
+                self.assertEqual(error.exception.code, "biometria_expirada")
+            connection.rollback()
+        finally:
+            connection.close()
 
     def test_block_revoke_pending_are_irreversible_and_idempotent(self):
         connection=connect()

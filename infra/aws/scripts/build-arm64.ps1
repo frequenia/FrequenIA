@@ -103,12 +103,21 @@ try {
     }
 
     Write-Output "Execucao ARM64 nao realizada neste host; somente inventario e arquitetura validados."
-    $dockerTarPath = $tarPath
     if ($dockerInWsl) {
-        $dockerTarPath = Convert-ToWslPath $tarPath
-    }
-    Invoke-LocalDocker save --output $dockerTarPath $ImageName
-
+        # Exporta diretamente para gzip: o tar intermediario pode exceder o
+        # espaco livre da unidade Windows, mesmo quando o pacote cabe nela.
+        $dockerOutputPath = Convert-ToWslPath $outputFullPath
+        if ($ImageName.Contains("'") -or $dockerOutputPath.Contains("'") -or
+            $ImageName.Contains("`n") -or $dockerOutputPath.Contains("`n")) {
+            throw "Nome de imagem ou caminho invalido para exportacao no WSL."
+        }
+        $exportCommand = "docker save '$ImageName' | gzip -6 > '$dockerOutputPath'"
+        & wsl -d Ubuntu -u root -- bash -o pipefail -c $exportCommand
+        if ($LASTEXITCODE -ne 0) { throw "Falha ao exportar a imagem ARM64 compactada." }
+        & wsl -d Ubuntu -u root -- gzip -t $dockerOutputPath
+        if ($LASTEXITCODE -ne 0) { throw "Pacote ARM64 gzip invalido." }
+    } else {
+        Invoke-LocalDocker save --output $tarPath $ImageName
     @'
 import gzip
 import shutil
@@ -118,7 +127,8 @@ source, destination = sys.argv[1:3]
 with open(source, "rb") as src, gzip.open(destination, "wb", compresslevel=6) as dst:
     shutil.copyfileobj(src, dst, length=1024 * 1024)
 '@ | python - $tarPath $outputFullPath
-    if ($LASTEXITCODE -ne 0) { throw "Falha ao compactar a imagem ARM64." }
+        if ($LASTEXITCODE -ne 0) { throw "Falha ao compactar a imagem ARM64." }
+    }
 } finally {
     Pop-Location
     if (Test-Path -LiteralPath $tarPath) {

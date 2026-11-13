@@ -424,3 +424,47 @@ python tools/calibrate_biometrics.py C:\temp\dataset-sintetico.json --authorized
 
 Purga é dry-run por padrão. O harness aceita somente dataset sintético ou
 autorizado fora do Git, produz agregados e nunca promove limiar.
+
+## Fase 33 — confiabilidade 1:1 e preparação de privacidade
+
+A Fase 33 é estritamente local. Ela preserva o ArcFace, o liveness passivo, o
+limiar servidor-side `0.68` como baseline não calibrado e a comparação somente
+1:1. Revogação administrativa exige `Idempotency-Key` e passa pelo histórico
+governado. Falhas do quiosque não distinguem matrícula inexistente, biometria
+ausente, liveness reprovado ou não correspondência.
+
+Após restaurar um banco isolado, a reconciliação deve ser executada primeiro em
+dry-run. `--execute` remove material somente quando o histórico ainda presente
+prova que o último estado era `eliminada`; outras divergências permanecem para
+análise humana. Um backup anterior à eliminação exige uma fonte autoritativa de
+tombstones fora desse backup e não pode ser considerado seguro apenas por este
+comando.
+
+```powershell
+python tools/reconcile_biometrics_after_restore.py --empresa-id UUID --limit 100
+python tools/reconcile_biometrics_after_restore.py --empresa-id UUID --limit 100 --execute
+python -m unittest discover -s tests -p "test_phase33_biometric_reliability.py" -v
+```
+
+O relatório técnico e a matriz de decisões do controlador/DPO estão em
+`docs/FASE_33_RECONHECIMENTO_LGPD.md`. Implementação local não equivale a
+aprovação jurídica nem a validação no piloto AWS.
+
+## Fase 34 — espelho de ponto e relatórios
+
+O espelho usa a visão efetiva de marcações e a `data_operacional` dos snapshots
+imutáveis. Jornadas noturnas permanecem no dia operacional de início; ausência
+de snapshot é apresentada como ausência de evidência, nunca como falta. As
+consultas são transações somente leitura e não materializam jornadas.
+
+- `GET /api/gestao/espelho`: espelho de um funcionário no escopo do gestor,
+  RH ou administrador, com período obrigatório de até 366 dias;
+- `GET /api/me/espelho`: espelho pessoal, sem aceitar identidade do cliente;
+- `GET /api/gestao/espelho/exportar`: CSV, PDF, DOCX e XLSX equivalentes à
+  visão do espelho;
+- `GET /api/gestao/relatorios/consolidado`: indicadores factuais, solicitações
+  e ocorrências, paginados em períodos de até 92 dias.
+
+Os cinco minutos de RN-011 continuam pendentes de confirmação pelo RH. Não há
+cálculo de falta, folha, horas extras, adicional ou banco de horas. O relatório
+técnico está em `docs/FASE_34_RELATORIOS_ESPELHO_PONTO.md`.

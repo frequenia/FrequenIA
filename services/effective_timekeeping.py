@@ -12,7 +12,9 @@ def fetch_effective_events(cursor, company_id, employee_id, start_utc=None, end_
                 COALESCE(ct.tipo_marcacao_proposto, m.tipo) AS tipo,
                 m.origem,
                 (ci.id IS NOT NULL OR ct.id IS NOT NULL) AS ajustada,
-                COALESCE(ci.id, ct.id) AS correcao_id
+                COALESCE(ci.id, ct.id) AS correcao_id,
+                jd.data_operacional,
+                jd.timezone AS jornada_timezone
             FROM marcacoes m
             LEFT JOIN correcoes ci
               ON ci.empresa_id = m.empresa_id
@@ -26,6 +28,12 @@ def fetch_effective_events(cursor, company_id, employee_id, start_utc=None, end_
              AND ct.marcacao_original_id = m.id
              AND ct.tipo = 'alteracao_tipo'
              AND ct.estado = 'aprovada'
+            LEFT JOIN jornada_eventos_esperados je
+              ON je.empresa_id = m.empresa_id
+             AND je.id = m.jornada_evento_id
+            LEFT JOIN jornadas_diarias jd
+              ON jd.empresa_id = je.empresa_id
+             AND jd.id = je.jornada_id
             WHERE m.empresa_id = %s
               AND m.funcionario_id = %s
               AND m.estado = 'confirmada'
@@ -37,8 +45,26 @@ def fetch_effective_events(cursor, company_id, employee_id, start_utc=None, end_
                 c.tipo_marcacao_proposto AS tipo,
                 'ajuste_administrativo'::text AS origem,
                 TRUE AS ajustada,
-                c.id AS correcao_id
+                c.id AS correcao_id,
+                jornada.data_operacional,
+                jornada.timezone AS jornada_timezone
             FROM correcoes c
+            LEFT JOIN LATERAL (
+                SELECT jd.data_operacional, jd.timezone
+                FROM jornadas_diarias jd
+                INNER JOIN jornada_eventos_esperados je
+                  ON je.empresa_id = jd.empresa_id
+                 AND je.jornada_id = jd.id
+                 AND je.tipo = c.tipo_marcacao_proposto
+                WHERE jd.empresa_id = c.empresa_id
+                  AND jd.funcionario_id = c.funcionario_id
+                  AND c.instante_proposto >= je.instante_esperado - interval '12 hours'
+                  AND c.instante_proposto <= je.instante_esperado + interval '12 hours'
+                ORDER BY abs(extract(epoch from
+                    (c.instante_proposto - je.instante_esperado))),
+                    jd.data_operacional, je.ordem
+                LIMIT 1
+            ) jornada ON TRUE
             WHERE c.empresa_id = %s
               AND c.funcionario_id = %s
               AND c.tipo = 'inclusao'

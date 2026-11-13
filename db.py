@@ -1,11 +1,39 @@
 import os
 from contextlib import closing
+from pathlib import Path
 
 import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
 
 load_dotenv()
+
+
+_SSL_MODES = {"disable", "allow", "prefer", "require", "verify-ca", "verify-full"}
+_RUNTIME_SUPABASE_CA = "/etc/ssl/certs/supabase-prod-ca-2021.crt"
+
+
+def _database_ssl_options():
+    app_env = os.getenv("APP_ENV", "development").strip().lower()
+    production = app_env == "production"
+    sslmode = os.getenv(
+        "DATABASE_SSLMODE", "verify-full" if production else "require"
+    ).strip().lower()
+    if sslmode not in _SSL_MODES:
+        raise RuntimeError("DATABASE_SSLMODE has an unsupported value.")
+
+    options = {"sslmode": sslmode}
+    if sslmode in {"verify-ca", "verify-full"}:
+        default_root = _RUNTIME_SUPABASE_CA if production else ""
+        sslrootcert = os.getenv("DATABASE_SSLROOTCERT", default_root).strip()
+        if not sslrootcert:
+            raise RuntimeError(
+                "DATABASE_SSLROOTCERT is required when the database SSL mode verifies the server."
+            )
+        if not Path(sslrootcert).is_file():
+            raise RuntimeError("DATABASE_SSLROOTCERT does not identify a readable certificate file.")
+        options["sslrootcert"] = sslrootcert
+    return options
 
 
 def conectar_bd():
@@ -17,9 +45,9 @@ def conectar_bd():
     # O search_path explicito evita depender de configuracao externa da role.
     return psycopg2.connect(
         database_url,
-        sslmode="require",
         connect_timeout=15,
         options="-c search_path=public,extensions",
+        **_database_ssl_options(),
     )
 
 

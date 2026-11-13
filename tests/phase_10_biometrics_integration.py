@@ -55,7 +55,12 @@ def image_form():
 
 @contextmanager
 def fixture_database():
-    connection = psycopg2.connect(DATABASE_URL, sslmode="require", connect_timeout=15)
+    connection = psycopg2.connect(
+        DATABASE_URL,
+        sslmode="require",
+        connect_timeout=15,
+        options="-c search_path=public,extensions",
+    )
     connection.autocommit = True
     cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     company_ids = [str(uuid4()), str(uuid4())]
@@ -128,33 +133,34 @@ def fixture_database():
                     profile,
                 ),
             )
+        for index, company_id in enumerate(company_ids):
+            approver_id = user_ids[0] if index == 0 else user_ids[2]
+            cursor.execute(
+                """INSERT INTO politicas_biometricas
+                   (empresa_id,finalidade,versao,referencia_base_legal,
+                    versao_aviso,referencia_documental,canal_atendimento,
+                    retencao_dias,estado,vigencia_inicio,
+                    aprovado_por_usuario_id,aprovado_at)
+                   VALUES(%s,'registro_ponto_1a1','phase10-test',
+                    'DECISAO-EXTERNA-SINTETICA','phase10-test','DOC-SINTETICO',
+                    '/atendimento',30,'aprovada',clock_timestamp()-interval '1 day',
+                    %s,clock_timestamp())""",
+                (company_id, approver_id),
+            )
+            cursor.execute(
+                """INSERT INTO perfis_tecnicos_biometricos
+                   (empresa_id,finalidade,versao,modelo,versao_modelo,dimensao,
+                    metrica,limiar,versao_liveness,referencia_relatorio,estado,
+                    vigencia_inicio,aprovado_por_usuario_id,aprovado_at)
+                   VALUES(%s,'registro_ponto_1a1','phase10-baseline',
+                    'ArcFace','deepface-0.0.99',512,'cosine_distance',0.68,
+                    'deepface-0.0.99','CAL-SINTETICA-NAO-PROMOVIVEL','ativo',
+                    clock_timestamp()-interval '1 day',%s,clock_timestamp())""",
+                (company_id, approver_id),
+            )
         yield cursor, company_ids, user_ids, employee_ids, cpfs
     finally:
-        cursor.execute(
-            "DELETE FROM auth_sessions WHERE usuario_id = ANY(%s::uuid[])",
-            (user_ids,),
-        )
-        cursor.execute(
-            "DELETE FROM biometrias WHERE funcionario_id = ANY(%s::uuid[])",
-            (employee_ids,),
-        )
-        cursor.execute(
-            "DELETE FROM funcionarios WHERE id = ANY(%s::uuid[])",
-            (employee_ids,),
-        )
-        cursor.execute("DELETE FROM usuarios WHERE id = ANY(%s::uuid[])", (user_ids,))
-        cursor.execute(
-            "DELETE FROM equipes WHERE empresa_id = ANY(%s::uuid[])", (company_ids,)
-        )
-        cursor.execute(
-            "DELETE FROM cargos WHERE empresa_id = ANY(%s::uuid[])", (company_ids,)
-        )
-        cursor.execute(
-            "DELETE FROM unidades WHERE empresa_id = ANY(%s::uuid[])", (company_ids,)
-        )
-        cursor.execute(
-            "DELETE FROM empresas WHERE id = ANY(%s::uuid[])", (company_ids,)
-        )
+        cursor.execute("TRUNCATE empresas,usuarios CASCADE")
         cursor.close()
         connection.close()
 
@@ -289,7 +295,10 @@ with fixture_database() as (cursor, company_ids, user_ids, employee_ids, cpfs):
         )
     expect(client.get("/health"), 200, "health_after_arcface_failure")
 
-    revoke = client.post(f"{own_url}/revogar", headers=admin_headers)
+    revoke = client.post(
+        f"{own_url}/revogar",
+        headers={**admin_headers, "Idempotency-Key": "phase10-revoke-001"},
+    )
     expect(revoke, 200, "biometric_revocation")
     if revoke.get_json()["possui_biometria"]:
         raise AssertionError("revocation response still reports an active biometric")

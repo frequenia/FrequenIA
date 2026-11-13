@@ -63,7 +63,12 @@ def auth_header(token):
 
 @contextmanager
 def fixture_database():
-    connection = psycopg2.connect(DATABASE_URL, sslmode="require", connect_timeout=15)
+    connection = psycopg2.connect(
+        DATABASE_URL,
+        sslmode="require",
+        connect_timeout=15,
+        options="-c search_path=public,extensions",
+    )
     connection.autocommit = True
     register_vector(connection)
     cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -108,10 +113,8 @@ def fixture_database():
         for index, profile in enumerate(profiles):
             company_index = companies[index]
             cursor.execute(
-                """
-                INSERT INTO usuarios (id, nome, cpf, senha_hash)
-                VALUES (%s, %s, %s, %s)
-                """,
+                """INSERT INTO usuarios (id, nome, cpf, senha_hash)
+                   VALUES (%s, %s, %s, %s)""",
                 (
                     user_ids[index],
                     f"Fase 11 Usuario {index}",
@@ -120,12 +123,10 @@ def fixture_database():
                 ),
             )
             cursor.execute(
-                """
-                INSERT INTO funcionarios (
-                    id, usuario_id, empresa_id, unidade_id, equipe_id, cargo_id,
-                    matricula, perfil, status
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'ativo')
-                """,
+                """INSERT INTO funcionarios (
+                       id, usuario_id, empresa_id, unidade_id, equipe_id, cargo_id,
+                       matricula, perfil, status
+                   ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'ativo')""",
                 (
                     employee_ids[index],
                     user_ids[index],
@@ -138,55 +139,60 @@ def fixture_database():
                 ),
             )
 
+        policy_ids = [str(uuid4()), str(uuid4())]
+        profile_ids = [str(uuid4()), str(uuid4())]
+        for index, company_id in enumerate(company_ids):
+            approver_id = user_ids[0] if index == 0 else user_ids[2]
+            cursor.execute(
+                """INSERT INTO politicas_biometricas
+                   (id,empresa_id,finalidade,versao,referencia_base_legal,
+                    versao_aviso,referencia_documental,canal_atendimento,
+                    retencao_dias,estado,vigencia_inicio,
+                    aprovado_por_usuario_id,aprovado_at)
+                   VALUES(%s,%s,'registro_ponto_1a1','phase11-test',
+                    'DECISAO-EXTERNA-SINTETICA','phase11-test','DOC-SINTETICO',
+                    '/atendimento',30,'aprovada',clock_timestamp()-interval '1 day',
+                    %s,clock_timestamp())""",
+                (policy_ids[index], company_id, approver_id),
+            )
+            cursor.execute(
+                """INSERT INTO perfis_tecnicos_biometricos
+                   (id,empresa_id,finalidade,versao,modelo,versao_modelo,
+                    dimensao,metrica,limiar,versao_liveness,referencia_relatorio,
+                    estado,vigencia_inicio,aprovado_por_usuario_id,aprovado_at)
+                   VALUES(%s,%s,'registro_ponto_1a1','phase11-baseline',
+                    'ArcFace','deepface-0.0.99',512,'cosine_distance',0.68,
+                    'deepface-0.0.99','CAL-SINTETICA-NAO-PROMOVIVEL','ativo',
+                    clock_timestamp()-interval '1 day',%s,clock_timestamp())""",
+                (profile_ids[index], company_id, approver_id),
+            )
+
         cursor.execute(
             """
             INSERT INTO biometrias (
                 empresa_id, funcionario_id, embedding,
-                modelo, versao_modelo, status
+                modelo, versao_modelo, status,
+                politica_biometrica_id, perfil_tecnico_id
             ) VALUES
-                (%s, %s, %s, 'ArcFace', 'deepface-0.0.99', 'ativa'),
-                (%s, %s, %s, 'ArcFace', 'deepface-0.0.99', 'ativa')
+                (%s, %s, %s, 'ArcFace', 'deepface-0.0.99', 'ativa', %s, %s),
+                (%s, %s, %s, 'ArcFace', 'deepface-0.0.99', 'ativa', %s, %s)
             """,
             (
                 company_ids[0],
                 employee_ids[0],
                 MATCH_VECTOR,
+                policy_ids[0],
+                profile_ids[0],
                 company_ids[1],
                 employee_ids[2],
                 OTHER_VECTOR,
+                policy_ids[1],
+                profile_ids[1],
             ),
         )
         yield cursor, company_ids, user_ids, employee_ids, cpfs
     finally:
-        cursor.execute(
-            "DELETE FROM auth_sessions WHERE usuario_id = ANY(%s::uuid[])",
-            (user_ids,),
-        )
-        cursor.execute(
-            "DELETE FROM tentativas_faciais WHERE funcionario_id = ANY(%s::uuid[])",
-            (employee_ids,),
-        )
-        cursor.execute(
-            "DELETE FROM biometrias WHERE funcionario_id = ANY(%s::uuid[])",
-            (employee_ids,),
-        )
-        cursor.execute(
-            "DELETE FROM funcionarios WHERE id = ANY(%s::uuid[])",
-            (employee_ids,),
-        )
-        cursor.execute("DELETE FROM usuarios WHERE id = ANY(%s::uuid[])", (user_ids,))
-        cursor.execute(
-            "DELETE FROM equipes WHERE empresa_id = ANY(%s::uuid[])", (company_ids,)
-        )
-        cursor.execute(
-            "DELETE FROM cargos WHERE empresa_id = ANY(%s::uuid[])", (company_ids,)
-        )
-        cursor.execute(
-            "DELETE FROM unidades WHERE empresa_id = ANY(%s::uuid[])", (company_ids,)
-        )
-        cursor.execute(
-            "DELETE FROM empresas WHERE id = ANY(%s::uuid[])", (company_ids,)
-        )
+        cursor.execute("TRUNCATE empresas,usuarios CASCADE")
         cursor.close()
         connection.close()
 
@@ -507,7 +513,7 @@ with fixture_database() as (cursor, company_ids, user_ids, employee_ids, cpfs):
     expect(
         client.post(
             f"/api/admin/funcionarios/{employee_ids[1]}/biometria/revogar",
-            headers=admin_headers,
+            headers={**admin_headers, "Idempotency-Key": "phase11-revoke-001"},
         ),
         200,
         "admin_revocation_regression",

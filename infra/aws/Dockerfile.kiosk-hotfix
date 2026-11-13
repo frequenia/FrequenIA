@@ -1,0 +1,9 @@
+ARG BASE_IMAGE=frequenia:pilot-20261025-biometric-rollback
+FROM ${BASE_IMAGE}
+
+# Hotfix mínimo: preserva integralmente o runtime ARM64 validado e substitui
+# somente a rota do quiosque. Nenhuma configuração ou dependência é alterada.
+COPY --chown=app:app routes/kiosk.py /app/routes/kiosk.py
+
+RUN python -m py_compile /app/routes/kiosk.py \
+    && rm -rf /app/routes/__pycache__

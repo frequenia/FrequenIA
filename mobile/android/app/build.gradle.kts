@@ -4,6 +4,27 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val releaseKeystorePath = System.getenv("FREQUENIA_ANDROID_KEYSTORE_PATH")?.trim().orEmpty()
+val releaseKeyAlias = System.getenv("FREQUENIA_ANDROID_KEY_ALIAS")?.trim().orEmpty()
+val releaseStorePassword = System.getenv("FREQUENIA_ANDROID_STORE_PASSWORD").orEmpty()
+val releaseKeyPassword = System.getenv("FREQUENIA_ANDROID_KEY_PASSWORD").orEmpty()
+val hasReleaseSigning = listOf(
+    releaseKeystorePath,
+    releaseKeyAlias,
+    releaseStorePassword,
+    releaseKeyPassword,
+).all { it.isNotEmpty() }
+val releaseRequested = gradle.startParameter.taskNames.any {
+    it.contains("release", ignoreCase = true)
+}
+
+if (releaseRequested && !hasReleaseSigning) {
+    throw GradleException(
+        "Release exige FREQUENIA_ANDROID_KEYSTORE_PATH, FREQUENIA_ANDROID_KEY_ALIAS, " +
+            "FREQUENIA_ANDROID_STORE_PASSWORD e FREQUENIA_ANDROID_KEY_PASSWORD."
+    )
+}
+
 android {
     namespace = "br.com.frequenia.app"
     compileSdk = flutter.compileSdkVersion
@@ -29,11 +50,22 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(releaseKeystorePath)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 }

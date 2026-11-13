@@ -78,6 +78,7 @@ function Write-RuntimeEnvironment {
         'JWT_REFRESH_TOKEN_DAYS', 'PASSWORD_RESET_TOKEN_MINUTES',
         'EMAILJS_TIMEOUT_SECONDS', 'FACE_VERIFICATION_MAX_COSINE_DISTANCE',
         'FACIAL_ATTEMPT_MAX_AGE_SECONDS', 'DATABASE_URL',
+        'DATABASE_SSLMODE', 'DATABASE_SSLROOTCERT',
         'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET',
         'EMAILJS_SERVICE_ID', 'EMAILJS_TEMPLATE_ID', 'EMAILJS_PUBLIC_KEY',
         'EMAILJS_PRIVATE_KEY', 'TOMTOM_API_KEY', 'TOMTOM_TIMEOUT_SECONDS',
@@ -109,6 +110,8 @@ function Write-RuntimeEnvironment {
     if ($values['DATABASE_URL'] -match '(?i)(localhost|127\.0\.0\.1|host\.docker\.internal)') {
         throw 'DATABASE_URL de producao nao pode apontar para o computador local.'
     }
+    $values['DATABASE_SSLMODE'] = 'verify-full'
+    $values['DATABASE_SSLROOTCERT'] = '/etc/ssl/certs/supabase-prod-ca-2021.crt'
 
     $values['APP_ENV'] = 'production'
     $values['PORT'] = '5000'
