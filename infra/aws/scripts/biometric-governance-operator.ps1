@@ -120,7 +120,15 @@ try {
         Write-Output "readiness_policy=$policy readiness_profile=$profile readiness_compatible=$compatible"
     }
 } catch {
-    Write-Error 'Operacao nao concluida. Nenhum segredo foi exibido.'
+    $httpStatus = $null
+    if ($_.Exception.Response -and $_.Exception.Response.StatusCode) {
+        $httpStatus = [int]$_.Exception.Response.StatusCode
+    }
+    if ($httpStatus) {
+        Write-Error "Operacao nao concluida. status_http=$httpStatus. Nenhum segredo foi exibido."
+    } else {
+        Write-Error 'Operacao nao concluida. status_http=indisponivel. Nenhum segredo foi exibido.'
+    }
     exit 1
 } finally {
     $cpf = $null
