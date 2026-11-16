@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle de Ponto</title>
-    <!-- Fonte Montserrat -->
+    <!-- Tipografia do kit: Sora para títulos/números e Manrope para interface -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
     <!-- CSS Global -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
     <!-- Flatpickr CSS -->
@@ -19,48 +19,70 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
 </head>
 <body>
-    <div class="controle-page">
-        <!-- TOPO (JORNADA + FILTRO) -->
-        <div class="topo-container">
+    <main class="controle-page">
+        <header class="controle-header">
+            <div>
+                <span class="eyebrow">PONTO / GESTÃO</span>
+                <h1>Controle de Pontos</h1>
+                <p class="controle-subtitle">Consulte jornadas, registros e divergências do período selecionado.</p>
+            </div>
+            <div class="header-date">
+                <span class="header-date-label">ATUALIZAÇÃO</span>
+                <strong>Dados em tempo real</strong>
+            </div>
+        </header>
+        <div class="controle-layout">
+            <div class="controle-main">
             <!-- JORNADA -->
-            <section class="card jornada">
+            <section class="jornada">
                 <div class="jornada-linha">
-                    <div class="resumo-item">
+                    <div class="resumo-item jornada-card-item">
                         <span class="jornada-label">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
                             Entrada
                         </span>
                         <p class="jornada-hora" id="hora-entrada">--:--</p>
+                        <div class="jornada-meta"><span>Previsto <strong id="previsto-entrada">--:--</strong></span><strong class="jornada-delta" id="delta-entrada">Aguardando</strong></div>
+                        <div class="jornada-state pending" id="estado-entrada"><span class="dot"></span>Aguardando</div>
                     </div>
                     <div class="jornada-divider"></div>
-                    <div class="resumo-item">
+                    <div class="resumo-item jornada-card-item">
                         <span class="jornada-label">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1" /><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" /><line x1="6" y1="1" x2="6" y2="4" /><line x1="10" y1="1" x2="10" y2="4" /><line x1="14" y1="1" x2="14" y2="4" /></svg>
                             Saída intervalo
                         </span>
                         <p class="jornada-hora" id="hora-saida-intervalo">--:--</p>
+                        <div class="jornada-meta"><span>Previsto <strong id="previsto-saida-intervalo">--:--</strong></span><strong class="jornada-delta" id="delta-saida-intervalo">Aguardando</strong></div>
+                        <div class="jornada-state pending" id="estado-saida-intervalo"><span class="dot"></span>Aguardando</div>
                     </div>
                     <div class="jornada-divider"></div>
-                    <div class="resumo-item">
+                    <div class="resumo-item jornada-card-item">
                         <span class="jornada-label">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></svg>
                             Volta intervalo
                         </span>
                         <p class="jornada-hora" id="hora-volta-intervalo">--:--</p>
+                        <div class="jornada-meta"><span>Previsto <strong id="previsto-volta-intervalo">--:--</strong></span><strong class="jornada-delta" id="delta-volta-intervalo">Aguardando</strong></div>
+                        <div class="jornada-state pending" id="estado-volta-intervalo"><span class="dot"></span>Aguardando</div>
                     </div>
                     <div class="jornada-divider"></div>
-                    <div class="resumo-item">
+                    <div class="resumo-item jornada-card-item">
                         <span class="jornada-label">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
                             Saída
                         </span>
                         <p class="jornada-hora" id="hora-saida">--:--</p>
+                        <div class="jornada-meta"><span>Previsto <strong id="previsto-saida">--:--</strong></span><strong class="jornada-delta" id="delta-saida">Aguardando</strong></div>
+                        <div class="jornada-state pending" id="estado-saida"><span class="dot"></span>Aguardando</div>
                     </div>
                 </div>
             </section>
 
             <!-- FILTRO -->
             <section class="card filtro">
+                <div class="section-heading filter-heading">
+                    <h2>Filtrar registros</h2>
+                </div>
                 <div class="filtro-linha">
                     <div class="input-group group-usuario">
                         <label for="filtroUsuario">Funcionário</label>
@@ -80,16 +102,32 @@
                         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
                         Pesquisar
                     </button>
+                    <button class="btn-secondary" id="btnFiltrosAvancados" type="button" aria-expanded="false">Gerenciar filtros</button>
+                </div>
+                <div class="advanced-filters" id="advancedFilters" hidden>
+                    <div class="advanced-filters-grid">
+                        <label>Itens por página<select id="itensPagina"><option value="10" selected>10 itens</option><option value="25">25 itens</option><option value="50">50 itens</option></select></label>
+                        <label>Situação do dia<select id="filtroStatus"><option value="">Todos os dias</option><option value="completo">Completo — 4 batidas registradas</option><option value="pendencia">Com pendências — falta ou revisão</option><option value="sem_pendencia">Sem pendências — nada para revisar</option></select></label>
+                        <label>Status<select id="filtroCor"><option value="">Todos os status</option><option value="coincidente">Horário coincidente</option><option value="diferenca">Diferença factual</option><option value="pendente">Pendente RH/jurídico</option><option value="sem_informacao">Sem informação</option></select></label>
+                        <label>Horário<select id="filtroHorario"><option value="">Todos os horários</option><option value="ate_5">Até 5 min</option><option value="de_6_a_10">6–10 min</option><option value="acima_10">Acima de 10 min</option><option value="sem_batida">Sem batida</option></select></label>
+                        <label>Ordenação<select id="filtroOrdem"><option value="desc" selected>Mais recentes primeiro</option><option value="asc">Mais antigos primeiro</option></select></label>
+                    </div>
                 </div>
             </section>
 
             <!-- TABELA -->
             <section class="card tabela-container">
                 <div class="tabela-header">
-                    <div class="legenda">
-                        <span class="legenda-item"><span class="dot ok-dot"></span> Horário coincidente</span>
-                        <span class="legenda-item"><span class="dot alerta-dot"></span> Diferença factual</span>
-                        <span class="legenda-item">Classificação trabalhista pendente de RH/jurídico</span>
+                    <div>
+                        <span class="section-kicker">ESPELHO DE PONTO</span>
+                        <h2>Registros do período</h2>
+                        <div class="legenda legenda-horarios">
+                        <span class="legenda-title">CORES DOS HORÁRIOS</span>
+                        <span class="legenda-item"><span class="dot ok-dot"></span> Até 5 min</span>
+                        <span class="legenda-item"><span class="dot alerta-dot"></span> 6–10 min</span>
+                        <span class="legenda-item"><span class="dot danger-dot"></span> Acima de 10 min</span>
+                        <span class="legenda-item"><span class="dot neutral-dot"></span> Sem batida</span>
+                        </div>
                     </div>
                     <!-- EXPORT SECTION -->
                     <div class="export-section">
@@ -131,9 +169,38 @@
                         </tr>
                     </tbody>
                 </table>
-            </section>
+                <div class="table-pagination" id="tablePagination" hidden>
+                    <span id="paginationSummary">—</span>
+                    <div class="pagination-actions"><button type="button" id="paginaAnterior" aria-label="Página anterior">‹</button><strong id="paginationPage">1 / 1</strong><button type="button" id="proximaPagina" aria-label="Próxima página">›</button></div>
+                </div>
+                </section>
+            </div>
+            <aside class="controle-rail" aria-label="Resumo do período">
+                <section class="rail-card rail-hours">
+                    <div class="rail-card-header"><span class="section-kicker">HORAS POR DIA</span><span class="rail-icon">◷</span></div>
+                    <strong class="rail-value" id="rail-hours-value">--</strong>
+                    <span class="rail-caption" id="rail-hours-caption">Selecione um funcionário para consultar</span>
+                    <div class="week-bars"><button type="button" data-week-day="0" aria-label="Domingo"></button><button type="button" data-week-day="1" aria-label="Segunda-feira"></button><button type="button" data-week-day="2" aria-label="Terça-feira"></button><button type="button" data-week-day="3" aria-label="Quarta-feira"></button><button type="button" data-week-day="4" aria-label="Quinta-feira"></button><button type="button" data-week-day="5" aria-label="Sexta-feira"></button><button type="button" data-week-day="6" aria-label="Sábado"></button></div>
+                    <div class="week-labels"><button type="button" data-week-day="0">D</button><button type="button" data-week-day="1">S</button><button type="button" data-week-day="2">T</button><button type="button" data-week-day="3">Q</button><button type="button" data-week-day="4">Q</button><button type="button" data-week-day="5">S</button><button type="button" data-week-day="6">S</button></div>
+                </section>
+                <section class="rail-card">
+                    <span class="section-kicker">RESUMO OPERACIONAL</span>
+                    <div class="rail-metrics"><div><strong id="rail-registered-value">—</strong><span>horas registradas</span></div><div class="metric-warning"><strong id="rail-divergences-value">—</strong><span>divergências</span></div><div class="metric-info"><strong id="rail-pending-value">—</strong><span>pendências RH</span></div></div>
+                    <div class="rail-note"><span class="dot alerta-dot"></span> Fechamento depende da análise do período</div>
+                </section>
+                <section class="rail-card">
+                    <div class="rail-card-header"><span class="section-kicker">ESTADO INFORMATIVO</span></div>
+                    <p class="rail-copy">Estas cores indicam a situação da jornada no dia. Elas são diferentes das cores dos horários.</p>
+                    <div class="status-guide">
+                        <div><span class="guide-dot guide-green"></span><div><strong>Horário coincidente</strong><span>Batida dentro do horário previsto.</span></div></div>
+                        <div><span class="guide-dot guide-orange"></span><div><strong>Diferença factual</strong><span>Batida fora da tolerância de 5 minutos.</span></div></div>
+                        <div><span class="guide-dot guide-red"></span><div><strong>Pendente RH/jurídico</strong><span>Falta registro ou classificação.</span></div></div>
+                        <div><span class="guide-dot guide-gray"></span><div><strong>Sem informação</strong><span>Não há dados suficientes no dia.</span></div></div>
+                    </div>
+                </section>
+            </aside>
         </div>
-    </div>
+    </main>
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://npmcdn.com/flatpickr/dist/l10n/pt.js"></script>
