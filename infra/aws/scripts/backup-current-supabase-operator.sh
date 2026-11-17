@@ -101,14 +101,31 @@ if [[ -z "$PGPASSWORD" ]]; then
 fi
 export PGDATABASE PGPASSWORD PGSSLMODE=verify-full
 export PGSSLROOTCERT=/run/supabase-ca.crt
+export PGCONNECT_TIMEOUT=8
 trap 'unset PGDATABASE PGPASSWORD PGSSLMODE PGSSLROOTCERT BACKUP_PASSPHRASE' EXIT
 
 # Verify TLS and authentication with a constant query; never print the server's
 # diagnostic because it can contain a complete connection string or hostname.
-if ! connection_check="$(docker run --rm --pull=never --entrypoint sh \
+connection_ready=0
+for attempt in 1 2 3; do
+if connection_check="$(docker run --rm --pull=never --entrypoint sh \
     --mount "type=bind,source=$ca_file,target=/run/supabase-ca.crt,readonly" \
-    --env PGDATABASE --env PGPASSWORD --env PGSSLMODE --env PGSSLROOTCERT \
+    --env PGDATABASE --env PGPASSWORD --env PGSSLMODE --env PGSSLROOTCERT --env PGCONNECT_TIMEOUT \
     postgres:17-alpine -c 'exec psql --dbname="$PGDATABASE" --no-psqlrc --quiet --tuples-only --no-align --command "SELECT 1"' 2>&1)"; then
+  connection_ready=1
+  break
+fi
+case "$connection_check" in
+  *'could not translate host name'*|*'Name or service not known'*|*'connection timed out'*|*'Network is unreachable'*|*'No route to host'*)
+    if [[ $attempt -lt 3 ]]; then
+      printf 'Conexao temporariamente indisponivel; repetindo verificacao segura.\n'
+      sleep 2
+      continue
+    fi ;;
+esac
+break
+done
+if [[ "$connection_ready" -ne 1 ]]; then
   case "$connection_check" in
     *'certificate'*|*'root certificate'*|*'SSL error'*)
       printf 'Diagnostico: falha de verificacao TLS. Nenhum dump iniciado.\n' >&2 ;;
@@ -136,7 +153,7 @@ unset BACKUP_PASSPHRASE_AGAIN
 
 if ! docker run --rm --pull=never --entrypoint sh \
     --mount "type=bind,source=$ca_file,target=/run/supabase-ca.crt,readonly" \
-    --env PGDATABASE --env PGPASSWORD --env PGSSLMODE --env PGSSLROOTCERT \
+    --env PGDATABASE --env PGPASSWORD --env PGSSLMODE --env PGSSLROOTCERT --env PGCONNECT_TIMEOUT \
     postgres:17-alpine -c 'exec pg_dump --dbname="$PGDATABASE" --format=custom --no-owner --no-acl' \
     2>/dev/null | gpg --batch --yes --pinentry-mode loopback \
       --no-symkey-cache --symmetric --cipher-algo AES256 --compress-algo none \

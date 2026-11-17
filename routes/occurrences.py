@@ -6,7 +6,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import psycopg2.extras
-from flask import Blueprint, g, jsonify, render_template, request, send_file
+from flask import Blueprint, current_app, g, jsonify, render_template, request, send_file
 
 from db import conectar_bd
 from services.correction_workflow import (
@@ -269,13 +269,16 @@ def create_occurrence():
     attachment_key = None
     attachment_storage = None
     validated_attachment = None
+    stage = "validation"
     try:
         category, operation, marking_id, reason, instant, marking_type = _validate_request(_payload())
         attachment_file = request.files.get("comprovante") if request.mimetype == "multipart/form-data" else None
         validated_attachment = validate_attachment(attachment_file) if attachment_file else None
+        stage = "connection"
         connection = conectar_bd()
         cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         if marking_id:
+            stage = "marking"
             cursor.execute(
                 """SELECT id FROM marcacoes WHERE id = %s AND empresa_id = %s
                    AND funcionario_id = %s AND estado = 'confirmada'""",
@@ -284,6 +287,7 @@ def create_occurrence():
             if not cursor.fetchone():
                 connection.rollback()
                 return jsonify({"erro": "Marcação não encontrada."}), 404
+        stage = "occurrence"
         cursor.execute(
             """INSERT INTO ocorrencias
                (empresa_id, funcionario_id, marcacao_id, tipo, descricao,
@@ -293,6 +297,7 @@ def create_occurrence():
             (g.auth_context["empresa_id"], g.auth_context["funcionario_id"], marking_id, reason),
         )
         occurrence_id = cursor.fetchone()["id"]
+        stage = "correction"
         cursor.execute(
             """INSERT INTO correcoes
                (empresa_id, funcionario_id, ocorrencia_id, marcacao_original_id, solicitante_usuario_id,
@@ -302,6 +307,7 @@ def create_occurrence():
              g.auth_context["user_id"], operation, category, instant, marking_type, reason),
         )
         row = cursor.fetchone()
+        stage = "audit"
         _audit(cursor, "correcao.criada", row["id"], {
             "categoria": category,
             "estado_anterior": None,
@@ -311,6 +317,7 @@ def create_occurrence():
             "funcionario_id": str(g.auth_context["funcionario_id"]),
         })
         if validated_attachment:
+            stage = "attachment"
             attached, attachment_key, attachment_storage = attach_to_new_correction(
                 cursor, g.auth_context, row, validated_attachment
             )
@@ -320,15 +327,18 @@ def create_occurrence():
             row["anexo_tamanho"] = attached["tamanho_bytes"]
             row["anexo_sha256"] = attached["sha256"]
             row["anexo_created_at"] = attached["created_at"]
+        stage = "commit"
         connection.commit()
         if validated_attachment:
             attachment_key = None
         if validated_attachment and not asynchronous_scan_enabled():
+            stage = "scan"
             attached = scan_attachment(
                 conectar_bd, g.auth_context, attached["id"], storage=attachment_storage
             )
             row["anexo_estado_seguranca"] = attached["estado_seguranca"]
             emit("upload_accepted", attachment_id=str(attached["id"]), company_id=str(g.auth_context["empresa_id"]), result=attached["estado_seguranca"])
+        stage = "response"
         return jsonify(_serialize(row)), 201
     except (ValueError, CorrectionAttachmentError) as exc:
         if connection:
@@ -338,7 +348,16 @@ def create_occurrence():
         status = exc.status if isinstance(exc, CorrectionAttachmentError) else 400
         message = exc.message if isinstance(exc, CorrectionAttachmentError) else str(exc)
         return jsonify({"erro": message}), status
-    except Exception:
+    except Exception as exc:
+        # Never include exception text, SQL, parameters, identities or traceback.
+        sqlstate = getattr(exc, "pgcode", None)
+        if not isinstance(sqlstate, str) or len(sqlstate) != 5 or not all(
+            char in "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ" for char in sqlstate
+        ):
+            sqlstate = "unavailable"
+        current_app.logger.error(
+            "occurrence_creation_failed stage=%s sqlstate=%s", stage, sqlstate
+        )
         if connection:
             connection.rollback()
         if attachment_key and attachment_storage:

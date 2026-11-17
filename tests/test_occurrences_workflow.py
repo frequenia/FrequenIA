@@ -149,6 +149,26 @@ class RouteTests(unittest.TestCase):
     def auth(self, role="funcionario"):
         return patch("utils.auth_decorator._load_persistent_authentication", return_value=(context(role), None))
 
+    def test_creation_failure_logs_only_stage_and_sqlstate(self):
+        class DatabaseFailure(Exception):
+            pgcode = "42501"
+
+        cursor = Cursor()
+        cursor.execute = lambda *_args: (_ for _ in ()).throw(DatabaseFailure("PRIVATE SQL AND PARAMETERS"))
+        connection = Connection(cursor)
+        with self.auth(), patch("routes.occurrences.conectar_bd", return_value=connection), \
+                self.assertLogs(self.app.logger, level="ERROR") as captured:
+            response = self.client.post(
+                "/api/ocorrencias", headers={"Authorization": "Bearer x"},
+                json={"tipo": "justificativa", "motivo": "PRIVATE REASON"},
+            )
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(connection.rollbacks, 1)
+        self.assertEqual(len(captured.output), 1)
+        self.assertIn("stage=occurrence sqlstate=42501", captured.output[0])
+        self.assertNotIn("PRIVATE", captured.output[0])
+        self.assertNotIn("PRIVATE", response.get_data(as_text=True))
+
     def test_personal_creation_uses_session_identity_and_audits(self):
         row = correction_row(operation="inclusao")
         row["categoria"] = "esquecimento_marcacao"
