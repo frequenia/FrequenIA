@@ -3,14 +3,40 @@
    ============================================================ */
 
 // ─── SIDEBAR NAVIGATION ───
-const links = document.querySelectorAll(".sidebar a");
+const links = [...document.querySelectorAll(".sidebar-nav a")];
+const painel = document.querySelector('iframe[name="conteudo"]');
+const localizacao = document.getElementById("topbarLocation");
 
-links.forEach(link => {
-  link.addEventListener("click", () => {
-    links.forEach(l => l.parentElement.classList.remove("active"));
-    link.parentElement.classList.add("active");
+function atualizarLocalizacao(caminho) {
+  if (!localizacao) return;
+  const atual = links.find(link => link.pathname === caminho);
+  links.forEach(link => {
+    link.parentElement.classList.toggle("active", link === atual);
+    if (link === atual) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
   });
-});
+  localizacao.replaceChildren();
+  const titulo = atual?.textContent.trim() || (caminho === "/perfil" ? "Meu perfil" : "");
+  if (!titulo) return;
+  if (["/controleponto", "/ocorrencias", "/ocorrencias/falhas-faciais", "/jornadas", "/meu-ponto", "/minhas-solicitacoes"].includes(caminho)) {
+    const grupo = document.createElement("span");
+    grupo.className = "topbar-section";
+    grupo.textContent = "Ponto / ";
+    localizacao.append(grupo);
+  }
+  localizacao.append(titulo);
+}
+
+if (painel) {
+  atualizarLocalizacao(new URL(painel.src).pathname);
+  painel.addEventListener("load", () => {
+    try {
+      atualizarLocalizacao(painel.contentWindow.location.pathname);
+    } catch {
+      atualizarLocalizacao("");
+    }
+  });
+}
 
 // ─── RELÓGIO E DATA ───
 async function atualizarRelogio() {
@@ -84,8 +110,7 @@ function aplicarTemaGlobal() {
 aplicarTemaGlobal();
 
 // ─── LOGOUT ───
-function logout(event) {
-  event.preventDefault();
-  sessionStorage.clear();
-  window.top.location = "/logout";
-}
+const logoutDialog = document.getElementById("logoutDialog");
+document.getElementById("openLogout")?.addEventListener("click", () => {
+  logoutDialog.showModal();
+});

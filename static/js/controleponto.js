@@ -7,7 +7,7 @@ let filtrosAplicados = { status: "", cor: "", horario: "", ordem: "desc", itensP
 function sincronizarSelect(select) {
     const wrapper = select.closest(".custom-select");
     if (!wrapper) return;
-    const menu = wrapper.querySelector(".select-menu");
+    const menu = wrapper.querySelector('[role="listbox"]');
     const trigger = wrapper.querySelector(".select-trigger");
     menu.replaceChildren();
     Array.from(select.options).forEach((option) => {
@@ -22,6 +22,12 @@ function sincronizarSelect(select) {
             select.dispatchEvent(new Event("change", { bubbles: true }));
             atualizarSelectVisual(select);
             wrapper.classList.remove("open");
+            if (trigger.tagName === "INPUT") {
+                trigger.value = option.value ? option.textContent : "";
+                trigger.setAttribute("aria-expanded", "false");
+            }
+            trigger.focus();
+            wrapper.classList.remove("open");
         });
         menu.appendChild(item);
     });
@@ -34,7 +40,10 @@ function atualizarSelectVisual(select) {
     if (!wrapper) return;
     const selected = select.options[select.selectedIndex];
     const trigger = wrapper.querySelector(".select-trigger");
-    if (selected && trigger) trigger.querySelector(".select-label").textContent = selected.textContent;
+    if (selected && trigger) {
+        if (trigger.tagName === "INPUT") trigger.value = selected.value ? selected.textContent : "";
+        else trigger.querySelector(".select-label").textContent = selected.textContent;
+    }
     wrapper.querySelectorAll(".select-option").forEach((item) => {
         item.classList.toggle("selected", item.dataset.value === select.value);
         item.setAttribute("aria-selected", String(item.dataset.value === select.value));
@@ -47,18 +56,62 @@ function ativarSelectCustomizado(select) {
     wrapper.className = "custom-select";
     select.parentNode.insertBefore(wrapper, select);
     wrapper.appendChild(select);
-    const trigger = document.createElement("button");
-    trigger.type = "button";
+    const pesquisavel = select.id === "filtroUsuario";
+    const trigger = document.createElement(pesquisavel ? "input" : "button");
+    trigger.type = pesquisavel ? "search" : "button";
     trigger.className = "select-trigger";
     trigger.setAttribute("aria-haspopup", "listbox");
-    trigger.innerHTML = '<span class="select-label"></span><span class="select-chevron" aria-hidden="true"></span>';
+    if (pesquisavel) {
+        trigger.placeholder = "Buscar por nome ou matrícula";
+        trigger.setAttribute("aria-label", trigger.placeholder);
+        trigger.setAttribute("role", "combobox");
+        trigger.setAttribute("aria-autocomplete", "list");
+        trigger.setAttribute("aria-expanded", "false");
+        trigger.autocomplete = "off";
+    } else {
+        trigger.innerHTML = '<span class="select-label"></span><span class="select-chevron" aria-hidden="true"></span>';
+    }
     const menu = document.createElement("div");
     menu.className = "select-menu";
     menu.setAttribute("role", "listbox");
+    if (pesquisavel) {
+        const normalizar = texto => texto.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+        trigger.addEventListener("input", () => {
+            const termo = normalizar(trigger.value);
+            menu.querySelectorAll(".select-option").forEach(opcao => {
+                opcao.hidden = Boolean(termo) && !normalizar(opcao.textContent).includes(termo);
+            });
+            wrapper.classList.add("open");
+            trigger.setAttribute("aria-expanded", "true");
+        });
+        trigger.addEventListener("focus", () => {
+            menu.querySelectorAll(".select-option").forEach(opcao => { opcao.hidden = false; });
+            wrapper.classList.add("open");
+            trigger.setAttribute("aria-expanded", "true");
+        });
+        wrapper.addEventListener("focusout", () => {
+            setTimeout(() => {
+                if (wrapper.contains(document.activeElement)) return;
+                wrapper.classList.remove("open");
+                trigger.setAttribute("aria-expanded", "false");
+                atualizarSelectVisual(select);
+            }, 0);
+        });
+        trigger.addEventListener("keydown", event => {
+            if (event.key === "Escape") {
+                wrapper.classList.remove("open");
+                trigger.setAttribute("aria-expanded", "false");
+                trigger.blur();
+            } else if (event.key === "ArrowDown") {
+                event.preventDefault();
+                menu.querySelector(".select-option:not([hidden])")?.focus();
+            }
+        });
+    }
     wrapper.insertBefore(trigger, select);
     wrapper.appendChild(menu);
     select.classList.add("native-select");
-    trigger.addEventListener("click", () => {
+    if (!pesquisavel) trigger.addEventListener("click", () => {
         document.querySelectorAll(".custom-select.open").forEach((item) => { if (item !== wrapper) item.classList.remove("open"); });
         wrapper.classList.toggle("open");
     });
@@ -513,7 +566,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     ativarListasSuspensas();
     preencherPeriodoPadrao();
     if (window.flatpickr) {
-        const config = { dateFormat: "d/m/Y", locale: "pt", disableMobile: true };
+        const config = { dateFormat: "d/m/Y", locale: "pt", disableMobile: true, monthSelectorType: "static" };
         window.flatpickr("#dataInicio", config);
         window.flatpickr("#dataFim", config);
     }

@@ -1,0 +1,6 @@
+.busca-funcionario { position: relative; width: 100%; }
+.busca-funcionario-original { position: absolute !important; width: 1px !important; height: 1px !important; opacity: 0; pointer-events: none; }
+.busca-funcionario input { width: 100%; }
+.busca-funcionario-lista { position: absolute; z-index: 200; top: calc(100% + 6px); left: 0; right: 0; max-height: 280px; overflow-y: auto; padding: 5px; border: 1px solid #dce7f0; border-radius: 12px 12px 12px 4px; background: #fff; color: #4a4a4a; box-shadow: 0 16px 32px -18px rgba(8,45,71,.45); }
+.busca-funcionario-lista button { display: block; width: 100%; padding: 9px 10px; border: 0; border-radius: 8px; background: transparent; color: #4a4a4a; font: 600 12px 'Manrope', sans-serif; text-align: left; white-space: normal; }
+.busca-funcionario-lista button:hover, .busca-funcionario-lista button:focus-visible { background: #eaf2f8; color: #0c4a70; }

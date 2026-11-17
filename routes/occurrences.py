@@ -179,6 +179,8 @@ def _serialize(row, management=False):
         "observacao": row.get("decisao"),
         "funcionario": row.get("funcionario_nome"),
         "matricula": row.get("matricula"),
+        "unidade": row.get("unidade_nome"),
+        "equipe": row.get("equipe_nome"),
         "solicitante": row.get("solicitante_nome"),
         "analisador": row.get("analisador_nome"),
     }
@@ -226,12 +228,14 @@ def _notify(cursor, user_id, title, message):
 
 DETAIL_SQL = """
     SELECT c.*, m.instante AS instante_original, m.tipo AS tipo_original,
-           u.nome AS funcionario_nome, f.matricula,
+           u.nome AS funcionario_nome, f.matricula, un.nome AS unidade_nome, eq.nome AS equipe_nome,
            us.nome AS solicitante_nome, ua.nome AS analisador_nome,
            attachment.*
     FROM correcoes c
     INNER JOIN funcionarios f ON f.id = c.funcionario_id AND f.empresa_id = c.empresa_id
     INNER JOIN usuarios u ON u.id = f.usuario_id
+    LEFT JOIN unidades un ON un.id = f.unidade_id AND un.empresa_id = f.empresa_id
+    LEFT JOIN equipes eq ON eq.id = f.equipe_id AND eq.empresa_id = f.empresa_id
     INNER JOIN usuarios us ON us.id = c.solicitante_usuario_id
     LEFT JOIN usuarios ua ON ua.id = c.responsavel_decisao_usuario_id
     LEFT JOIN marcacoes m ON m.id = c.marcacao_original_id

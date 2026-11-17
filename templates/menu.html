@@ -15,20 +15,21 @@
   <!-- Fonte -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
 
   <!-- TOPBAR -->
-  <header class="topbar">
+  <header class="topbar main-topbar">
     <a class="logo" href="/menu" target="_top" aria-label="FrequenIA - página inicial">
       <img class="brand-logo" src="{{ url_for('static', filename='img/brand/frequenia-logo-white-v4.png') }}" alt="FrequenIA">
     </a>
 
-    <!---
-    <div id="status" class="status-container"></div>
-    -->
+    <div class="topbar-context">
+      <div class="topbar-location" id="topbarLocation" aria-label="Tela atual" aria-live="polite"></div>
+      {% set cargos = {'administrador_geral': 'Administrador geral', 'admin': 'Administrador', 'administrador': 'Administrador', 'gestor': 'Gestor', 'rh': 'RH', 'funcionario': 'Funcionário'} %}
+      {% if tipo in cargos %}<span class="topbar-role">{{ cargos[tipo] }}</span>{% endif %}
+    </div>
 
     <div class="topbar-right">
       <!-- PROFILE LINK -->
@@ -53,53 +54,59 @@
 
     <!-- SIDEBAR (Menu Lateral) -->
     <aside class="sidebar">
-      <ul>
-      {% if tipo == 'administrador_geral' %}
-        <li><a href="/plataforma" target="conteudo">Visão da plataforma</a></li>
-        <li><a href="/gerenciarEmpresa" target="conteudo">Empresas</a></li>
-        <li><a href="/cadastroEmpresas" target="conteudo">Cadastrar empresa</a></li>
-      {% else %}
-      {% if tipo == 'funcionario' %}
-        <li><a href="/meu-ponto" target="conteudo">Meu ponto</a></li>
-        <li><a href="/minhas-solicitacoes" target="conteudo">Minhas solicitações</a></li>
-      {% endif %}
-      {% if tipo in ['admin', 'administrador', 'gestor', 'rh'] %}
-        <li>
-          <a href="/controleponto" target="conteudo">
-            Controle de Pontos
-          </a>
-        </li>
-        <li><a href="/ocorrencias" target="conteudo">Ocorrências</a></li>
-        <li><a href="/ocorrencias/falhas-faciais" target="conteudo">Falhas faciais</a></li>
-      {% endif %}
-        <!-- <li><a href="/inicio" >Registro de ponto</a></li> -->
-      {% if tipo in ['admin', 'administrador'] %}
-        <li class="divider"></li>
-        <li><a href="/gerenciarUsuario" id="gerenciamentous" target="conteudo">Gerenciar usuários</a></li>
-        <li><a href="/jornadas" id="gerenciamentojornadas" target="conteudo">Jornadas</a></li>
-        <!---
-        <li><a href="/gerenciarEmpresa" id="gerenciamentoemp" target="conteudo">Gerenciar (Empresas)</a></li>
-        -->
-        <li><a href="/cadastroUsuario" target="conteudo">Cadastro</a></li>
-        <!---
-        <li><a href="/cadastroEmpresas" target="conteudo">Cadastro (Empresas)</a></li>
-        -->
-        <li><a href="/cadastrarFoto" target="conteudo">Cadastro facial</a></li>
-        <li><a href="/admin/terminais-ponto" target="conteudo">Terminais de ponto</a></li>
-      {% endif %}
-      {% endif %}
-        <li class="divider"></li>
-        <li><a href="/configuracoes" target="conteudo">Configurações</a></li>
-        <li><a href="/logout" target="_top">Sair da conta</a></li>
-      </ul>
+      <nav class="sidebar-nav" aria-label="Navegação principal">
+        <ul>
+        {% if tipo == 'administrador_geral' %}
+          <li class="active"><a href="/plataforma" target="conteudo"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 10h18m-11 0v11"/></svg><span>Visão da plataforma</span></a></li>
+          <li><a href="/gerenciarEmpresa" target="conteudo"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V8l7-5 7 5v13M10 21v-6h4v6"/></svg><span>Empresas</span></a></li>
+          <li><a href="/cadastroEmpresas" target="conteudo"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Cadastrar empresa</span></a></li>
+        {% else %}
+        {% if tipo == 'funcionario' %}
+          <li class="active"><a href="/meu-ponto" target="conteudo"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Meu ponto</span></a></li>
+          <li><a href="/minhas-solicitacoes" target="conteudo"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6m-6 4h6m-6 4h4"/></svg><span>Minhas solicitações</span></a></li>
+        {% endif %}
+        {% if tipo in ['admin', 'administrador', 'gestor', 'rh'] %}
+          <li class="active"><a href="/controleponto" target="conteudo"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Controle de Pontos</span></a></li>
+          <li><a href="/ocorrencias" target="conteudo"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 4.5 3 18a1 1 0 0 0 1 1.5h16a1 1 0 0 0 1-1.5L13.5 4.5a1.7 1.7 0 0 0-3 0ZM12 9v4m0 3h.01"/></svg><span>Ocorrências</span></a></li>
+          <li><a href="/ocorrencias/falhas-faciais" target="conteudo"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3m-4-13v5m0 3h.01"/></svg><span>Falhas faciais</span></a></li>
+        {% endif %}
+        {% if tipo in ['admin', 'administrador'] %}
+          <li class="menu-divider" aria-hidden="true"></li>
+          <li><a href="/gerenciarUsuario" id="gerenciamentous" target="conteudo"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2m4-12v6m-3-3h6"/></svg><span>Gerenciar usuários</span></a></li>
+          <li><a href="/jornadas" id="gerenciamentojornadas" target="conteudo"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18"/></svg><span>Jornadas</span></a></li>
+          <li class="menu-divider" aria-hidden="true"></li>
+          <li><a href="/cadastroUsuario" target="conteudo"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 9h6m-3-3v6m-3 5h6"/></svg><span>Cadastro</span></a></li>
+          <li><a href="/cadastrarFoto" target="conteudo"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3M9 14q3 3 6 0M9 9h.01M15 9h.01"/></svg><span>Cadastro facial</span></a></li>
+          <li><a href="/admin/terminais-ponto" target="conteudo"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M12 17v4m-4 0h8"/></svg><span>Terminais de ponto</span></a></li>
+        {% endif %}
+        {% endif %}
+          <li class="menu-divider" aria-hidden="true"></li>
+          <li><a href="/configuracoes" target="conteudo"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 4v4m8 2v4m-6 2v4"/></svg><span>Configurações</span></a></li>
+        </ul>
+      </nav>
+      <div class="sidebar-session">
+        <span class="session-kicker">SESSÃO</span>
+        <strong>Acesso administrativo</strong>
+        <button type="button" id="openLogout" class="btn-primary" aria-haspopup="dialog">
+          Sair da conta <span aria-hidden="true">→</span>
+        </button>
+      </div>
     </aside>
 
     <!-- CONTEÚDO PRINCIPAL -->
     <main class="content">
-      <iframe src="{% if tipo == 'administrador_geral' %}/plataforma{% elif tipo in ['admin', 'administrador', 'gestor', 'rh'] %}/controleponto{% elif tipo == 'funcionario' %}/meu-ponto{% else %}/perfil{% endif %}" name="conteudo" class="iframe-content"></iframe>
+      <iframe src="{% if tipo == 'administrador_geral' %}/plataforma{% elif tipo in ['admin', 'administrador', 'gestor', 'rh'] %}/controleponto{% elif tipo == 'funcionario' %}/meu-ponto{% else %}/perfil{% endif %}" name="conteudo" class="iframe-content" title="Conteúdo do FrequenIA"></iframe>
     </main>
 
   </div>
+
+  <dialog class="logout-dialog" id="logoutDialog" aria-labelledby="logoutTitle">
+    <h2 id="logoutTitle">Tem certeza que deseja sair?</h2>
+    <form method="dialog" class="logout-actions">
+      <button type="submit" class="btn-secondary" autofocus>Cancelar</button>
+      <a href="/logout" target="_top" class="btn btn-primary">Sair da conta</a>
+    </form>
+  </dialog>
 
   <script>
     const usuarioNome = "{{ nome }}";
