@@ -1,0 +1,8 @@
+ARG BASE_IMAGE=frequenia:pilot-kiosk-responsive-20261121
+FROM ${BASE_IMAGE}
+
+# Base publicada em 21/11; somente confirmacao, alertas e preenchimento do video.
+COPY --chown=app:app routes/kiosk.py /app/routes/kiosk.py
+COPY --chown=app:app templates/reconhecimentoFacial.html /app/templates/reconhecimentoFacial.html
+COPY --chown=app:app static/css/reconhecimentoFacial.css /app/static/css/reconhecimentoFacial.css
+COPY --chown=app:app static/js/reconhecimento.js /app/static/js/reconhecimento.js

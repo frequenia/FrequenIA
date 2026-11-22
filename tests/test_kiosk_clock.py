@@ -57,12 +57,16 @@ class KioskClockTests(unittest.TestCase):
 
     def test_active_terminal_company_a_marks_only_employee_resolved_in_company_a(self):
         marking = {"id": "00000000-0000-0000-0000-000000000006", "tentativa_facial_id": "00000000-0000-0000-0000-000000000007", "tipo": "entrada", "origem": "facial", "estado": "confirmada", "instante": __import__("datetime").datetime.now(__import__("datetime").timezone.utc), "chave_idempotencia": "00000000-0000-0000-0000-000000000005"}
-        cursor = Cursor([{"id": EMPLOYEE_A}, None, None, {"id": "00000000-0000-0000-0000-000000000007"}, marking])
+        cursor = Cursor([{"id": EMPLOYEE_A, "nome": "Funcionario sintetico"}, None, None, {"id": "00000000-0000-0000-0000-000000000007"}, marking])
         with patch("routes.kiosk.confirm_expected_event", return_value={"marking": marking, "reused": False, "decision": {"estado": "aguardando"}}):
             response, status = self.call(Connection(cursor))
         self.assertEqual(status, 201)
+        self.assertEqual(response.get_json()["funcionario"], {"nome": "Funcionario sintetico"})
+        self.assertEqual(response.get_json()["marcacao"]["instante"], marking["instante"].isoformat())
+        self.assertEqual(response.headers["Cache-Control"], "no-store")
         employee_query = cursor.calls[0]
-        self.assertIn("empresa_id=%s AND matricula=%s", employee_query[0])
+        self.assertIn("f.empresa_id=%s AND f.matricula=%s", employee_query[0])
+        self.assertIn("FOR UPDATE OF f", employee_query[0])
         self.assertEqual(employee_query[1], (COMPANY_A, "A-01"))
         self.assertIn("funcionario_id = %s", cursor.calls[3][0])
         self.assertNotIn("<=>", " ".join(call[0] for call in cursor.calls))
@@ -147,6 +151,20 @@ class KioskClockTests(unittest.TestCase):
             with patch("utils.terminal_auth.conectar_bd", return_value=connection):
                 response = protected()
         self.assertEqual(response[1], 401)
+
+    def test_receipt_name_not_returned_for_non_confirmed_marking(self):
+        from routes.kiosk import _kiosk_success
+        marking = {"id": EMPLOYEE_A, "tipo": "entrada", "origem": "facial", "estado": "cancelada", "instante": __import__("datetime").datetime.now(__import__("datetime").timezone.utc), "chave_idempotencia": TERMINAL_A}
+        with self.app.app_context():
+            response = _kiosk_success({"nome": "Nome que nao deve aparecer"}, marking)
+        self.assertNotIn("funcionario", response.get_json())
+
+    def test_idempotency_from_another_employee_never_exposes_name(self):
+        cursor = Cursor([{"id": EMPLOYEE_A, "nome": "Nome privado sintetico"}, {"funcionario_id": TERMINAL_A, "origem": "facial"}])
+        response, status = self.call(Connection(cursor))
+        self.assertEqual(status, 409)
+        self.assertNotIn("funcionario", response.get_json())
+        self.assertNotIn("Nome privado", response.get_data(as_text=True))
 
     def test_source_contains_only_one_to_one_biometric_lookup_and_official_locking(self):
         source = inspect.getsource(create_kiosk_facial_clock)

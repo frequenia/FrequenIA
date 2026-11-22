@@ -1,0 +1,13 @@
+ARG BASE_IMAGE=frequenia:pilot-mobile-speed-20261116
+FROM ${BASE_IMAGE}
+
+# Camada sobre a imagem atual do piloto: sem trocar banco, modelo ou limiar.
+# Apenas a logo branca ja rastreada entra no artefato; demais PNGs ficam fora.
+COPY --chown=app:app templates/reconhecimentoFacial.html /app/templates/reconhecimentoFacial.html
+COPY --chown=app:app static/css/reconhecimentoFacial.css /app/static/css/reconhecimentoFacial.css
+COPY --chown=app:app static/img/brand/frequenia-logo-white-v4.png /app/static/img/brand/frequenia-logo-white-v4.png
+# Atualizacoes da mesma branch (10d1e61), incluindo diagnostico sanitizado.
+COPY --chown=app:app routes/occurrences.py /app/routes/occurrences.py
+COPY --chown=app:app static/css/campos-padrao.css static/css/controleponto.css static/css/menu.css static/css/ocorrencias.css /app/static/css/
+COPY --chown=app:app static/js/campos-padrao.js static/js/controleponto.js static/js/menu.js static/js/ocorrencias.js /app/static/js/
+COPY --chown=app:app templates/autoatendimento.html templates/cadastrarFoto.html templates/cadastroUsuario.html templates/controleponto.html templates/falhasFaciais.html templates/jornadas.html templates/menu.html templates/meuPonto.html templates/ocorrencias.html /app/templates/

@@ -4,10 +4,90 @@ const button = document.getElementById("btnRegistrar");
 const retryButton = document.getElementById("btnTentarCamera");
 const status = document.getElementById("kiosk-status");
 const cameraState = document.getElementById("camera-state");
+const feedback = document.getElementById("kiosk-feedback");
+const feedbackTitle = document.getElementById("feedback-title");
+const feedbackMessage = document.getElementById("feedback-message");
+const feedbackHint = document.getElementById("feedback-hint");
+const receipt = document.getElementById("feedback-receipt");
+const receiptName = document.getElementById("receipt-name");
+const receiptTime = document.getElementById("receipt-time");
+const receiptType = document.getElementById("receipt-type");
+const continueButton = document.getElementById("btnContinuar");
+const markingLabels = { entrada: "Entrada", saida_intervalo: "Saída para intervalo", retorno_intervalo: "Retorno do intervalo", saida: "Saída" };
 
 let stream = null;
 let processing = false;
 let resetTimer = null;
+let leavingPage = false;
+
+function clearReceipt() {
+  receipt.hidden = true;
+  receiptName.textContent = "";
+  receiptTime.textContent = "";
+  receiptType.textContent = "";
+}
+
+function showFeedback({ title, message, hint, confirmation = null }) {
+  clearTimeout(resetTimer);
+  stopCamera();
+  button.disabled = true;
+  matricula.value = "";
+  clearReceipt();
+  const state = confirmation ? "success" : "error";
+  feedback.dataset.state = state;
+  feedbackTitle.textContent = title;
+  feedbackMessage.textContent = message;
+  feedbackHint.textContent = hint;
+  document.getElementById("feedback-symbol").textContent = confirmation ? "✓" : "!";
+  setStatus(message, state);
+  if (confirmation) {
+    receiptName.textContent = confirmation.name;
+    receiptTime.textContent = confirmation.time;
+    receiptType.textContent = confirmation.type;
+    receipt.hidden = false;
+  }
+  if (!feedback.open) feedback.showModal();
+  continueButton.focus();
+  // O quiosque nao retém a identificação do funcionário seguinte.
+  if (confirmation) resetTimer = setTimeout(() => feedback.close(), 10000);
+}
+
+function errorFeedback(body = {}, httpStatus = 0) {
+  if (!body || typeof body !== "object") body = {};
+  const known = {
+    jornada_nao_configurada: ["Jornada não configurada", "Não há jornada disponível para registrar este ponto.", "Peça ao responsável para conferir sua escala e a vigência da jornada."],
+    jornada_concluida: ["Jornada concluída", "Os eventos previstos nesta jornada já foram concluídos.", "Se faltar uma marcação, solicite uma correção ao responsável."],
+    folga_programada: ["Dia de folga", "A jornada indica folga para este dia.", "Confirme sua escala com o responsável antes de tentar novamente."],
+    marcacao_recente: ["Marcação recente", "Já existe uma marcação registrada recentemente.", "Confira o histórico antes de tentar registrar outro ponto."],
+  };
+  let details = known[body.codigo];
+  if (!details) {
+    if (httpStatus === 401) details = ["Terminal não autenticado", "A ativação deste terminal precisa ser conferida.", "Solicite ao administrador a ativação do quiosque."];
+    else if (httpStatus === 403) details = ["Registro não autorizado", "O registro não está disponível para esta tentativa.", "Procure o responsável para conferir as permissões e a disponibilidade do reconhecimento."];
+    else if (httpStatus === 422) details = ["Imagem não validada", typeof body.erro === "string" ? body.erro : "Não foi possível validar a imagem capturada.", "Mantenha apenas um rosto na câmera, centralize-o e confira a iluminação."];
+    else if (httpStatus === 409) details = ["Verificação não concluída", typeof body.erro === "string" ? body.erro : "Não foi possível concluir esta tentativa.", "Confira o enquadramento e tente novamente. Se persistir, procure o responsável para atendimento alternativo."];
+    else if (httpStatus === 400) details = ["Confira os dados", typeof body.erro === "string" ? body.erro : "A solicitação não pôde ser validada.", "Confira a matrícula e tente novamente."];
+    else if (httpStatus === 503) details = ["Serviço indisponível", "O serviço necessário para esta tentativa está temporariamente indisponível.", "Aguarde e tente novamente. Se persistir, procure o responsável."];
+    else if (httpStatus >= 500) details = ["Não foi possível confirmar o registro", "O servidor encontrou uma falha ao concluir a solicitação.", "Confira seu histórico antes de repetir a tentativa e procure o responsável se necessário."];
+    else details = ["Falha de conexão", "Não foi possível confirmar a resposta do servidor.", "Verifique sua conexão e confira o histórico antes de repetir a tentativa."];
+  }
+  return { title: details[0], message: details[1], hint: details[2] };
+}
+
+function markingConfirmation(body) {
+  if (!body || typeof body !== "object") return null;
+  const marking = body.marcacao;
+  const name = body.funcionario && body.funcionario.nome;
+  if (!marking || marking.estado !== "confirmada" || !markingLabels[marking.tipo] || typeof name !== "string" || !name.trim()) return null;
+  if (typeof marking.instante !== "string" || !/(Z|[+-]\d{2}:\d{2})$/.test(marking.instante)) return null;
+  const date = new Date(marking.instante);
+  if (!Number.isFinite(date.getTime())) return null;
+  const options = { dateStyle: "short", timeStyle: "medium", timeZone: (body.jornada && body.jornada.timezone) || "America/Sao_Paulo" };
+  let time;
+  try { time = new Intl.DateTimeFormat("pt-BR", options).format(date); }
+  catch { time = new Intl.DateTimeFormat("pt-BR", { ...options, timeZone: "America/Sao_Paulo" }).format(date); }
+  return { name, time, type: markingLabels[marking.tipo] };
+}
 
 function setStatus(message, state = "info") {
   status.textContent = message;
@@ -81,6 +161,7 @@ async function openCamera() {
     retryButton.hidden = false;
     button.disabled = true;
     setStatus(cameraErrorMessage(error), "error");
+    showFeedback({ title: "Câmera indisponível", message: cameraErrorMessage(error), hint: "Confira a câmera e as permissões do navegador antes de continuar." });
     return false;
   }
 }
@@ -110,13 +191,6 @@ function idempotencyKey() {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-async function resetAfterAttempt(message, state) {
-  stopCamera();
-  matricula.value = "";
-  setStatus(message, state);
-  resetTimer = setTimeout(openCamera, 2500);
-}
-
 async function registerClock() {
   if (processing) return;
   if (!stream) {
@@ -124,8 +198,7 @@ async function registerClock() {
     return;
   }
   if (!matricula.value.trim()) {
-    setStatus("Informe sua matrícula antes de registrar o ponto.", "error");
-    matricula.focus();
+    showFeedback({ title: "Informe sua matrícula", message: "A matrícula é necessária para registrar o ponto.", hint: "Use a matrícula informada pela sua empresa." });
     return;
   }
 
@@ -134,7 +207,10 @@ async function registerClock() {
   try {
     setStatus("Verificando presença e registrando ponto…");
     const photo = await captureImage();
-    if (!photo) throw new Error("Não foi possível capturar a imagem da câmera.");
+    if (!photo) {
+      showFeedback({ title: "Imagem não capturada", message: "A câmera ainda não forneceu uma imagem válida.", hint: "Aguarde a câmera ficar pronta antes de tentar novamente." });
+      return;
+    }
 
     const formData = new FormData();
     formData.append("matricula", matricula.value.trim());
@@ -146,15 +222,17 @@ async function registerClock() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      await resetAfterAttempt(body.erro || "Não foi possível concluir a tentativa.", "error");
+      showFeedback(errorFeedback(body, response.status));
       return;
     }
-    const label = body.marcacao && body.marcacao.tipo
-      ? body.marcacao.tipo.replaceAll("_", " ")
-      : "marcação";
-    await resetAfterAttempt(`Ponto registrado com sucesso: ${label}.`, "success");
+    const confirmation = markingConfirmation(body);
+    if (!confirmation) {
+      showFeedback({ title: "Confira o resultado no histórico", message: "O servidor respondeu, mas a confirmação recebida está incompleta.", hint: "Confira o histórico antes de repetir a marcação." });
+      return;
+    }
+    showFeedback({ title: body.reutilizada ? "Ponto já confirmado" : "Ponto registrado!", message: body.reutilizada ? "Esta marcação já estava registrada. Nenhum novo ponto foi criado." : "Registro confirmado com sucesso.", hint: "Esta confirmação será fechada em 10 segundos.", confirmation });
   } catch (error) {
-    await resetAfterAttempt(error.message || "Não foi possível concluir a tentativa.", "error");
+    showFeedback(errorFeedback());
   } finally {
     processing = false;
   }
@@ -162,6 +240,22 @@ async function registerClock() {
 
 button.addEventListener("click", registerClock);
 retryButton.addEventListener("click", openCamera);
+continueButton.addEventListener("click", () => feedback.close());
+feedback.addEventListener("close", () => {
+  clearTimeout(resetTimer);
+  clearReceipt();
+  feedbackTitle.textContent = "";
+  feedbackMessage.textContent = "";
+  feedbackHint.textContent = "";
+  if (!leavingPage) openCamera();
+});
+window.addEventListener("pagehide", () => {
+  leavingPage = true;
+  clearTimeout(resetTimer);
+  clearReceipt();
+  feedbackTitle.textContent = feedbackMessage.textContent = feedbackHint.textContent = "";
+  if (feedback.open) feedback.close();
+});
 window.addEventListener("pagehide", stopCamera);
 window.addEventListener("beforeunload", stopCamera);
 

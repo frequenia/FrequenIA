@@ -7,24 +7,90 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/reconhecimentoFacial.css') }}">
 </head>
-<body>
-  <main class="facial-page"><section class="facial-content" aria-live="polite">
-    <h1>Registrar ponto</h1>
-    <p id="kiosk-status" role="status">Preparando a câmera…</p>
-    <label for="matricula">Matrícula</label>
-    <input id="matricula" name="matricula" autocomplete="off" inputmode="text" maxlength="128" required>
-    <p id="proxima-marcacao">O servidor determinará a próxima marcação.</p>
-    <div class="card camera-card"><div class="camera-container">
-      <video id="video" class="camera-video" autoplay muted playsinline></video>
-      <div class="camera-overlay" aria-hidden="true">
-        <div class="camera-frame-guide"></div>
-        <span id="camera-state" class="camera-state">Abrindo câmera…</span>
+<body class="kiosk-page">
+  <main class="facial-page">
+    <header class="kiosk-header">
+      <div class="kiosk-brand">
+        <img class="kiosk-brand-logo" src="{{ url_for('static', filename='img/brand/frequenia-logo-white-v4.png') }}" width="2172" height="724" alt="FrequenIA">
       </div>
-    </div></div>
-    <button id="btnTentarCamera" class="btn-secondary" type="button" hidden>Tentar abrir a câmera novamente</button>
-    <button id="btnRegistrar" class="btn-primary" type="button">Capturar e registrar</button>
-    <p>Use boa iluminação e olhe diretamente para a câmera. Nenhuma imagem é guardada pelo navegador após a tentativa.</p>
-  </section></main>
+      <span class="kiosk-header-label">Quiosque de ponto</span>
+    </header>
+    <section class="facial-content" aria-labelledby="page-title">
+      <div class="kiosk-intro">
+        <p class="kiosk-eyebrow">Registro presencial</p>
+        <h1 id="page-title">Registrar ponto</h1>
+        <p>Seu rosto em foco. Seu ponto em dia.</p>
+      </div>
+      <div class="kiosk-workspace">
+        <section class="camera-card" aria-label="Prévia da câmera">
+          <div class="camera-container">
+            <video id="video" class="camera-video" aria-label="Imagem da câmera" autoplay muted playsinline></video>
+            <div class="camera-overlay" aria-hidden="true">
+              <span id="camera-state" class="camera-state">Abrindo câmera…</span>
+              <div class="camera-placeholder">
+                <svg viewBox="0 0 160 200" fill="none"><circle cx="80" cy="65" r="35"/><path d="M20 185v-15a60 60 0 0 1 120 0v15"/></svg>
+              </div>
+              <div class="camera-frame-guide"></div>
+              <span class="camera-guide-caption">Centralize seu rosto na área indicada</span>
+            </div>
+          </div>
+          <div class="camera-caption">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/><circle cx="12" cy="12" r="4"/></svg>
+            <p>Olhe para a câmera e mantenha o rosto bem iluminado.</p>
+          </div>
+        </section>
+        <aside class="registration-panel" aria-labelledby="registration-title">
+          <div class="panel-heading">
+            <span class="step-label">Seu registro</span>
+            <h2 id="registration-title">Vamos começar?</h2>
+            <p>Informe sua matrícula e confirme o registro quando estiver pronto.</p>
+          </div>
+          <div class="registration-field">
+            <label for="matricula">Matrícula</label>
+            <input id="matricula" name="matricula" type="text" placeholder="Digite sua matrícula" aria-describedby="matricula-help proxima-marcacao" autocomplete="off" inputmode="text" maxlength="128" required>
+            <p id="matricula-help">Use a matrícula informada pela sua empresa.</p>
+          </div>
+          <div class="kiosk-status-box">
+            <p id="kiosk-status" role="status" aria-live="polite" aria-atomic="true" data-state="info">Preparando a câmera…</p>
+          </div>
+          <div class="registration-actions">
+            <button id="btnTentarCamera" class="btn-secondary" type="button" hidden>Tentar abrir a câmera novamente</button>
+            <button id="btnRegistrar" class="btn-primary" type="button" disabled>
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m8 5 1.5-2h5L16 5h3a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3Z"/><circle cx="12" cy="12" r="4"/></svg>
+              <span>Capturar e registrar</span>
+            </button>
+            <p id="proxima-marcacao">A próxima marcação é identificada automaticamente.</p>
+          </div>
+          <div class="registration-tips">
+            <h3>Para uma boa leitura</h3>
+            <ol>
+              <li>Posicione o rosto no centro da câmera.</li>
+              <li>Olhe para a frente, com boa iluminação.</li>
+              <li>Confirme e aguarde o resultado na tela.</li>
+            </ol>
+          </div>
+        </aside>
+      </div>
+      <footer class="kiosk-privacy">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m12 3 8 3v6c0 4-4 7-8 9-4-2-8-5-8-9V6l8-3Z"/><path d="m8 12 3 3 5-5"/></svg>
+        <p>Nenhuma imagem fica guardada pelo navegador após a tentativa.</p>
+      </footer>
+    </section>
+  </main>
+  <dialog id="kiosk-feedback" class="feedback-dialog" aria-labelledby="feedback-title" aria-describedby="feedback-message feedback-hint">
+    <div class="feedback-content">
+      <span id="feedback-symbol" class="feedback-symbol" aria-hidden="true">✓</span>
+      <h2 id="feedback-title"></h2>
+      <p id="feedback-message"></p>
+      <dl id="feedback-receipt" class="feedback-receipt" hidden>
+        <div><dt>Funcionário</dt><dd id="receipt-name"></dd></div>
+        <div><dt>Data e horário</dt><dd id="receipt-time"></dd></div>
+        <div><dt>Tipo de marcação</dt><dd id="receipt-type"></dd></div>
+      </dl>
+      <p id="feedback-hint"></p>
+      <button id="btnContinuar" type="button" class="btn-primary" autofocus>Continuar</button>
+    </div>
+  </dialog>
   <script src="{{ url_for('static', filename='js/reconhecimento.js') }}"></script>
 </body>
 </html>

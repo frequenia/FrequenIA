@@ -223,8 +223,10 @@ def kiosk_page():
 
 def _find_employee_by_registration(cursor, company_id, registration):
     cursor.execute(
-        """SELECT id FROM funcionarios WHERE empresa_id=%s AND matricula=%s
-           AND status='ativo' FOR UPDATE""",
+        """SELECT f.id, u.nome FROM funcionarios f
+           JOIN usuarios u ON u.id=f.usuario_id
+           WHERE f.empresa_id=%s AND f.matricula=%s
+           AND f.status='ativo' FOR UPDATE OF f""",
         (company_id, registration),
     )
     return cursor.fetchone()
@@ -263,6 +265,13 @@ def _verification_failed():
     }), 409
 
 
+def _kiosk_success(employee, marking, **extra):
+    payload = {"marcacao": serializar_marcacao(marking), **extra}
+    if marking.get("estado") == "confirmada":
+        payload["funcionario"] = {"nome": employee.get("nome")}
+    return _no_store(jsonify(payload))
+
+
 @kiosk_bp.post("/api/quiosque/marcacoes/facial")
 @terminal_required
 def create_kiosk_facial_clock():
@@ -290,7 +299,7 @@ def create_kiosk_facial_clock():
             connection.rollback()
             if str(existing["funcionario_id"]) != employee_id or existing["origem"] != "facial":
                 return jsonify({"erro": "Chave de idempotência indisponível."}), 409
-            return jsonify({"marcacao": serializar_marcacao(existing), "reutilizada": True}), 200
+            return _kiosk_success(employee, existing, reutilizada=True), 200
         biometric = _active_biometric(cursor, company_id, employee_id)
         if not biometric:
             _record_attempt(cursor, company_id, employee_id, "falha", "biometria_ausente")
@@ -338,7 +347,7 @@ def create_kiosk_facial_clock():
                 "ocorrencia_id": result.get("occurrence_id"),
             }), 409
         connection.commit()
-        return jsonify({"marcacao": serializar_marcacao(result["marking"]), "jornada": result["decision"]}), 201
+        return _kiosk_success(employee, result["marking"], jornada=result["decision"]), 201
     except (InvalidFaceCountError, InvalidFaceImageError) as exc:
         if connection: connection.rollback()
         return jsonify({"erro": str(exc)}), 422
