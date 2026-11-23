@@ -1,6 +1,9 @@
 .jornadas-page {
-  width: 100%;
-  padding: 30px;
+  max-width: 1600px;
+  padding: 28px 32px 48px;
+  margin: 0 auto;
+  display: grid;
+  gap: 18px;
 }
 
 .page-heading,
@@ -181,7 +184,8 @@
 .details-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: var(--spacing-lg);
+  gap: 18px;
+  align-items: start;
 }
 
 .jornada-heading {
@@ -269,6 +273,150 @@ body.dark-mode .mensagem.sucesso {
   background: rgba(16, 185, 129, 0.18);
 }
 
+/* A tela de jornadas compartilha os mesmos tokens, cards e tabelas do produto. */
+.jornadas-page .page-header { margin-bottom: 0; }
+.jornadas-page .page-header .btn-primary { flex: 0 0 auto; }
+.jornadas-page .journey-card { min-width: 0; overflow: visible; }
+.jornadas-page .journey-card:hover { border-color: #bdd6e5; box-shadow: var(--occ-shadow); transform: none; }
+.jornadas-page .table-card.journey-card { overflow: hidden; }
+.jornadas-page .table-heading { padding: 21px 24px 16px; }
+.jornadas-page .table-heading h2 { margin: 5px 0 5px; }
+.jornadas-page .table-heading p { margin: 0; }
+.jornadas-page .table-scroll { width: 100%; overflow-x: auto; }
+.jornadas-page .journey-table { width: 100%; min-width: 700px; border-collapse: collapse; table-layout: auto; }
+.jornadas-page .journey-table th { padding: 11px 15px; background: #dceaf2; color: #0c4a70; border-bottom: 1px solid #c9d8e2; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-align: left; text-transform: uppercase; white-space: nowrap; }
+.jornadas-page .journey-table td { padding: 13px 15px; border-bottom: 1px solid #e5e7eb; color: #4a4a4a; font-size: 13px; font-weight: 600; line-height: 1.45; vertical-align: middle; }
+.jornadas-page .journey-table tbody tr:nth-child(even) { background: #fbfcfd; }
+.jornadas-page .journey-table tbody tr:hover { background: #f1f7fb; }
+.jornadas-page .journey-table tbody tr:last-child td { border-bottom: 0; }
+.jornadas-page .journey-table th:last-child,
+.jornadas-page .journey-table td:last-child { text-align: right; }
+.jornadas-page .journey-table .empty-state { padding: 30px 16px !important; color: #7a7a7a !important; text-align: center !important; }
+.jornadas-page .status-chip,
+.jornadas-page .vigencia-chip { min-width: 74px; padding: 6px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+.jornadas-page .status-chip.ativo,
+.jornadas-page .vigencia-chip.atual { background: #d1fae5; color: #047857; }
+.jornadas-page .status-chip.inativo,
+.jornadas-page .vigencia-chip.encerrada { background: #eef1f3; color: #5f6b73; }
+.jornadas-page .vigencia-chip.futura { background: #dbeafe; color: #1d4ed8; }
+.jornadas-page .btn-acao { display: inline-flex; min-height: 34px; align-items: center; justify-content: center; padding: 0 12px; border: 1px solid #d5e1e8; border-radius: 12px 12px 12px 4px; background: #fff; color: #0f5c8c; font: 800 11px 'Manrope', sans-serif; text-decoration: none; transition: background-color .16s ease,border-color .16s ease; }
+.jornadas-page .btn-acao:hover { border-color: #b9d0de; background: #f1f6f9; color: #0c4a70; }
+.jornadas-page .form-grid { align-items: end; gap: 16px; }
+.jornadas-page .campo { min-width: 0; }
+.jornadas-page .campo label { display: block; margin-bottom: 6px; color: #647887; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
+.jornadas-page .campo input:not([type="checkbox"]),
+.jornadas-page .campo select,
+.jornadas-page .date-query input { width: 100%; min-width: 0; height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #dce7f0; border-radius: 14px 14px 14px 4px; background: #fafbfc; color: #1a1a1a; font: 600 13px 'Manrope', sans-serif; }
+.jornadas-page .campo input:focus,
+.jornadas-page .campo select:focus,
+.jornadas-page .date-query input:focus { outline: 3px solid rgba(26,122,184,.14); border-color: #1a7ab8; }
+.jornadas-page .campo input[type="checkbox"] { accent-color: #0f5c8c; }
+.jornadas-page .busca-funcionario input { width: 100%; height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #dce7f0; border-radius: 14px 14px 14px 4px; background: #fafbfc; color: #1a1a1a; font: 600 13px 'Manrope', sans-serif; }
+.jornadas-page .periodos-heading { margin: 24px 0 14px; }
+.jornadas-page .periodos-heading h3 { margin: 0; color: #0c4a70; font: 700 15px/1.25 'Sora', sans-serif; }
+.jornadas-page .periodos-heading p { margin: 4px 0 0; color: #7a7a7a; font-size: 12px; }
+.jornadas-page .periodo-item { border-color: #dce7f0; border-radius: 18px 18px 18px 6px; background: #fbfcfd; }
+.jornadas-page .periodo-ordem { background: #eaf2f8; color: #0f5c8c; font-size: 13px; font-weight: 800; }
+.jornadas-page .btn-icon { border-radius: 10px 10px 10px 3px; transition: background-color .16s ease,border-color .16s ease; }
+.jornadas-page .btn-icon:hover { border-color: #bdd6e5; background: #eaf2f8; }
+.jornadas-page .btn-icon.danger:hover { border-color: #fecaca; background: #fef2f2; }
+.jornadas-page .acoes { margin-top: 18px; }
+.jornadas-page .journey-note { margin-top: 14px; padding: 12px 14px !important; border: 1px solid #e5e7eb; border-radius: 14px 14px 14px 4px; background: #fbfcfd; color: #647887; font-size: 12px; text-align: left !important; }
+.jornadas-page .jornada-resumo > div { border-color: #dce7f0; border-radius: 14px 14px 14px 4px; background: #fbfcfd; }
+.jornadas-page .jornada-resumo strong { color: #647887; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.jornadas-page .jornada-periodos { padding: 0; }
+.jornadas-page .jornada-periodos li { border-color: #e5e7eb; border-radius: 12px 12px 12px 4px; background: #fff; color: #0c4a70; font-size: 13px; font-weight: 700; }
+.jornadas-page .date-query { grid-template-columns: minmax(145px, 1fr) auto; }
+.jornadas-page .journey-query-controls { display: grid; grid-template-columns: minmax(240px, 1.3fr) minmax(160px, .8fr) auto; gap: 12px; align-items: end; min-width: min(680px, 100%); }
+.jornadas-page .journey-query-controls .campo { min-width: 0; }
+.jornadas-page .journey-query-controls label { display: block; margin-bottom: 6px; color: #647887; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
+.jornadas-page .journey-query-controls .btn-secondary { min-height: 42px; }
+.jornadas-page .mensagem { margin: 0; border-radius: 16px 16px 16px 5px; font-size: 13px; }
+
+body.dark-mode .jornadas-page .journey-table td,
+body.dark-mode .jornadas-page .journey-table th { border-color: var(--card-border); }
+body.dark-mode .jornadas-page .journey-table tbody tr:nth-child(even),
+body.dark-mode .jornadas-page .journey-note,
+body.dark-mode .jornadas-page .jornada-resumo > div,
+body.dark-mode .jornadas-page .jornada-periodos li { background: var(--card-bg); }
+body.dark-mode .jornadas-page .campo input:not([type="checkbox"]),
+body.dark-mode .jornadas-page .campo select,
+body.dark-mode .jornadas-page .date-query input,
+body.dark-mode .jornadas-page .busca-funcionario input { background: var(--card-bg); color: var(--text-color); border-color: var(--card-border); }
+
+/* Organização principal da tela de jornadas */
+.jornadas-page .page-header { align-items: flex-end; }
+.jornadas-page .header-actions { display: flex; align-items: center; gap: 12px; }
+.jornadas-page .header-badge { white-space: nowrap; font-size: 13px; }
+.jornadas-page .header-badge strong { font-size: 20px; }
+.journey-forms-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: stretch; }
+.jornadas-page .assignment-card,
+.jornadas-page .exception-card { display: flex; min-width: 0; flex-direction: column; padding: 24px; }
+.jornadas-page .assignment-card .section-heading,
+.jornadas-page .exception-card .section-heading { align-items: flex-start; margin-bottom: 20px; }
+.jornadas-page .assignment-card .section-heading h2,
+.jornadas-page .exception-card .section-heading h2 { margin: 6px 0 5px; font-size: 21px; }
+.jornadas-page .assignment-card .helper-text,
+.jornadas-page .exception-card .helper-text { line-height: 1.5; }
+.jornadas-page .assignment-card form,
+.jornadas-page .exception-card form { display: flex; flex: 1; flex-direction: column; }
+.jornadas-page .atribuicao-grid,
+.jornadas-page .exception-card .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 16px; }
+.jornadas-page .exception-card .campo-amplo { grid-column: 1 / -1; }
+.journey-form-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: auto; padding-top: 24px; }
+.journey-form-footer p { margin: 0; color: var(--occ-muted); font-size: 13px; line-height: 1.5; }
+.journey-form-footer .btn-primary { flex: 0 0 auto; min-height: 46px; padding: 0 22px; }
+.exception-card { border-color: var(--occ-border); }
+.exception-card:hover { border-color: var(--occ-accent) !important; }
+.exception-callout { display: flex; align-items: flex-start; gap: 12px; margin-top: 20px; padding: 14px 16px; border: 1px solid #f5df9a; border-radius: 16px 16px 16px 5px; background: var(--status-warning-bg); color: var(--status-warning); }
+.exception-callout > span { display: grid; width: 24px; height: 24px; flex: 0 0 24px; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--status-warning) 14%, transparent); font-weight: 800; }
+.exception-callout p { margin: 0; font-size: 13px; line-height: 1.5; }
+.exception-callout strong { font-weight: 800; }
+.jornadas-page .exception-card .journey-note { margin-top: 14px; }
+.jornadas-page .turnos-catalog-card { min-width: 0; }
+.jornadas-page .table-heading { align-items: center; }
+.jornadas-page .table-heading h2 { font-size: 21px; }
+.jornadas-page .details-grid { align-items: stretch; }
+.jornadas-page .details-grid > .journey-card { min-width: 0; }
+.jornadas-page #jornadaAtual.empty-state { margin: 0 24px 22px; padding: 22px 16px !important; border: 1px solid #d5e8f4; border-radius: 14px 14px 14px 4px; background: #f0f7fc; color: #547082 !important; }
+body.dark-mode .jornadas-page #jornadaAtual.empty-state { border-color: var(--card-border); background: var(--surface-inset); color: var(--muted-text) !important; }
+
+/* Evita vãos nos formulários e escolhe duas colunas só quando cada card tem espaço. */
+.journey-forms-grid,
+.jornadas-page .details-grid { grid-template-columns: minmax(0, 1fr); align-items: start; }
+.jornadas-page .assignment-card form,
+.jornadas-page .exception-card form { flex: initial; }
+.journey-form-footer { margin-top: 20px; padding-top: 0; }
+.jornadas-page .exception-card .journey-note { max-height: 104px; overflow: auto; }
+
+/* Os cards vizinhos deixam de cobrir o menu aberto do seletor pesquisável. */
+.journey-forms-grid > .filter-card:focus-within { z-index: 120; }
+.jornadas-page .busca-funcionario { z-index: 1; }
+.jornadas-page .busca-funcionario:focus-within { z-index: 300; }
+.jornadas-page .busca-funcionario-lista { z-index: 400; }
+
+body.dark-mode .jornadas-page .exception-card { border-color: var(--card-border); }
+body.dark-mode .jornadas-page .exception-callout { border-color: #665735; background: var(--status-warning-bg); color: var(--status-warning); }
+body.dark-mode .jornadas-page .journey-form-footer p { color: var(--muted-text); }
+
+@media (max-width: 1100px) {
+  .journey-forms-grid,
+  .jornadas-page .details-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 760px) {
+  .jornadas-page .page-header { align-items: flex-start; }
+  .jornadas-page .header-actions { width: 100%; align-items: stretch; flex-direction: column; }
+  .jornadas-page .header-badge { justify-content: center; }
+  .jornadas-page .assignment-card,
+  .jornadas-page .exception-card { padding: 18px; }
+  .jornadas-page .atribuicao-grid,
+  .jornadas-page .exception-card .form-grid { grid-template-columns: 1fr; }
+  .jornadas-page .exception-card .campo-amplo { grid-column: auto; }
+  .journey-form-footer { align-items: stretch; flex-direction: column; }
+  .journey-form-footer .btn-primary { width: 100%; }
+}
+
 @media (max-width: 1100px) {
   .periodo-item {
     grid-template-columns: 44px repeat(2, minmax(140px, 1fr));
@@ -285,9 +433,7 @@ body.dark-mode .mensagem.sucesso {
 }
 
 @media (max-width: 760px) {
-  .jornadas-page {
-    padding: var(--spacing-lg);
-  }
+  .jornadas-page { padding: 20px 16px 32px; }
 
   .page-heading,
   .section-heading,
@@ -313,4 +459,14 @@ body.dark-mode .mensagem.sucesso {
   .periodo-ordem {
     justify-self: start;
   }
+
+  .jornadas-page .page-header { align-items: flex-start; }
+  .jornadas-page .page-header .btn-primary { width: 100%; }
+  .jornadas-page .table-heading { align-items: flex-start; flex-direction: column; padding: 18px; }
+  .jornadas-page .table-heading .btn-secondary { width: 100%; }
+  .jornadas-page .journey-query-controls { width: 100%; min-width: 0; grid-template-columns: minmax(0, 1fr); }
+  .jornadas-page .form-grid,
+  .jornadas-page .atribuicao-grid { grid-template-columns: 1fr; }
+  .jornadas-page .campo-amplo { grid-column: auto; }
+  .jornadas-page .date-query { width: 100%; grid-template-columns: minmax(0, 1fr) auto; }
 }

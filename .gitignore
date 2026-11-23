@@ -23,6 +23,7 @@ supabase/.temp/
 service-account*.json
 infra/aws/dist/
 infra/aws/.generated/
+.visual-profile-dark/
 
 # Local credentials and private keys
 .secrets/

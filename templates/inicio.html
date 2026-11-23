@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
   <!-- CSS Específico -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/inicio.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css', v='dark-palette-2026-11') }}">
 
   <!-- Fonte -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -38,6 +38,7 @@
     </div>
 </div>
 
+  <script src="{{ url_for('static', filename='js/dark-mode.js', v='dark-system-2026-11') }}"></script>
 </body>
 
 </html>

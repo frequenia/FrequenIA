@@ -4,32 +4,42 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ocorrências de falha facial</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css', v='dark-palette-2026-11') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/ocorrencias.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/falhasFaciais.css') }}">
 </head>
 <body>
   <main class="occurrences-page">
-    <section class="card filters">
-      <h1>Ocorrências de falha facial</h1>
-      <p class="intro">Acompanhamento dos ciclos automáticos gerados após cinco falhas faciais válidas.</p>
-      <div class="filter-grid">
-        <label>Funcionário ou matrícula<input id="search-text" maxlength="100" autocomplete="off"></label>
-        <label>Estado<select id="state"><option value="">Todos</option><option value="aberta">Aberta</option><option value="em_analise">Em análise</option><option value="resolvida">Resolvida</option><option value="descartada">Descartada</option></select></label>
-        <label>Unidade<select id="unit"><option value="">Todas</option></select></label>
-        <label>Equipe<select id="team"><option value="">Todas</option></select></label>
+    <header class="page-header">
+      <div><span class="eyebrow">PONTO / GESTÃO</span><h1>Ocorrências de falha facial</h1><p>Acompanhe os ciclos registrados após cinco falhas faciais válidas.</p></div>
+      <div class="header-badge"><strong id="result-count">—</strong><span>ocorrências encontradas</span></div>
+    </header>
+    <section class="filter-card facial-filter-card" aria-labelledby="filter-title">
+      <div class="section-heading"><h2 id="filter-title">Filtrar ocorrências</h2><button id="toggle-filters" class="filter-toggle" type="button" aria-expanded="false" aria-controls="advanced-filters">Gerenciar filtros <span aria-hidden="true">⌄</span></button></div>
+      <div class="filter-grid facial-filter-grid">
+        <label>Funcionário ou matrícula<input id="search-text" type="search" maxlength="100" autocomplete="off" placeholder="Buscar por nome ou matrícula"></label>
         <label>De<input id="start" type="date"></label>
         <label>Até<input id="end" type="date"></label>
-        <button id="search" class="btn-primary" type="button">Pesquisar</button>
+        <button id="search" class="btn-primary" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16 16 4 4"></path></svg>Pesquisar</button>
+        <button id="clear-filters" class="btn-secondary" type="button">Limpar</button>
+      </div>
+      <div id="advanced-filters" class="facial-advanced-filters" hidden>
+        <label>Estado<select id="state"><option value="">Todos os estados</option><option value="aberta">Aberta</option><option value="em_analise">Em análise</option><option value="resolvida">Resolvida</option><option value="descartada">Descartada</option></select></label>
+        <label>Unidade<select id="unit"><option value="">Todas as unidades</option></select></label>
+        <label>Equipe<select id="team"><option value="">Todas as equipes</option></select></label>
       </div>
     </section>
     <p id="page-error" class="page-error" role="alert" hidden></p>
-    <section class="card table-card">
-      <table>
-        <thead><tr><th>Funcionário</th><th>Unidade / equipe</th><th>Estado</th><th>Primeira tentativa</th><th>Criação</th><th></th></tr></thead>
+    <section class="table-card facial-table-card">
+      <div class="table-heading"><div><span class="section-kicker">CENTRAL DE OCORRÊNCIAS</span><h2>Ciclos de falha facial</h2><p>Selecione uma ocorrência para consultar detalhes e histórico.</p></div><div class="table-heading-actions"><span id="table-count" aria-live="polite">Carregando...</span><button id="refresh" class="btn-secondary" type="button">Atualizar</button></div></div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Funcionário</th><th>Unidade / equipe</th><th>Estado</th><th>Primeira tentativa</th><th>Criação</th><th class="facial-action-col">Ação</th></tr></thead>
         <tbody id="facial-failure-rows"><tr><td colspan="6" class="empty">Carregando...</td></tr></tbody>
-      </table>
+      </table></div>
     </section>
   </main>
   <dialog id="facial-failure-detail">
@@ -61,5 +71,6 @@
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://npmcdn.com/flatpickr/dist/l10n/pt.js"></script>
   <script src="{{ url_for('static', filename='js/campos-padrao.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/dark-mode.js', v='dark-system-2026-11') }}"></script>
 </body>
 </html>

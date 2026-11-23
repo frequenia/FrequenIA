@@ -5,30 +5,55 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Terminais de ponto - FrequenIA</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/terminaisPonto.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css', v='dark-palette-2026-11') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ocorrencias.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/terminaisPonto.css', v='responsive-dark-2026-11') }}">
 </head>
 <body>
-  <main class="terminal-page">
-    <section class="terminal-panel">
-      <h1>Terminais de ponto</h1>
-      <p>Crie um terminal para cada computador de reconhecimento. Entregue a credencial diretamente à pessoa que vai ativá-lo.</p>
+  <main class="occurrences-page terminal-page">
+    <header class="page-header">
+      <div>
+        <span class="eyebrow">PONTO / DISPOSITIVOS</span>
+        <h1>Terminais de ponto</h1>
+        <p>Cadastre os computadores autorizados a registrar ponto e gerencie suas credenciais.</p>
+      </div>
+    </header>
+
+    <section class="filter-card terminal-create-card" aria-labelledby="terminal-create-title">
+      <div class="section-heading">
+        <div><span class="section-kicker">NOVO DISPOSITIVO</span><h2 id="terminal-create-title">Criar terminal</h2></div>
+      </div>
+      <p class="terminal-help">Crie um terminal para cada computador de reconhecimento. Entregue a credencial diretamente à pessoa que vai ativá-lo.</p>
       <form id="create-terminal-form">
         <label for="terminal-name">Nome do computador</label>
-        <input id="terminal-name" name="name" type="text" maxlength="120" autocomplete="off" required placeholder="Ex.: Recepção">
-        <button id="create-terminal-button" class="btn-primary" type="submit">Criar terminal</button>
+        <div class="terminal-create-controls">
+          <input id="terminal-name" name="name" type="text" maxlength="120" autocomplete="off" required placeholder="Ex.: Recepção">
+          <button id="create-terminal-button" class="btn-primary" type="submit">Criar terminal</button>
+        </div>
       </form>
-      <p id="terminal-status" role="status" aria-live="polite"></p>
+      <p id="terminal-status" class="terminal-status" role="status" aria-live="polite"></p>
       <div id="new-credential" class="credential-panel" hidden>
-        <h2>Credencial criada</h2>
+        <span class="section-kicker">CREDENCIAL DE ATIVAÇÃO</span>
+        <h2>Terminal criado</h2>
         <p>Copie agora. Por segurança, ela não aparecerá novamente.</p>
         <label for="credential-value">Credencial</label>
         <input id="credential-value" type="text" readonly autocomplete="off" spellcheck="false">
         <button id="copy-credential" class="btn-secondary" type="button">Copiar credencial</button>
       </div>
-      <h2>Terminais cadastrados</h2>
-      <div id="terminal-list" class="terminal-list"></div>
+    </section>
+
+    <section class="table-card terminal-list-card" aria-labelledby="terminal-list-title">
+      <div class="table-heading">
+        <div><span class="section-kicker">DISPOSITIVOS DA ORGANIZAÇÃO</span><h2 id="terminal-list-title">Terminais cadastrados</h2><p>Consulte os dispositivos e filtre por nome ou situação.</p></div>
+      </div>
+      <div class="terminal-list-filters">
+        <label for="terminal-search">Buscar terminal<input id="terminal-search" type="search" autocomplete="off" placeholder="Digite o nome do computador"></label>
+        <label for="terminal-status-filter">Status<select id="terminal-status-filter"><option value="todos">Todos os status</option><option value="ativo">Ativos</option><option value="revogado">Revogados</option></select></label>
+      </div>
+      <div id="terminal-list" class="terminal-list" aria-live="polite"></div>
     </section>
   </main>
   <script src="{{ url_for('static', filename='js/terminaisPonto.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/dark-mode.js', v='dark-system-2026-11') }}"></script>
 </body>
 </html>

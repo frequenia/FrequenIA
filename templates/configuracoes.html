@@ -3,112 +3,64 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Configurações</title>
-
-  <!-- Fonte Montserrat -->
+  <title>Configurações | FrequenIA</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-  <!-- CSS Global -->
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
-  <!-- CSS Específico -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/configuracoes.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css', v='dark-palette-2026-11') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ocorrencias.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/configuracoes.css', v='27-settings-controls') }}">
 </head>
-
 <body>
+  <main class="occurrences-page settings-page">
+    <header class="page-header">
+      <div><span class="eyebrow">SISTEMA / PREFERÊNCIAS</span><h1>Configurações</h1><p>Personalize sua experiência e gerencie as opções da sua conta.</p></div>
+    </header>
 
-<div class="configuracoes-page">
-
-  <!-- CARD: PREFERÊNCIAS (TEMA + NOTIFICAÇÕES) -->
-  <div class="card">
-    <h3>Preferências</h3>
-
-    <div class="setting-item">
-      <div class="setting-label">
-        <h4>Tema</h4>
-        <p>Escolha entre tema claro ou escuro</p>
+    <section class="filter-card settings-card" aria-labelledby="preferences-title">
+      <div class="settings-section-heading"><span class="section-kicker">PREFERÊNCIAS</span><h2 id="preferences-title">Aparência do sistema</h2></div>
+      <div class="setting-row">
+        <div class="setting-copy"><h3>Tema</h3><p>Escolha como o FrequenIA aparece neste navegador.</p></div>
+        <fieldset class="radio-group" aria-label="Tema do sistema">
+          <label class="radio-option" for="tema-light"><input type="radio" id="tema-light" name="tema" value="light"><span>Claro</span></label>
+          <label class="radio-option" for="tema-dark"><input type="radio" id="tema-dark" name="tema" value="dark"><span>Escuro</span></label>
+        </fieldset>
       </div>
-      <div class="radio-group">
-        <div class="radio-option">
-          <input type="radio" id="tema-light" name="tema" value="light" checked>
-          <label for="tema-light">Claro</label>
-        </div>
-        <div class="radio-option">
-          <input type="radio" id="tema-dark" name="tema" value="dark">
-          <label for="tema-dark">Escuro</label>
-        </div>
+    </section>
+
+    {% if perfil == 'administrador' %}
+    <section class="filter-card settings-card geofence-card" id="geofence-card" hidden aria-labelledby="geofence-title">
+      <div class="settings-section-heading"><span class="section-kicker">MARCAÇÃO MOBILE</span><h2 id="geofence-title">Localização da unidade</h2><p>Defina o perímetro permitido para marcações pelo celular. O quiosque continua disponível como alternativa.</p></div>
+      <div class="geofence-grid">
+        <label class="settings-field geofence-unit">Unidade<select id="geofence-unidade"><option value="">Selecione uma unidade</option></select></label>
+        <div class="settings-field geofence-address-search"><label for="geofence-busca">Buscar endereço</label><div class="inline-field"><input id="geofence-busca" maxlength="200" placeholder="Rua, número, cidade e estado"><button class="btn-secondary" id="geofence-buscar" type="button">Buscar</button></div></div>
+        <div id="geofence-resultados" class="geofence-results" aria-live="polite"></div>
+        <div id="geofence-mapa-wrap" class="geofence-map-wrap" hidden><div><strong>Ajustar localização</strong><p>Clique no mapa para mover o centro do perímetro.</p></div><img id="geofence-mapa" alt="Prévia do mapa da localização da unidade"></div>
+        <label class="settings-field">Latitude<input id="geofence-latitude" type="number" step="any" inputmode="decimal"></label>
+        <label class="settings-field">Longitude<input id="geofence-longitude" type="number" step="any" inputmode="decimal"></label>
+        <label class="settings-field">Raio permitido (metros)<input id="geofence-raio" type="number" min="25" max="1000" value="150"></label>
+        <label class="settings-field geofence-confirmed">Endereço confirmado<input id="geofence-endereco" maxlength="300" placeholder="Endereço associado ao perímetro"></label>
+        <label class="geofence-toggle"><input id="geofence-ativa" type="checkbox"><span><strong>Permitir marcação pelo celular nesta unidade</strong><small>As marcações continuam sujeitas à validação de localização.</small></span></label>
       </div>
-    </div>
-  </div>
+      <div class="geofence-actions"><p id="geofence-status" role="status" aria-live="polite"></p><button class="btn-primary" id="geofence-salvar" type="button">Salvar localização</button></div>
+    </section>
+    {% endif %}
 
-  {% if perfil == 'administrador' %}
-  <div class="card" id="geofence-card">
-    <h3>Marcação mobile por localização</h3>
-    <p>Configure o perímetro da unidade. O quiosque continuará disponível como alternativa.</p>
-    <div class="setting-item">
-      <div class="setting-label"><label for="geofence-unidade"><strong>Unidade</strong></label></div>
-      <select id="geofence-unidade"><option value="">Selecione</option></select>
-    </div>
-    <div class="setting-item">
-      <div class="setting-label"><label for="geofence-busca"><strong>Buscar endereço</strong></label></div>
-      <div>
-        <input id="geofence-busca" maxlength="200" placeholder="Rua, número, cidade e estado">
-        <button class="btn btn-secondary" id="geofence-buscar" type="button">Buscar</button>
+    <section class="filter-card settings-card security-card" aria-labelledby="security-title">
+      <div class="settings-section-heading"><span class="section-kicker">CONTA</span><h2 id="security-title">Segurança e acesso</h2></div>
+      <div class="setting-row">
+        <div class="setting-copy"><h3>Redefinir senha</h3><p>Atualize sua senha de acesso ao sistema.</p></div>
+        <a class="btn-secondary" href="/recuperacaoSenha">Redefinir senha</a>
       </div>
-    </div>
-    <div id="geofence-resultados" aria-live="polite"></div>
-    <div id="geofence-mapa-wrap" hidden>
-      <p>Clique no mapa para ajustar o centro da unidade.</p>
-      <img id="geofence-mapa" alt="Prévia TomTom da localização da unidade" style="width:100%;max-width:640px;cursor:crosshair">
-    </div>
-    <div class="setting-item">
-      <label>Latitude <input id="geofence-latitude" type="number" step="any"></label>
-      <label>Longitude <input id="geofence-longitude" type="number" step="any"></label>
-      <label>Raio (m) <input id="geofence-raio" type="number" min="25" max="1000" value="150"></label>
-    </div>
-    <label>Endereço confirmado <input id="geofence-endereco" maxlength="300"></label>
-    <label><input id="geofence-ativa" type="checkbox"> Habilitar marcação pelo celular nesta unidade</label>
-    <p id="geofence-status" role="status"></p>
-    <button class="btn btn-primary" id="geofence-salvar" type="button">Salvar localização</button>
-  </div>
-  {% endif %}
-  
-        <!-- FOOTER: BOTÃO SALVAR -->
-    <div class="footer-actions">
-      <button class="btn btn-secondary" id="cancelar-config">Cancelar</button>
-      <button class="btn btn-primary" id="salvar-config">Salvar</button>
-    </div>
-
-  <!-- CARD: SEGURANÇA -->
-  <div class="card danger-card">
-    <h3>Segurança</h3>
-
-    <div class="setting-item">
-      <div class="setting-label">
-        <h4>Redefinir senha</h4>
-        <p>Altere sua senha de acesso ao sistema</p>
+      <div class="setting-row">
+        <div class="setting-copy"><h3>Sair da conta</h3><p>Encerre sua sessão neste dispositivo.</p></div>
+        <a class="btn-secondary logout-action" href="#" onclick="logout(event)">Sair da conta</a>
       </div>
-      <a href="/recuperacaoSenha">
-        <button class="btn btn-secondary">Redefinir</button>
-      </a>
-    </div>
-
-    <div class="setting-item">
-      <div class="setting-label">
-        <h4>Fazer logout</h4>
-        <p>Sair de sua conta e voltar à tela de login</p>
-      </div>
-      <a href="#" onclick="logout(event)">
-        <button class="btn btn-secondary">Sair</button>
-      </a>
-    </div>
-  </div>
-</div>
-
-<script src="{{ url_for('static', filename='js/dark-mode.js') }}"></script>
-<script src="{{ url_for('static', filename='js/menu.js') }}"></script>
-<script src="{{ url_for('static', filename='js/configuracoes.js', v='25-mobile-geofence') }}"></script>
+    </section>
+  </main>
+  <script src="{{ url_for('static', filename='js/dark-mode.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/menu.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/configuracoes.js', v='27-settings-controls') }}"></script>
 </body>
 </html>

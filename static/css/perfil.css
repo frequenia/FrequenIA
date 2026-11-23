@@ -79,6 +79,31 @@
   margin-bottom: var(--spacing-sm);
 }
 
+.schedule-profile-help {
+  margin: -8px 0 16px;
+  color: var(--muted-text, #687d8b);
+  font-size: 13px;
+}
+
+.schedule-profile-summary {
+  padding: 16px;
+  border: 1px solid var(--card-border, #d8e2e9);
+  border-radius: 14px 14px 14px 4px;
+  background: var(--surface-2, #f7fafc);
+  color: var(--text-color, #172b3a);
+}
+
+.schedule-profile-summary > strong {
+  display: block;
+  color: var(--text-strong, #123e59);
+  font: 700 16px/1.4 'Sora', sans-serif;
+}
+
+.schedule-profile-summary > p { margin: 5px 0 12px; color: var(--muted-text, #687d8b); font-size: 12px; }
+.schedule-profile-summary ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.schedule-profile-summary li { padding: 8px 10px; border-radius: 10px 10px 10px 3px; background: var(--table-head, #dceaf2); color: var(--text-strong, #123e59); font-size: 12px; font-weight: 700; }
+.schedule-profile-link { display: inline-flex; width: fit-content; min-height: 40px; align-items: center; margin-top: 14px; padding: 0 14px; text-decoration: none; }
+
 /* ----------------------------------------------------------
    Dias da Semana (Checkboxes)
    ---------------------------------------------------------- */

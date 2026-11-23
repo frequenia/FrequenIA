@@ -1,40 +1,56 @@
-.terminal-page {
-  min-height: 100vh;
-  padding: 32px 16px;
-  display: grid;
-  place-items: start center;
-}
-.terminal-panel {
-  width: min(100%, 720px);
-  padding: 32px;
-  background: var(--color-white);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  box-shadow: var(--shadow-sm);
-}
-.terminal-panel h1, .terminal-panel h2 { margin-bottom: 12px; }
-.terminal-panel p { margin-bottom: 20px; }
-.terminal-panel form { display: grid; gap: 12px; margin-bottom: 16px; }
-.terminal-panel input { width: 100%; }
-.terminal-panel button { width: fit-content; }
-.credential-panel {
-  padding: 20px;
-  margin: 24px 0;
-  border: 2px solid var(--color-primary);
-  border-radius: 8px;
-}
-.credential-panel[hidden] { display: none; }
-.credential-panel input { margin-bottom: 12px; font-family: monospace; }
-.terminal-list { display: grid; gap: 10px; }
-.terminal-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  border-top: 1px solid var(--color-border);
-  padding: 14px 0;
-}
-@media (max-width: 480px) {
-  .terminal-panel { padding: 20px; }
-  .terminal-row { align-items: flex-start; flex-direction: column; }
-}
+.terminal-page { max-width: 1600px; }
+.terminal-create-card { min-width: 0; }
+.terminal-create-card .section-heading { margin-bottom: 14px; }
+.terminal-create-card .section-heading h2,
+.terminal-list-card .table-heading h2 { margin: 5px 0 4px; }
+.terminal-help,
+.terminal-list-card .table-heading p { margin: 0; color: #647887; font-size: 12px; line-height: 1.55; }
+#create-terminal-form { display: grid; gap: 8px; margin-top: 20px; }
+#create-terminal-form label,
+.credential-panel label { display: block; margin: 0; color: #647887; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
+#create-terminal-form input,
+.credential-panel input { width: 100%; height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #dce7f0; border-radius: 14px 14px 14px 4px; background: #fafbfc; color: #1a1a1a; font: 600 13px 'Manrope', sans-serif; }
+#create-terminal-form input:focus,
+.credential-panel input:focus { outline: 3px solid rgba(26,122,184,.14); border-color: #1a7ab8; }
+.terminal-create-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+#create-terminal-button { margin-top: 0; }
+.terminal-status { margin: 12px 0 0; padding: 0; color: #0c4a70; font-size: 12px; font-weight: 700; }
+.terminal-status:empty { display: none; }
+.terminal-status:not(:empty) { padding: 10px 12px; border: 1px solid #dce7f0; border-radius: 12px 12px 12px 4px; background: #f4f8fa; }
+.credential-panel { display: grid; gap: 9px; padding: 16px; margin: 18px 0 0; border: 1px solid #b9d0de; border-radius: 18px 18px 18px 6px; background: #f4f8fa; }
+.credential-panel h2 { margin: 0; color: #0c4a70; font: 700 16px/1.25 'Sora', sans-serif; }
+.credential-panel p { margin: 0 0 4px; color: #647887; font-size: 12px; }
+.credential-panel input { font-family: ui-monospace, Consolas, monospace; }
+.credential-panel .btn-secondary { justify-self: start; }
+.terminal-list-card { position: relative; z-index: 2; min-width: 0; overflow: visible; }
+.terminal-list-card .table-heading { padding: 21px 24px 14px; }
+.terminal-list-filters { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(180px, 280px); align-items: end; gap: 12px; padding: 0 24px 16px; }
+.terminal-list-filters label { display: grid; gap: 6px; margin: 0; color: #647887; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
+.terminal-list-filters input,
+.terminal-list-filters select { width: 100%; height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #dce7f0; border-radius: 14px 14px 14px 4px; background: #fafbfc; color: #1a1a1a; font: 600 13px 'Manrope', sans-serif; }
+.terminal-list-filters input:focus,
+.terminal-list-filters select:focus { outline: 3px solid rgba(26,122,184,.14); border-color: #1a7ab8; }
+.terminal-status-select { position: relative; z-index: 2; width: 100%; }
+.terminal-status-select.open { z-index: 120; }
+.terminal-status-select .native-select { position: absolute !important; width: 1px !important; height: 1px !important; opacity: 0 !important; pointer-events: none !important; }
+.terminal-status-select .select-trigger { height: 42px; border: 1px solid #dce7f0; border-radius: 14px 14px 14px 4px; background: #fafbfc; color: #1a1a1a; font: 600 13px 'Manrope', sans-serif; }
+.terminal-status-select .select-menu { left: 0; right: 0; transform: none; width: 100%; max-width: none; }
+.terminal-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 0 24px 22px; }
+.terminal-row { min-width: 0; min-height: 78px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 14px; border: 1px solid #e0e8ed; border-radius: 14px 14px 14px 5px; background: #fff; transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease; }
+.terminal-row:hover { border-color: #b9d0de; background: #f7fbfd; box-shadow: 0 0 0 2px rgba(26,122,184,.06); }
+.terminal-info { min-width: 0; display: grid; gap: 7px; }
+.terminal-name { overflow-wrap: anywhere; color: #0c4a70; font-size: 13px; font-weight: 800; line-height: 1.35; }
+.terminal-state { width: fit-content; display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 999px; background: #d1fae5; color: #047857; font-size: 10px; font-weight: 800; }
+.terminal-state::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.terminal-state.revoked { background: #eef1f3; color: #5f6b73; }
+.terminal-row .btn-secondary { flex: 0 0 auto; height: 34px; padding: 0 11px; font-size: 11px; }
+.terminal-empty { grid-column: 1 / -1; padding: 32px 14px; border: 1px dashed #c9d8e2; border-radius: 14px 14px 14px 5px; color: #7a7a7a; text-align: center; }
+body.dark-mode .terminal-row,
+body.dark-mode .credential-panel { background: var(--card-bg); border-color: var(--card-border); }
+body.dark-mode #create-terminal-form input,
+body.dark-mode .credential-panel input,
+body.dark-mode .terminal-list-filters input,
+body.dark-mode .terminal-list-filters select { background: var(--card-bg); color: var(--text-color); border-color: var(--card-border); }
+body.dark-mode .terminal-status-select .select-trigger { background: var(--card-bg); color: var(--text-color); border-color: var(--card-border); }
+@media (max-width: 700px) { .terminal-list-card .table-heading { padding: 18px 18px 12px; } .terminal-list-filters { grid-template-columns: 1fr; padding: 0 18px 14px; } .terminal-list { grid-template-columns: 1fr; padding: 0 18px 18px; } .terminal-create-controls { grid-template-columns: 1fr; } #create-terminal-button { width: 100%; } }
+@media (max-width: 420px) { .terminal-row { align-items: flex-start; flex-direction: column; } .terminal-row .btn-secondary { width: 100%; } }

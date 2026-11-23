@@ -1,212 +1,57 @@
-.configuracoes-page {
-  padding: var(--spacing-2xl);
-}
-
-/* ─── CARD ──────────────────────────────────────────────────────── */
-.card {
-  margin-bottom: var(--spacing-lg);
-}
-
-.card h3 {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-md);
-  padding-bottom: var(--spacing-md);
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-light);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  border-bottom: 2px solid var(--color-border-light);
-}
-
-/* ─── SETTING ITEM ─────────────────────────────────────────────── */
-.setting-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--spacing-lg) 0;
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.setting-item:last-child {
-  border-bottom: none;
-}
-
-.setting-label {
-  flex: 1;
-}
-
-.setting-label h4 {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-dark);
-  margin-bottom: var(--spacing-xs);
-}
-
-.setting-label p {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-light);
-  margin: 0;
-}
-
-/* ─── FORM GROUP ──────────────────────────────────────────────── */
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-  width: 250px;
-}
-
-.form-group label {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-light);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.form-group select {
-  padding: var(--spacing-sm) var(--spacing-md);
-  font-size: var(--font-size-base);
-  font-family: var(--font-family-base);
-  height: 44px;
-  border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text-dark);
-  background: var(--color-input-bg);
-  transition: border-color var(--transition-fast);
-  outline: none;
-}
-
-.form-group select:focus {
-  border-color: var(--color-primary);
-  background: var(--color-white);
-}
-
-/* ─── RADIO GROUP ─────────────────────────────────────────────── */
-.radio-group {
-  display: flex;
-  gap: var(--spacing-lg);
-}
-
-.radio-option {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  cursor: pointer;
-}
-
-.radio-option input[type="radio"] {
-  width: 17px;
-  height: 17px;
-  cursor: pointer;
-  accent-color: var(--color-primary);
-}
-
-.radio-option label {
-  font-size: var(--font-size-base);
-  color: var(--color-text-dark);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-}
-
-/* ─── TOGGLE SWITCH ───────────────────────────────────────────── */
-.toggle-switch {
-  position: relative;
-  display: inline-block;
-  width: 50px;
-  height: 28px;
-  flex-shrink: 0;
-}
-
-.toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.toggle-track {
-  position: absolute;
-  cursor: pointer;
-  inset: 0;
-  background-color: var(--color-border);
-  transition: var(--transition-base);
-  border-radius: 28px;
-}
-
-.toggle-track::before {
-  position: absolute;
-  content: "";
-  height: 22px;
-  width: 22px;
-  left: 3px;
-  bottom: 3px;
-  background-color: var(--color-white);
-  transition: var(--transition-base);
-  border-radius: 50%;
-  box-shadow: var(--shadow-xs);
-}
-
-input:checked + .toggle-track {
-  background-color: var(--color-primary);
-}
-
-input:checked + .toggle-track::before {
-  transform: translateX(22px);
-}
-
-/* ─── DANGER CARD (mantendo identidade antiga) ─────────────── */
-.danger-card {
-  border: 1.5px solid var(--color-danger-light);
-  background: #fff8f8;
-  margin-bottom: var(--spacing-2xl);
-}
-
-.danger-card h3 {
-  color: var(--color-danger);
-  border-bottom-color: var(--color-danger-light);
-}
-
-.danger-card .setting-item {
-  border-bottom-color: #fde8e8;
-}
-
-/* ─── FOOTER ACTIONS ─────────────────────────────────────────── */
-.footer-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--spacing-md);
-  margin: var(--spacing-xl) 0;
-}
-
-/* ─── RESPONSIVO ─────────────────────────────────────────────── */
-@media (max-width: 768px) {
-  .configuracoes-page {
-    padding: var(--spacing-lg);
-  }
-
-  .form-group {
-    width: 100%;
-  }
-
-  .radio-group {
-    flex-direction: column;
-    gap: var(--spacing-md);
-  }
-
-  .setting-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-md);
-  }
-
-  .toggle-switch {
-    align-self: flex-start;
-  }
-
-  .footer-actions {
-    flex-direction: column-reverse;
-  }
-}
+.settings-page{align-content:start}
+.settings-card{padding:22px 24px}
+.settings-section-heading{margin-bottom:16px}
+.settings-section-heading .section-kicker{margin-bottom:5px}
+.settings-section-heading h2{margin:0;color:var(--occ-dark);font:700 18px/1.25 'Sora',sans-serif;letter-spacing:-.025em}
+.settings-section-heading>p{margin:7px 0 0;color:var(--occ-muted);font-size:13px;line-height:1.55}
+.setting-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;border-top:1px solid var(--occ-border)}
+.setting-copy{min-width:0}
+.setting-copy h3{margin:0 0 4px;color:#4a4a4a;font:700 14px/1.35 'Manrope',sans-serif}
+.setting-copy p{margin:0;color:var(--occ-muted);font-size:12px;line-height:1.5}
+.radio-group{display:flex;align-items:center;gap:10px;margin:0;padding:0;border:0;min-width:0}
+.radio-option{display:inline-flex;align-items:center;gap:8px;min-height:40px;margin:0;padding:0 13px;border:1px solid #dce7f0;border-radius:12px 12px 12px 4px;background:#fafbfc;color:#4a4a4a;font:700 12px 'Manrope',sans-serif;letter-spacing:normal;text-transform:none;cursor:pointer;transition:background .16s,border-color .16s,color .16s}
+.radio-option:hover{border-color:#9fc8df;background:#f1f7fb;color:var(--occ-dark)}
+.radio-option input{width:16px;height:16px;margin:0;accent-color:var(--occ-brand)}
+.radio-option:has(input:checked){border-color:#9fc8df;background:#eaf2f8;color:var(--occ-dark)}
+.settings-actions{display:none}
+.settings-page .btn-primary,.settings-page .btn-secondary{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.settings-page .btn-secondary{height:40px;padding:0 15px;border:1px solid #dce7f0;border-radius:12px 12px 12px 4px;background:#fff;color:var(--occ-dark);font:800 12px 'Manrope',sans-serif;cursor:pointer}
+.settings-page .btn-secondary:hover{border-color:#9fc8df;background:#f1f7fb}
+.settings-page .btn-primary{height:40px;padding:0 17px;border-radius:12px 12px 12px 4px;font-size:12px}
+.geofence-card[hidden]{display:none}
+.geofence-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px 14px;align-items:end}
+.settings-field{display:grid;gap:6px;min-width:0;margin:0;color:var(--occ-muted);font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.settings-field input,.settings-field select,.inline-field input{width:100%;height:42px;box-sizing:border-box;padding:0 12px;border:1px solid #dce7f0;border-radius:12px 12px 12px 4px;background:#fafbfc;color:#1a1a1a;font:600 13px 'Manrope',sans-serif;letter-spacing:normal;text-transform:none;outline:none}
+.settings-field input:focus,.settings-field select:focus,.inline-field input:focus{border-color:#1a7ab8;background:#fff;box-shadow:0 0 0 3px rgba(26,122,184,.1)}
+.geofence-unit,.geofence-address-search,.geofence-confirmed,.geofence-results,.geofence-map-wrap,.geofence-toggle{grid-column:1/-1}
+.inline-field{display:flex;align-items:center;gap:10px}
+.inline-field input{flex:1;min-width:0}
+.geofence-results{display:grid;gap:7px}
+.geofence-results:empty{display:none}
+.geofence-results .btn-secondary{justify-content:flex-start;width:100%;min-height:38px;height:auto;padding:9px 12px;text-align:left;white-space:normal}
+.geofence-map-wrap{display:grid;gap:10px;padding:14px;border:1px solid #dce7f0;border-radius:14px 14px 14px 4px;background:#fafbfc}
+.geofence-map-wrap[hidden]{display:none}
+.geofence-map-wrap strong{color:var(--occ-dark);font-size:13px}
+.geofence-map-wrap p{margin:4px 0 0;color:var(--occ-muted);font-size:12px}
+.geofence-map-wrap img{display:block;width:100%;max-width:100%;max-height:360px;object-fit:contain;border-radius:10px;cursor:crosshair}
+.geofence-toggle{display:flex;align-items:flex-start;gap:10px;margin:0;padding:13px;border:1px solid #dce7f0;border-radius:12px 12px 12px 4px;background:#fafbfc;color:#4a4a4a;cursor:pointer}
+.geofence-toggle input{width:17px;height:17px;margin:1px 0 0;accent-color:var(--occ-brand)}
+.geofence-toggle span{display:grid;gap:3px}
+.geofence-toggle strong{font-size:12px}
+.geofence-toggle small{color:var(--occ-muted);font-size:11px;line-height:1.4}
+.geofence-actions{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:16px;padding-top:14px;border-top:1px solid var(--occ-border)}
+#geofence-status{min-height:18px;margin:0;color:var(--occ-muted);font-size:12px;line-height:1.5}
+#geofence-status:empty{min-height:0}
+.security-card{border-color:#e5e7eb}
+.security-card .setting-row:last-child{padding-bottom:0}
+.security-card .btn-secondary{flex:0 0 auto}
+.security-card .logout-action{border-color:#f4c7c7;background:#fff5f5;color:#b42318}
+.security-card .logout-action:hover{border-color:#e7a5a5;background:#feecec;color:#912018}
+html.dark-mode .settings-card,body.dark-mode .settings-card,html.dark-mode .settings-page .btn-secondary,body.dark-mode .settings-page .btn-secondary{background:var(--surface-1);color:var(--text-color);border-color:var(--card-border)}
+html.dark-mode .settings-section-heading h2,body.dark-mode .settings-section-heading h2,html.dark-mode .setting-copy h3,body.dark-mode .setting-copy h3,html.dark-mode .radio-option,body.dark-mode .radio-option{color:var(--text-color)}
+html.dark-mode .settings-field input,body.dark-mode .settings-field input,html.dark-mode .settings-field select,body.dark-mode .settings-field select,html.dark-mode .inline-field input,body.dark-mode .inline-field input,html.dark-mode .radio-option,body.dark-mode .radio-option,html.dark-mode .geofence-toggle,body.dark-mode .geofence-toggle,html.dark-mode .geofence-map-wrap,body.dark-mode .geofence-map-wrap{background:var(--surface-inset);color:var(--text-color);border-color:var(--card-border)}
+html.dark-mode .setting-row,body.dark-mode .setting-row,html.dark-mode .geofence-actions,body.dark-mode .geofence-actions{border-color:var(--card-border)}
+html.dark-mode .security-card .logout-action,body.dark-mode .security-card .logout-action{border-color:var(--error-border);background:var(--error-bg);color:var(--error-text)}
+html.dark-mode .security-card .logout-action:hover,body.dark-mode .security-card .logout-action:hover{background:var(--status-danger-bg)}
+@media(max-width:760px){.settings-page{padding:20px 16px 32px}.settings-card{padding:18px}.setting-row{align-items:flex-start;flex-direction:column;gap:13px}.radio-group{width:100%;flex-wrap:wrap}.geofence-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.geofence-unit,.geofence-address-search,.geofence-confirmed,.geofence-results,.geofence-map-wrap,.geofence-toggle{grid-column:1/-1}}
+@media(max-width:480px){.geofence-grid{grid-template-columns:1fr}.geofence-grid>*{grid-column:1/-1}.inline-field{align-items:stretch;flex-direction:column}.geofence-actions{align-items:stretch;flex-direction:column}.geofence-actions .btn-primary{width:100%}}

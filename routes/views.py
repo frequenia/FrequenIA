@@ -1471,7 +1471,9 @@ def perfil():
     if not user:
         return "Perfil não encontrado", 404
 
-    return render_template("perfil.html", user=user)
+    return render_template(
+        "perfil.html", user=user, funcionario_id=g.auth_funcionario_id
+    )
 
 
 # ==================================================================================================
@@ -2857,7 +2859,7 @@ def listar_pontos():
 @require_roles("administrador")
 def listar_unidades():
     try:
-        empresa_id = empresa_id_autorizada(request.args.get("empresa_id"))
+        empresa_id = empresa_autenticada(request.args)
     except PermissionError as exc:
         return jsonify({"erro": str(exc)}), 403
     except ValueError as exc:

@@ -17,7 +17,7 @@
 
   <!--Dark-mode-->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css', v='dark-palette-2026-11') }}">
 
 </head>
 
@@ -123,11 +123,18 @@
           <input type="text" id="carga_horaria_semanal" value="{{ (user.carga_horaria_semanal ~ ' horas') if user.carga_horaria_semanal is not none else 'Não definida' }}" disabled>
         </div>
 
-        <div class="campo">
-          <label>Jornada</label>
-          <input type="text" id="jornada" value="Não definida" disabled>
-        </div>
       </div>
+    </section>
+
+    <section class="card schedule-profile-card" aria-labelledby="tituloMinhaJornada">
+      <h3 id="tituloMinhaJornada">Minha jornada</h3>
+      <p class="schedule-profile-help">Resumo do turno e dos horários previstos para hoje.</p>
+      <div id="resumoJornadaPerfil" class="schedule-profile-summary" role="status" aria-live="polite">Carregando jornada…</div>
+      {% if user.perfil == 'funcionario' %}
+      <a class="btn-secondary schedule-profile-link" href="/meu-ponto">Consultar minha jornada e marcações</a>
+      {% else %}
+      <a class="btn-secondary schedule-profile-link" href="/jornadas?funcionario_id={{ funcionario_id|urlencode }}">Ver jornada e histórico</a>
+      {% endif %}
     </section>
 
     <section class="card" id="governanca-biometrica" aria-live="polite">
@@ -141,6 +148,39 @@
 
   <script>
     (() => {
+      const container = document.getElementById("resumoJornadaPerfil");
+      const weekdays = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+      const formatDate = (value) => value
+        ? new Date(`${value}T00:00:00`).toLocaleDateString("pt-BR")
+        : "Sem data final";
+      fetch("/api/jornada", {credentials: "same-origin"})
+        .then((response) => response.ok ? response.json() : Promise.reject())
+        .then(({jornada}) => {
+          container.replaceChildren();
+          if (!jornada) {
+            container.textContent = "Nenhuma jornada atribuída para hoje.";
+            return;
+          }
+          if (jornada.folga) {
+            container.textContent = "Folga programada para hoje.";
+            return;
+          }
+          const title = document.createElement("strong");
+          title.textContent = jornada.turno?.nome || "Jornada vigente";
+          const validity = document.createElement("p");
+          validity.textContent = `Vigência: ${formatDate(jornada.vigencia?.inicio)} a ${formatDate(jornada.vigencia?.fim)}`;
+          const periods = document.createElement("ul");
+          (jornada.periodos || []).forEach((period) => {
+            const item = document.createElement("li");
+            const weekday = weekdays[Number(period.dia_semana)] || "Dia";
+            const nextDay = Number(period.fim_dia_offset) === 1 ? " (+1 dia)" : "";
+            item.textContent = `${weekday} · ${period.inicio}–${period.fim}${nextDay}`;
+            periods.appendChild(item);
+          });
+          container.append(title, validity, periods);
+        })
+        .catch(() => { container.textContent = "Não foi possível carregar a jornada agora."; });
+
       const labels = {
         ativa: "Ativa", bloqueada: "Bloqueada",
         recadastro_necessario: "Recadastro necessário",
@@ -162,6 +202,7 @@
     })();
   </script>
 
+  <script src="{{ url_for('static', filename='js/dark-mode.js', v='dark-system-2026-11') }}"></script>
 </body>
 
 </html>

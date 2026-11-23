@@ -4,68 +4,112 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gerenciar usuários — FrequenIA</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css', v='dark-palette-2026-11') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ocorrencias.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/gerenciarUsuario.css') }}">
 </head>
 <body>
-  <div class="gerenciar-usuarios">
-    <div class="card">
-      <div class="top-bar">
-        <input type="text" id="search" class="search-input" placeholder="Nome, CPF ou matrícula">
-        <select id="statusFilter" onchange="filtrar()">
+  <main class="occurrences-page users-page">
+    <header class="page-header">
+      <div><span class="eyebrow">GESTÃO / ACESSOS</span><h1>Gerenciar usuários</h1><p>Consulte vínculos, unidades e status de acesso da empresa.</p></div>
+      <div class="header-badge"><strong id="result-count">—</strong><span>usuários encontrados</span></div>
+    </header>
+    <section class="filter-card users-filter-card" aria-labelledby="users-filter-title">
+      <div class="section-heading"><div><span class="section-kicker">CONSULTA</span><h2 id="users-filter-title">Filtrar usuários</h2></div><button id="clear-filters" class="filter-toggle" type="button">Limpar filtros</button></div>
+      <div class="filter-grid users-filter-grid">
+        <label>Nome, CPF ou matrícula<input type="search" id="search" class="search-input" placeholder="Buscar por nome, CPF ou matrícula" autocomplete="off"></label>
+        <label>Status<select id="statusFilter">
           <option value="todos">Todos os status</option>
           <option value="ativo">Ativos</option>
           <option value="afastado">Afastados</option>
           <option value="desligado">Desligados</option>
-        </select>
+        </select></label>
       </div>
-      <table class="table">
-        <thead><tr><th>Nome</th><th>CPF</th><th>Matrícula</th><th>Empresa</th><th>Unidade</th><th>Equipe</th><th>Cargo</th><th>Status</th><th>Ações</th></tr></thead>
-        <tbody id="tabela"></tbody>
-      </table>
-    </div>
-  </div>
+    </section>
+    <p id="page-error" class="page-error" role="alert" hidden></p>
+    <section class="table-card users-table-card">
+      <div class="table-heading"><div><span class="section-kicker">CADASTRO E ACESSOS</span><h2>Usuários da empresa</h2><p>Consulte os dados do vínculo e edite quando necessário.</p></div><div class="table-heading-actions"><span id="table-count" aria-live="polite">Carregando...</span><button id="refresh" class="btn-secondary" type="button">Atualizar</button></div></div>
+      <div class="table-scroll"><table class="users-table">
+        <thead><tr><th>Nome</th><th>CPF</th><th>Matrícula</th><th>Empresa</th><th>Unidade</th><th>Equipe</th><th>Cargo</th><th>Status</th><th class="users-action-col">Ações</th></tr></thead>
+        <tbody id="tabela"><tr><td colspan="9" class="empty">Carregando usuários...</td></tr></tbody>
+      </table></div>
+    </section>
+  </main>
   <script>
     let dados = [];
     const escapeHtml = (value) => String(value ?? "").replace(/[&<>'"]/g, (character) => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"})[character]);
+    const statusLabels = {ativo:"Ativo",afastado:"Afastado",desligado:"Desligado"};
+
+    function updateStatusSelect() {
+      const select=document.getElementById("statusFilter"), wrapper=select.closest(".custom-select"), selected=select.options[select.selectedIndex];
+      if(!wrapper)return;
+      wrapper.querySelector(".select-label").textContent=selected.textContent;
+      wrapper.querySelectorAll(".select-option").forEach(option=>{
+        const active=option.dataset.value===select.value;
+        option.classList.toggle("selected",active);option.setAttribute("aria-selected",String(active));
+      });
+    }
+
+    function setupStatusSelect() {
+      const select=document.getElementById("statusFilter"), wrapper=document.createElement("div");
+      wrapper.className="custom-select users-status-select";select.parentNode.insertBefore(wrapper,select);wrapper.appendChild(select);select.classList.add("native-select");
+      const trigger=document.createElement("button");trigger.type="button";trigger.className="select-trigger";trigger.setAttribute("aria-haspopup","listbox");trigger.setAttribute("aria-expanded","false");trigger.innerHTML='<span class="select-label"></span><span class="select-chevron" aria-hidden="true"></span>';
+      const menu=document.createElement("div");menu.className="select-menu";menu.setAttribute("role","listbox");
+      [...select.options].forEach(option=>{const item=document.createElement("button");item.type="button";item.className="select-option";item.dataset.value=option.value;item.textContent=option.textContent;item.setAttribute("role","option");item.onclick=()=>{select.value=option.value;select.dispatchEvent(new Event("change",{bubbles:true}));wrapper.classList.remove("open");trigger.setAttribute("aria-expanded","false");trigger.focus();};menu.appendChild(item);});
+      wrapper.insertBefore(trigger,select);wrapper.appendChild(menu);
+      trigger.onclick=()=>{document.querySelectorAll(".custom-select.open").forEach(item=>{if(item!==wrapper)item.classList.remove("open");});const open=wrapper.classList.toggle("open");trigger.setAttribute("aria-expanded",String(open));};
+      trigger.onkeydown=event=>{if(event.key==="ArrowDown"){event.preventDefault();wrapper.classList.add("open");trigger.setAttribute("aria-expanded","true");menu.querySelector(".select-option")?.focus();}if(event.key==="Escape"){wrapper.classList.remove("open");trigger.setAttribute("aria-expanded","false");}};
+      menu.onkeydown=event=>{const options=[...menu.querySelectorAll(".select-option")],index=options.indexOf(document.activeElement);if(event.key==="Escape"){wrapper.classList.remove("open");trigger.setAttribute("aria-expanded","false");trigger.focus();}if(event.key==="ArrowDown"){event.preventDefault();options[index+1]?.focus();}if(event.key==="ArrowUp"){event.preventDefault();if(index>0)options[index-1].focus();else trigger.focus();}};
+      select.addEventListener("change",()=>{updateStatusSelect();filtrar();});updateStatusSelect();
+    }
 
     async function carregarUsuarios() {
-      const response = await fetch("/listarUsuarios");
-      dados = response.ok ? await response.json() : [];
-      render(dados);
+      const tabela=document.getElementById("tabela"),error=document.getElementById("page-error");
+      document.getElementById("table-count").textContent="Carregando...";error.hidden=true;
+      try {
+        const response=await fetch("/listarUsuarios",{credentials:"same-origin",headers:{Accept:"application/json"}});
+        if(!response.ok)throw new Error("Não foi possível carregar os usuários.");
+        dados=await response.json();render(dados);
+      } catch (reason) {
+        dados=[];document.getElementById("result-count").textContent="—";document.getElementById("table-count").textContent="Consulta indisponível";
+        tabela.innerHTML='<tr><td colspan="9" class="empty">Não foi possível carregar os usuários.</td></tr>';error.textContent=reason.message;error.hidden=false;
+      }
     }
 
     function render(lista) {
       const tabela = document.getElementById("tabela");
+      document.getElementById("result-count").textContent=lista.length;
+      document.getElementById("table-count").textContent=`${lista.length} ${lista.length===1?"usuário":"usuários"}`;
       if (!lista.length) {
-        tabela.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px">Nenhum vínculo encontrado.</td></tr>';
+        tabela.innerHTML = '<tr><td colspan="9" class="empty">Nenhum vínculo encontrado.</td></tr>';
         return;
       }
       tabela.innerHTML = lista.map((item) => `<tr>
-        <td>${escapeHtml(item.nome)}</td><td>${escapeHtml(item.cpf)}</td><td>${escapeHtml(item.matricula)}</td>
+        <td class="users-name-cell"><strong>${escapeHtml(item.nome)}</strong></td><td>${escapeHtml(item.cpf)}</td><td>${escapeHtml(item.matricula)}</td>
         <td>${escapeHtml(item.empresa)}</td><td>${escapeHtml(item.unidade)}</td><td>${escapeHtml(item.equipe)}</td>
-        <td>${escapeHtml(item.cargo)}</td><td><span class="status ${escapeHtml(item.status)}">${escapeHtml(item.status)}</span></td>
-        <td><a href="/editarUsuario?funcionario_id=${encodeURIComponent(item.funcionario_id)}" class="btn-acao">Editar</a></td>
+        <td>${escapeHtml(item.cargo)}</td><td><span class="user-status user-status-${escapeHtml(item.status)}">${escapeHtml(statusLabels[item.status]||item.status)}</span></td>
+        <td class="users-action-cell"><a href="/editarUsuario?funcionario_id=${encodeURIComponent(item.funcionario_id)}" class="btn-acao">Editar</a></td>
       </tr>`).join("");
     }
 
     function filtrar() {
-      const texto = document.getElementById("search").value.toLowerCase();
+      const texto = document.getElementById("search").value.trim().toLowerCase();
       const status = document.getElementById("statusFilter").value;
       const filtrados = dados.filter((item) => {
-        const correspondeTexto = !texto || item.nome.toLowerCase().includes(texto) || item.cpf.includes(texto) || item.matricula.toLowerCase().includes(texto);
+        const correspondeTexto = !texto || String(item.nome||"").toLowerCase().includes(texto) || String(item.cpf||"").includes(texto) || String(item.matricula||"").toLowerCase().includes(texto);
         return correspondeTexto && (status === "todos" || item.status === status);
       });
       render(filtrados);
     }
 
     document.getElementById("search").addEventListener("input", filtrar);
+    document.getElementById("clear-filters").addEventListener("click",()=>{document.getElementById("search").value="";document.getElementById("statusFilter").value="todos";updateStatusSelect();filtrar();});
+    document.getElementById("refresh").addEventListener("click",carregarUsuarios);
+    document.addEventListener("click",event=>{if(event.target.closest(".users-status-select"))return;document.querySelectorAll(".users-status-select.open").forEach(wrapper=>{wrapper.classList.remove("open");wrapper.querySelector(".select-trigger").setAttribute("aria-expanded","false");});});
+    setupStatusSelect();
     carregarUsuarios();
   </script>
+  <script src="{{ url_for('static', filename='js/dark-mode.js', v='dark-system-2026-11') }}"></script>
 </body>
 </html>

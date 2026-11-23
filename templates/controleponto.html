@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/controleponto.css') }}">
     <!-- Dark mode / menu -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css', v='dark-palette-2026-11') }}">
 </head>
 <body>
     <main class="controle-page">
@@ -206,5 +206,6 @@
     <script src="https://npmcdn.com/flatpickr/dist/l10n/pt.js"></script>
     <!-- JS separado da tela -->
     <script src="{{ url_for('static', filename='js/controleponto.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/dark-mode.js', v='dark-system-2026-11') }}"></script>
 </body>
 </html>

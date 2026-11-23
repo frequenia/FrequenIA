@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meu Perfil</title>
 
     <!-- Fonte Montserrat -->
@@ -13,7 +14,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
     <!--Dark-mode-->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css', v='dark-palette-2026-11') }}">
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/editarHorarios.css') }}">
 </head>
@@ -291,6 +292,7 @@
         }
     </script>
 
+  <script src="{{ url_for('static', filename='js/dark-mode.js', v='dark-system-2026-11') }}"></script>
 </body>
 
 </html>

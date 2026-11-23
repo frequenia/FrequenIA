@@ -235,3 +235,46 @@ body.dark-mode .btn-cad {
 body.dark-mode .btn-cad:hover {
   background: var(--color-primary-dark);
 }
+
+/* Cadastro alinhado ao padrão visual das telas de gestão. */
+.cadastro-page { max-width: 1600px; }
+.cadastro-page .page-header { margin-bottom: 0; }
+.cadastro-page .cadastro-section { min-width: 0; }
+.cadastro-page .section-heading { margin-bottom: 18px; }
+.cadastro-page .section-heading h2 { margin: 5px 0 0; }
+.cadastro-page .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.cadastro-page .carga-horaria-campo { grid-column: 1 / -1; }
+.cadastro-page .campo { min-width: 0; }
+.cadastro-page .campo label { display: block; margin: 0 0 6px; color: #647887; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
+.cadastro-page .campo input:not([type="hidden"]),
+.cadastro-page .campo select { width: 100%; min-width: 0; height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #dce7f0; border-radius: 14px 14px 14px 4px; background: #fafbfc; color: #1a1a1a; font: 600 13px 'Manrope', sans-serif; }
+.cadastro-page .campo input:focus,
+.cadastro-page .campo select:focus,
+.cadastro-page .select-trigger:focus { outline: 3px solid rgba(26,122,184,.14); border-color: #1a7ab8; }
+.cadastro-page .campo input:disabled,
+.cadastro-page .campo input[readonly] { color: #647887; background: #f4f7f9; }
+.cadastro-page .custom-select { position: relative; z-index: 1; width: 100%; }
+.cadastro-page .custom-select.open { z-index: 100; }
+.cadastro-page .custom-select .native-select { position: absolute !important; width: 1px !important; height: 1px !important; opacity: 0 !important; pointer-events: none !important; }
+.cadastro-page .custom-select .select-trigger { width: 100%; height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 12px; border: 1px solid #dce7f0; border-radius: 14px 14px 14px 4px; background: #fafbfc; color: #1a1a1a; font: 600 13px 'Manrope', sans-serif; text-align: left; cursor: pointer; }
+.cadastro-page .custom-select .select-trigger:hover,
+.cadastro-page .custom-select.open .select-trigger { border-color: #1a7ab8; background: #f6fbfe; box-shadow: 0 0 0 3px rgba(26,122,184,.1); }
+.cadastro-page .custom-select .select-trigger:disabled { color: #a0a0a0; background: #f4f7f9; cursor: not-allowed; }
+.cadastro-page .custom-select .select-menu { left: 0; right: 0; transform: none; width: 100%; max-width: none; }
+.cadastro-page .acoes.cadastro-actions { justify-content: flex-end; margin: 0; padding: 0 0 4px; }
+.cadastro-page .cadastro-actions { gap: 10px; }
+.cadastro-page .cadastro-actions .btn-primary { min-width: 190px; }
+.cadastro-page .cadastro-actions .btn-secondary { min-width: 110px; }
+body.dark-mode .cadastro-page .campo input:not([type="hidden"]),
+body.dark-mode .cadastro-page .campo select,
+body.dark-mode .cadastro-page .custom-select .select-trigger { border-color: var(--card-border); background: var(--card-bg); color: var(--text-color); }
+body.dark-mode .cadastro-page .campo input:disabled,
+body.dark-mode .cadastro-page .campo input[readonly] { background: rgba(255,255,255,.05); }
+@media (max-width: 700px) {
+  .cadastro-page { padding: 20px 16px 32px; }
+  .cadastro-page .grid { grid-template-columns: 1fr; }
+  .cadastro-page .acoes.cadastro-actions { justify-content: stretch; }
+  .cadastro-page .acoes.cadastro-actions { flex-direction: row; }
+  .cadastro-page .cadastro-actions .btn-secondary,
+  .cadastro-page .cadastro-actions .btn-primary { width: 100%; }
+}

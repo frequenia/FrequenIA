@@ -4,29 +4,29 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cadastro de usuário — FrequenIA</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ocorrencias.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/cadastroUsuario.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css', v='dark-palette-2026-11') }}">
 </head>
 <body>
   <form id="formCadastro">
-    <div class="perfil-page">
-      <section class="card">
-        <h3>Identidade e acesso</h3>
+    <main class="occurrences-page cadastro-page">
+      <header class="page-header">
+        <div><span class="eyebrow">GESTÃO / CADASTROS</span><h1>Cadastrar funcionário</h1><p>Registre os dados de acesso e o vínculo funcional na empresa.</p></div>
+      </header>
+      <section class="filter-card cadastro-section">
+        <div class="section-heading"><div><span class="section-kicker">DADOS PESSOAIS</span><h2>Identidade e acesso</h2></div></div>
         <div class="grid">
           <div class="campo"><label for="nome">Nome</label><input type="text" id="nome" required></div>
           <div class="campo"><label for="email">E-mail</label><input type="email" id="email" required></div>
           <div class="campo"><label for="telefone">Telefone</label><input type="text" id="telefone" maxlength="15" oninput="mascaraTelefone(this)" required></div>
           <div class="campo"><label for="cpf">CPF</label><input type="text" id="cpf" maxlength="14" oninput="mascaraCPF(this)" required></div>
-          <div class="campo"><label>Primeiro acesso</label><input type="text" value="Convite enviado por e-mail para definição da senha" disabled></div>
         </div>
       </section>
 
-      <section class="card">
-        <h3>Vínculo funcional</h3>
+      <section class="filter-card cadastro-section">
+        <div class="section-heading"><div><span class="section-kicker">EMPRESA E PERMISSÕES</span><h2>Vínculo funcional</h2></div></div>
         <div class="grid">
           <div class="campo">
             <label for="empresa_nome">Empresa</label>
@@ -60,12 +60,12 @@
             </select>
           </div>
           <div class="campo"><label for="data_admissao">Data de admissão</label><input type="date" id="data_admissao" required></div>
-          <div class="campo"><label for="carga_horaria">Carga horária semanal</label><input type="number" id="carga_horaria" min="1" max="168" step="0.5" required></div>
+          <div class="campo carga-horaria-campo"><label for="carga_horaria">Carga horária semanal</label><input type="number" id="carga_horaria" min="1" max="168" step="0.5" required placeholder="Ex.: 40"></div>
         </div>
       </section>
 
-      <div class="acoes"><button type="button" class="btn-cad" onclick="cadastrarUsuario()">Salvar cadastro</button></div>
-    </div>
+      <div class="acoes cadastro-actions"><button type="button" id="limparCadastro" class="btn-secondary">Limpar</button><button type="button" class="btn-primary" onclick="cadastrarUsuario()">Concluir cadastro</button></div>
+    </main>
   </form>
   <script src="{{ url_for('static', filename='js/cadastroUsuario.js') }}"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -73,5 +73,6 @@
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://npmcdn.com/flatpickr/dist/l10n/pt.js"></script>
   <script src="{{ url_for('static', filename='js/campos-padrao.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/dark-mode.js', v='dark-system-2026-11') }}"></script>
 </body>
 </html>

@@ -32,6 +32,7 @@ temp_cadastros
 static/fotos
 static/img/brand/*
 !static/img/brand/frequenia-logo-white-v4.png
+!static/img/brand/frequenia-favicon-v4.png
 supabase/migrations_data
 supabase/backups
 **/*.sql.gz

@@ -6,8 +6,11 @@ services:
       - .env
     environment:
       PORT: "5000"
+      ATTACHMENT_STORAGE_ROOT: /var/lib/frequenia/attachments
     ports:
       - "5013:5000"
+    volumes:
+      - frequenia_private_attachments:/var/lib/frequenia/attachments
     healthcheck:
       test:
         - CMD
@@ -18,3 +21,6 @@ services:
       timeout: 5s
       retries: 18
       start_period: 30s
+
+volumes:
+  frequenia_private_attachments:

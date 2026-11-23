@@ -4,6 +4,72 @@ const selectUnidade = document.getElementById("unidade");
 const selectEquipe = document.getElementById("equipe");
 const selectCargo = document.getElementById("cargo");
 
+function initializeStyledSelects() {
+  document.querySelectorAll(".cadastro-page select").forEach((select) => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "custom-select";
+    select.parentNode.insertBefore(wrapper, select);
+    wrapper.append(select);
+    select.classList.add("native-select");
+
+    const trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "select-trigger";
+    trigger.setAttribute("aria-haspopup", "listbox");
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.innerHTML = '<span class="select-label"></span><span class="select-chevron" aria-hidden="true"></span>';
+    const menu = document.createElement("div");
+    menu.className = "select-menu";
+    menu.setAttribute("role", "listbox");
+    wrapper.insertBefore(trigger, select);
+    wrapper.append(menu);
+
+    const refresh = () => {
+      trigger.disabled = select.disabled;
+      const selected = select.options[select.selectedIndex];
+      trigger.querySelector(".select-label").textContent = selected?.textContent || "Selecione";
+      menu.replaceChildren();
+      [...select.options].forEach((option) => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "select-option";
+        item.dataset.value = option.value;
+        item.textContent = option.textContent;
+        item.setAttribute("role", "option");
+        item.setAttribute("aria-selected", String(option.value === select.value));
+        if (option.value === select.value) item.classList.add("selected");
+        item.addEventListener("click", () => {
+          select.value = option.value;
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+          wrapper.classList.remove("open");
+          trigger.setAttribute("aria-expanded", "false");
+          trigger.focus();
+        });
+        menu.append(item);
+      });
+    };
+
+    trigger.addEventListener("click", () => {
+      if (select.disabled) return;
+      const opening = !wrapper.classList.contains("open");
+      document.querySelectorAll(".custom-select.open").forEach((item) => item.classList.remove("open"));
+      wrapper.classList.toggle("open", opening);
+      trigger.setAttribute("aria-expanded", String(opening));
+    });
+    select.addEventListener("change", refresh);
+    new MutationObserver(refresh).observe(select, { childList: true, attributes: true, attributeFilter: ["disabled"] });
+    refresh();
+  });
+
+  document.addEventListener("click", (event) => {
+    document.querySelectorAll(".cadastro-page .custom-select.open").forEach((wrapper) => {
+      if (wrapper.contains(event.target)) return;
+      wrapper.classList.remove("open");
+      wrapper.querySelector(".select-trigger").setAttribute("aria-expanded", "false");
+    });
+  });
+}
+
 function preencherSelect(select, items, placeholder = "Selecione") {
   select.innerHTML = `<option value="">${placeholder}</option>`;
   items.forEach((item) => {
@@ -82,6 +148,25 @@ function verificarCPF(value) {
   return first === numbers[9] && second === numbers[10];
 }
 
+function limparCadastro() {
+  const form = document.getElementById("formCadastro");
+  const empresaId = selectEmpresa.value;
+  const nomeEmpresa = empresaNome.value;
+  form.reset();
+
+  selectEmpresa.value = empresaId;
+  empresaNome.value = nomeEmpresa;
+  selectUnidade.value = "";
+  preencherSelect(selectEquipe, []);
+  selectEquipe.value = "";
+  selectEquipe.disabled = true;
+  selectCargo.value = "";
+
+  form.querySelectorAll("select").forEach((select) => {
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
+
 async function cadastrarUsuario() {
   if (!document.getElementById("formCadastro").reportValidity()) return;
   if (!verificarCPF(document.getElementById("cpf").value)) {
@@ -112,8 +197,10 @@ async function cadastrarUsuario() {
   const result = await response.json();
   const matricula = result.matricula ? ` Matrícula: ${result.matricula}.` : "";
   alert((result.mensagem || (response.ok ? "Cadastro concluído." : "Não foi possível cadastrar.")) + matricula);
-  if (response.ok) document.getElementById("formCadastro").reset();
+  if (response.ok) limparCadastro();
 }
 
 selectUnidade.addEventListener("change", carregarEquipes);
+document.getElementById("limparCadastro").addEventListener("click", limparCadastro);
+initializeStyledSelects();
 carregarEmpresas();

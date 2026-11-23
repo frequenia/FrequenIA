@@ -70,3 +70,218 @@
 input[readonly] {
   cursor: default;
 }
+
+/* Campos do vínculo mantêm duas colunas no desktop e viram uma coluna em telas menores. */
+.perfil-page,
+.perfil-page .card,
+.perfil-page .campo,
+.perfil-page input,
+.perfil-page select {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@media (max-width: 760px) {
+  .perfil-page {
+    width: 100%;
+    padding: clamp(16px, 4vw, 24px);
+  }
+
+  .grid,
+  .campos,
+  .horario-padrao {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .campo-cargo,
+  .campo-jornada {
+    grid-column: auto;
+  }
+
+  .acoes {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 520px) {
+  .perfil-page {
+    padding: 14px;
+    gap: 14px;
+  }
+
+  .perfil-page .card {
+    padding: 18px;
+  }
+
+  .linha-manual {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .acoes {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .acoes :is(button, .btn-primary) {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/* Edição de vínculo alinhada à hierarquia visual das telas de gestão. */
+.profile-edit-page {
+  width: min(1600px, 100%);
+  padding: 28px 32px 40px;
+  gap: 18px;
+  font-family: var(--font-family-base, 'Manrope', sans-serif);
+}
+
+.profile-edit-page .page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 0 0 2px;
+}
+
+.profile-edit-page .eyebrow,
+.profile-edit-page .section-kicker {
+  display: block;
+  color: var(--muted-text, #687d8b);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  line-height: 1.2;
+}
+
+.profile-edit-page .page-header h1 {
+  margin: 7px 0 5px;
+  color: var(--text-strong, #123e59);
+  font: 800 32px/1.1 'Sora', sans-serif;
+  letter-spacing: -.04em;
+}
+
+.profile-edit-page .page-header p {
+  margin: 0;
+  color: var(--muted-text, #687d8b);
+  font-size: 14px;
+}
+
+.profile-edit-card {
+  margin: 0;
+  padding: 22px 24px 24px;
+  border: 1px solid var(--card-border, #d8e2e9);
+  border-radius: 24px 24px 24px 8px;
+  background: var(--card-bg, #fff);
+  box-shadow: var(--shadow-sm);
+}
+
+.profile-edit-card:hover {
+  transform: none;
+  border-color: var(--color-primary-light, #b9d0de);
+}
+
+.profile-edit-heading {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 18px;
+}
+
+.profile-edit-heading h2 {
+  margin: 0;
+  color: var(--text-strong, #123e59);
+  font: 700 18px/1.2 'Sora', sans-serif;
+  letter-spacing: -.025em;
+}
+
+.profile-edit-card .grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.profile-edit-card .campo label {
+  margin: 0 0 6px;
+  color: var(--muted-text, #687d8b);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.profile-edit-card input,
+.profile-edit-card select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--card-border, #d8e2e9);
+  border-radius: 14px 14px 14px 4px;
+  background: var(--surface-2, #f7fafc);
+  color: var(--text-color, #172b3a);
+  font: 600 13px var(--font-family-base, 'Manrope', sans-serif);
+}
+
+.profile-edit-card select:disabled,
+.profile-edit-card input[readonly] {
+  opacity: 1;
+  color: var(--text-secondary, #405767);
+}
+
+.schedule-profile-card .schedule-profile-summary {
+  padding: 16px;
+  border: 1px solid var(--card-border, #d8e2e9);
+  border-radius: 14px 14px 14px 4px;
+  background: var(--surface-2, #f7fafc);
+  color: var(--text-color, #172b3a);
+}
+.schedule-profile-card .schedule-profile-summary > strong { display: block; color: var(--text-strong, #123e59); font: 700 16px/1.4 'Sora', sans-serif; }
+.schedule-profile-card .schedule-profile-summary > p { margin: 5px 0 12px; color: var(--muted-text, #687d8b); font-size: 12px; }
+.schedule-profile-card .schedule-profile-summary ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.schedule-profile-card .schedule-profile-summary li { padding: 8px 10px; border-radius: 10px 10px 10px 3px; background: var(--table-head, #dceaf2); color: var(--text-strong, #123e59); font-size: 12px; font-weight: 700; }
+.schedule-profile-card .schedule-profile-link { display: inline-flex; width: fit-content; min-height: 40px; align-items: center; margin-top: 14px; padding: 0 14px; text-decoration: none; }
+
+.profile-edit-actions {
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+
+.profile-edit-actions .btn-primary,
+.profile-edit-actions .btn-secondary,
+.profile-edit-actions .btn-danger-soft,
+.profile-edit-actions .btn-success-soft {
+  min-width: 136px;
+  height: 42px;
+  padding: 0 16px;
+  border-radius: 12px 12px 12px 4px;
+  font: 800 12px var(--font-family-base, 'Manrope', sans-serif);
+}
+
+.profile-edit-actions :is(.btn-danger-soft, .btn-success-soft) {
+  border: 1px solid var(--status-danger-bg, #fde1e1);
+  background: var(--status-danger-bg, #fde1e1);
+  color: var(--status-danger, #b4232d);
+  box-shadow: none;
+}
+
+.profile-edit-actions .btn-danger-soft:hover {
+  border-color: var(--status-danger, #b4232d);
+  background: var(--status-danger-bg, #fde1e1);
+  transform: translateY(-1px);
+}
+
+.profile-edit-actions .btn-success-soft { border-color: var(--status-success-bg, #d9f5e9); background: var(--status-success-bg, #d9f5e9); color: var(--status-success, #08794f); }
+.profile-edit-actions .btn-success-soft:hover { border-color: var(--status-success, #08794f); background: var(--status-success-bg, #d9f5e9); transform: translateY(-1px); }
+
+@media (max-width: 760px) {
+  .profile-edit-page { padding: 20px 16px 32px; }
+  .profile-edit-page .page-header h1 { font-size: 27px; }
+  .profile-edit-card .grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 520px) {
+  .profile-edit-page { padding: 16px 12px 28px; }
+  .profile-edit-card { padding: 18px; }
+  .profile-edit-actions { align-items: stretch; }
+  .profile-edit-actions > * { width: 100%; }
+}

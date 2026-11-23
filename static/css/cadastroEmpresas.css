@@ -141,19 +141,19 @@
 }
 
 body.dark-mode .field input {
-  background: #1e1e1e;
+  background: var(--surface-inset);
   border-color: var(--card-border);
   color: var(--text-color);
 }
 
 body.dark-mode .structure-preview {
-  background: #173342;
-  border-color: #315c70;
+  background: var(--surface-2);
+  border-color: var(--border-strong);
 }
 
 body.dark-mode .structure-preview span,
 body.dark-mode .structure-preview strong {
-  color: #e6f3f8;
+  color: var(--text-strong);
 }
 
 @media (max-width: 760px) {

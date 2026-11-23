@@ -577,3 +577,44 @@ body.dark-mode .sidebar .sidebar-nav .active a {
     font-size: 12px;
   }
 }
+
+/* No celular, o menu vira uma faixa horizontal e deixa a tela útil para o conteúdo. */
+@media (max-width: 640px) {
+  :root { --menu-sidebar-width: 132px; }
+  body:has(> .main-topbar) { --main-topbar-height: 68px; }
+  .main-topbar.topbar { height: var(--main-topbar-height); min-height: 0; flex-wrap: nowrap; gap: 0; padding: 0 10px; }
+  .main-topbar::before { left: 131px; inset-block: 16px; }
+  .main-topbar .logo { width: 120px; flex: 0 0 120px; margin: 0 12px 0 0; }
+  .main-topbar .brand-logo { width: 112px; max-height: 44px; }
+  .main-topbar .topbar-right { gap: 7px; }
+  .main-topbar .profile-avatar-topbar { width: 32px; height: 32px; font-size: 12px; }
+  .main-topbar #hora { font-size: 17px; }
+  .main-topbar #data { font-size: 9px; }
+  .main-topbar .topbar-context { display: none; }
+
+  .main-topbar + .layout { height: calc(100dvh - var(--main-topbar-height)); min-height: 0; flex-direction: column; }
+  .layout > .sidebar { width: 100%; min-width: 0; height: 58px; min-height: 58px; flex: 0 0 58px; flex-direction: row; overflow: hidden; border-right: 0; border-bottom: 1px solid var(--color-border); box-shadow: 0 1px 0 rgba(8,45,71,.05); }
+  .sidebar-nav { min-width: 0; min-height: 0; flex: 1 1 auto; overflow-x: auto; overflow-y: hidden; padding: 6px 5px; scrollbar-width: none; }
+  .sidebar-nav::-webkit-scrollbar { display: none; }
+  .sidebar-nav ul { display: flex; align-items: center; gap: 4px; width: max-content; min-height: 100%; }
+  .sidebar-nav li { display: flex; flex: 0 0 auto; }
+  .sidebar li.menu-divider { display: none; }
+  .sidebar .sidebar-nav a { min-height: 40px; gap: 7px; padding: 7px 10px; font-size: 11px; white-space: nowrap; }
+  .menu-icon { width: 15px; height: 15px; flex-basis: 15px; }
+  .sidebar-session { width: auto; flex: 0 0 auto; display: flex; align-items: center; margin: 5px 7px 5px 3px; padding: 0; border: 0; background: transparent; box-shadow: none; }
+  .sidebar-session .session-kicker,.sidebar-session strong { display: none; }
+  .sidebar-session .btn-primary { width: auto; min-height: 38px; margin: 0; padding: 0 10px; font-size: 10px; }
+  .layout > .content { min-width: 0; min-height: 0; flex: 1 1 auto; overflow: hidden; }
+  .iframe-content { min-width: 0; min-height: 0; }
+}
+
+@media (max-width: 380px) {
+  .main-topbar.topbar { padding-inline: 7px; }
+  .main-topbar .logo { width: 108px; flex-basis: 108px; margin-right: 8px; }
+  .main-topbar::before { left: 116px; }
+  .main-topbar .brand-logo { width: 102px; }
+  .main-topbar .topbar-right { gap: 5px; }
+  .main-topbar #hora { font-size: 15px; }
+  .main-topbar #data { font-size: 8px; }
+  .sidebar-session .btn-primary { padding-inline: 7px; font-size: 9px; }
+}

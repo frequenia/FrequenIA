@@ -96,10 +96,52 @@ async function atualizarStatus() {
 
 function atualizarTextoStatus() {
   const button = document.getElementById("btnStatus");
-  button.textContent = button.dataset.status === "ativo" ? "Desativar vínculo" : "Reativar vínculo";
+  const ativo = button.dataset.status === "ativo";
+  button.textContent = ativo ? "Desativar vínculo" : "Reativar vínculo";
+  button.classList.toggle("btn-danger-soft", ativo);
+  button.classList.toggle("btn-success-soft", !ativo);
+}
+
+async function carregarResumoJornada() {
+  const container = document.getElementById("resumoJornadaFuncionario");
+  if (!container) return;
+  const formatarData = (valor) => valor
+    ? new Date(`${valor}T00:00:00`).toLocaleDateString("pt-BR")
+    : "Sem data final";
+  const dias = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+  try {
+    const response = await fetch(`/api/admin/funcionarios/${encodeURIComponent(funcionarioId)}/jornada`);
+    if (!response.ok) throw new Error("Consulta indisponível");
+    const {jornada} = await response.json();
+    container.replaceChildren();
+    if (!jornada) {
+      container.textContent = "Nenhuma jornada atribuída para hoje.";
+      return;
+    }
+    if (jornada.folga) {
+      container.textContent = "Folga programada para hoje.";
+      return;
+    }
+    const title = document.createElement("strong");
+    title.textContent = jornada.turno?.nome || "Jornada vigente";
+    const validity = document.createElement("p");
+    validity.textContent = `Vigência: ${formatarData(jornada.vigencia?.inicio)} a ${formatarData(jornada.vigencia?.fim)}`;
+    const periods = document.createElement("ul");
+    (jornada.periodos || []).forEach((period) => {
+      const item = document.createElement("li");
+      const weekday = dias[Number(period.dia_semana)] || "Dia";
+      const nextDay = Number(period.fim_dia_offset) === 1 ? " (+1 dia)" : "";
+      item.textContent = `${weekday} · ${period.inicio}–${period.fim}${nextDay}`;
+      periods.appendChild(item);
+    });
+    container.append(title, validity, periods);
+  } catch (_error) {
+    container.textContent = "Não foi possível carregar a jornada agora.";
+  }
 }
 
 empresa.addEventListener("change", () => carregarEstrutura(empresa.value));
 unidade.addEventListener("change", () => carregarEquipes(empresa.value, unidade.value));
 carregarEmpresas();
 atualizarTextoStatus();
+carregarResumoJornada();

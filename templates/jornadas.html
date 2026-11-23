@@ -4,52 +4,30 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Jornadas — FrequenIA</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css', v='dark-palette-2026-11') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ocorrencias.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/jornadas.css') }}">
 </head>
 <body data-perfil="{{ perfil }}">
-  <main class="jornadas-page">
-    <div class="page-heading">
+  <main class="occurrences-page jornadas-page">
+    <header class="page-header">
       <div>
-        <h1>Jornadas e turnos</h1>
-        <p>Defina períodos de trabalho e atribua vigências aos funcionários.</p>
+        <span class="eyebrow">PONTO / CONFIGURAÇÃO</span>
+        <h1>Jornadas</h1>
+        <p>Atribua turnos, configure exceções e acompanhe o histórico por funcionário.</p>
       </div>
-      <button type="button" id="novoTurno" class="btn-primary">Novo turno</button>
-    </div>
+      <div class="header-actions"><div class="header-badge"><strong id="turnosAtivos">0</strong><span>turnos ativos</span></div><button type="button" id="novoTurno" class="btn-primary">Novo turno</button></div>
+    </header>
 
     <div id="mensagem" class="mensagem" role="status" aria-live="polite" hidden></div>
 
-    <section class="card" aria-labelledby="tituloTurnos">
-      <div class="section-heading">
-        <h2 id="tituloTurnos">Turnos cadastrados</h2>
-        <button type="button" id="recarregarTurnos" class="btn-secondary btn-sm">Atualizar lista</button>
-      </div>
-      <div class="table-wrapper">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Status</th>
-              <th>Timezone</th>
-              <th>Períodos</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody id="tabelaTurnos">
-            <tr><td colspan="5" class="empty-state">Carregando turnos...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
 
-    <section id="editorTurno" class="card" aria-labelledby="tituloEditor" hidden>
+
+    <section id="editorTurno" class="filter-card journey-card" aria-labelledby="tituloEditor" hidden>
       <div class="section-heading">
-        <h2 id="tituloEditor">Novo turno</h2>
+        <div><span class="section-kicker">CONFIGURAÇÃO</span><h2 id="tituloEditor">Novo turno</h2></div>
         <button type="button" id="cancelarEdicao" class="btn-ghost btn-sm">Cancelar</button>
       </div>
 
@@ -88,17 +66,18 @@
       </form>
     </section>
 
-    <section class="card" aria-labelledby="tituloAtribuicao">
-      <h2 id="tituloAtribuicao">Atribuição de jornada</h2>
+    <div class="journey-forms-grid">
+    <section class="filter-card journey-card assignment-card" aria-labelledby="tituloAtribuicao">
+      <div class="section-heading"><div><span class="section-kicker">VIGÊNCIA</span><h2 id="tituloAtribuicao">Atribuição de jornada</h2><p class="helper-text">Defina o turno vigente de um funcionário e o período de validade.</p></div></div>
       <form id="formAtribuicao">
         <div class="form-grid atribuicao-grid">
-          <div class="campo campo-amplo">
+          <div class="campo">
             <label for="funcionario">Funcionário</label>
             <select id="funcionario" required data-busca-funcionario>
               <option value="">Selecione um funcionário</option>
             </select>
           </div>
-          <div class="campo campo-amplo">
+          <div class="campo">
             <label for="turnoAtribuicao">Turno ativo</label>
             <select id="turnoAtribuicao" required>
               <option value="">Selecione um turno</option>
@@ -113,45 +92,52 @@
             <input type="date" id="vigenciaFim">
           </div>
         </div>
-        <div class="acoes alinhada-esquerda">
+        <div class="journey-form-footer">
+          <p>Escolher um funcionário aqui não altera dados. A jornada só muda ao clicar em “Atribuir turno”.</p>
           <button type="submit" id="atribuirTurno" class="btn-primary">Atribuir turno</button>
         </div>
       </form>
     </section>
 
-    <section class="card" aria-labelledby="tituloEscalaDiaria">
-      <h2 id="tituloEscalaDiaria">Escala ou folga por data</h2>
-      <p>Uma exceção ativa tem prioridade sobre o turno vigente e preserva o histórico.</p>
+    <section class="filter-card journey-card exception-card" aria-labelledby="tituloEscalaDiaria">
+      <div class="section-heading"><div><span class="section-kicker">EXCEÇÃO DE CALENDÁRIO</span><h2 id="tituloEscalaDiaria">Escala ou folga por data</h2><p class="helper-text">Crie uma exceção para um dia específico sem alterar o turno vigente.</p></div></div>
       <form id="formEscalaDiaria">
         <div class="form-grid">
+          <div class="campo"><label for="funcionarioEscala">Funcionário</label><select id="funcionarioEscala" required data-busca-funcionario><option value="">Selecione um funcionário</option></select></div>
           <div class="campo"><label for="dataEscala">Data</label><input type="date" id="dataEscala" required></div>
           <div class="campo"><label for="tipoEscala">Regra</label><select id="tipoEscala"><option value="turno">Turno diferente</option><option value="folga">Folga</option></select></div>
           <div class="campo"><label for="origemEscala">Origem</label><select id="origemEscala"><option value="escala">Escala</option><option value="troca">Troca</option><option value="ajuste">Ajuste</option></select></div>
-          <div class="campo"><label for="turnoEscala">Turno</label><select id="turnoEscala"><option value="">Selecione um turno</option></select></div>
+          <div class="campo campo-amplo"><label for="turnoEscala">Turno aplicado</label><select id="turnoEscala"><option value="">Selecione um turno</option></select></div>
           <div class="campo campo-amplo"><label for="justificativaEscala">Justificativa</label><input id="justificativaEscala" maxlength="500" required></div>
         </div>
-        <div class="acoes alinhada-esquerda"><button type="submit" id="salvarEscala" class="btn-primary">Salvar exceção</button></div>
+        <div class="exception-callout"><span aria-hidden="true">!</span><p><strong>Exceção prioritária</strong><br>Esta configuração prevalece sobre o turno vigente e preserva o histórico.</p></div>
+        <div class="journey-form-footer">
+          <p>Use para folgas, trocas e escalas especiais.</p>
+          <button type="submit" id="salvarEscala" class="btn-primary">Salvar exceção</button>
+        </div>
       </form>
-      <div id="historicoEscalas" class="empty-state">Selecione um funcionário.</div>
+      <div id="historicoEscalas" class="journey-note empty-state">Selecione um funcionário.</div>
     </section>
 
+    </div>
+
     <section class="details-grid">
-      <article class="card" aria-labelledby="tituloJornadaAtual">
-        <div class="section-heading jornada-heading">
-          <h2 id="tituloJornadaAtual">Jornada na data</h2>
-          <div class="date-query">
-            <label for="dataConsulta">Data</label>
-            <input type="date" id="dataConsulta">
+      <article class="table-card journey-card" aria-labelledby="tituloJornadaAtual">
+        <div class="table-heading jornada-heading">
+          <div><span class="section-kicker">CONSULTA</span><h2 id="tituloJornadaAtual">Jornada na data</h2></div>
+          <div class="journey-query-controls">
+            <div class="campo"><label for="funcionarioConsulta">Funcionário</label><select id="funcionarioConsulta" required data-busca-funcionario><option value="">Buscar por nome ou matrícula</option></select></div>
+            <div class="campo"><label for="dataConsulta">Data</label><input type="date" id="dataConsulta"></div>
             <button type="button" id="consultarJornada" class="btn-secondary btn-sm">Consultar</button>
           </div>
         </div>
         <div id="jornadaAtual" class="empty-state">Selecione um funcionário.</div>
       </article>
 
-      <article class="card" aria-labelledby="tituloHistorico">
-        <h2 id="tituloHistorico">Histórico de atribuições</h2>
-        <div class="table-wrapper">
-          <table class="table history-table">
+      <article class="table-card journey-card" aria-labelledby="tituloHistorico">
+        <div class="table-heading"><div><span class="section-kicker">AUDITORIA</span><h2 id="tituloHistorico">Histórico de atribuições</h2><p>Vigências anteriores e atuais deste funcionário.</p></div></div>
+        <div class="table-scroll">
+          <table class="journey-table history-table">
             <thead>
               <tr><th>Turno</th><th>Início</th><th>Fim</th><th>Vigência</th></tr>
             </thead>
@@ -161,6 +147,28 @@
           </table>
         </div>
       </article>
+    </section>
+    <section class="table-card journey-card turnos-catalog-card" aria-labelledby="tituloTurnos">
+      <div class="table-heading">
+        <div><span class="section-kicker">HORÁRIOS DISPONÍVEIS</span><h2 id="tituloTurnos">Turnos cadastrados</h2><p>Modelos de jornada e períodos definidos para cada dia.</p></div>
+        <button type="button" id="recarregarTurnos" class="btn-secondary btn-sm">Atualizar lista</button>
+      </div>
+      <div class="table-scroll">
+        <table class="journey-table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Status</th>
+              <th>Timezone</th>
+              <th>Períodos</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaTurnos">
+            <tr><td colspan="5" class="empty-state">Carregando turnos...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </section>
   </main>
 
