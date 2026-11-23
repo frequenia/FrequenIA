@@ -1,7 +1,9 @@
 # Publicação de perfil, terminal, comprovante e permissões
 
-Preparação local em 23/11/2026. Migration e APK concluídos nas etapas abaixo;
-ativação da imagem corrigida no servidor ainda em andamento.
+Publicação concluída em 23/11/2026: migration 027, APK 1.0.3+4 e imagem
+corrigida ativos nas verificações abaixo. Testes pessoais no aparelho e de
+upload da foto ficam a cargo da operadora; não foram usados dados reais pelo
+assistente nos testes.
 
 Imagem `frequenia:pilot-profile-20261123`, ARM64, baseada na imagem publicada
 `frequenia:pilot-web-release-20261122`. Dockerfile explícito com 14 arquivos,
@@ -101,3 +103,35 @@ Não trocar o ponteiro final antes de confirmar conclusão e metadados S3.
 Operadora autorizou envio final, troca condicional e recarga do serviço.
 Posteriormente pediu explicitamente deixar o sistema ligado após atualizar;
 manter sessão controlada vigente e informar seu prazo, fechando a sessão SSM.
+
+## Resultado final no piloto
+
+Envio retomável completou 28/28 partes. Head-object confirmou tamanho,
+metadado SHA-256 e AES256. Troca final do ponteiro usou If-Match do ETag
+`9b68f55d122042e68b84e109c8112317` e releitura exata do valor novo;
+ETag final `eed3edf19d15561c80bc4dfa00e0abdf`.
+
+Chave ativa:
+`runtime/frequenia-arm64-ae2c7b7d52215d882ec48ff6a26d5aa89648970a927840d625abdf5cd361bd65.tar.gz`.
+Recarga do serviço existente concluída, sem nova stack/recurso ou mudança
+de Supabase. Config efetivo no container:
+`sha256:69862cb56cadd4539e630a3222092a47f6274e5fee7a246307621f3d8c6f8e98`.
+
+- Hashes internos: 14/14; assets públicos alterados: 3/3.
+- HTTPS `/health=200`, `/ready=200`, `/api/perfil/foto=401` sem autenticação.
+- Serviço frequenia active; app, worker, dispatcher e Caddy ativos; ClamAV healthy.
+- Consulta sanitizada no runtime: database=1, project_match=1, tls=1,
+  verify_full=1, projection=1, rls=1, private=1, runtime_permission=1.
+  SELECT 1, catálogos e projeção WHERE FALSE; nenhuma linha pessoal/foto retornada.
+- Indicadores dos últimos cinco minutos do app: Traceback=0, ERROR=0,
+  IntegrityError=0 e OperationalError=0; nenhum log bruto anexado.
+- Sessão SSM encerrada. Controlador confirmou EC2 `i-0b05…912f8` running,
+  cost_lock=false, used_seconds=108676/144000. Prazo automático:
+  **23/11/2026 às 15h31min13s America/Sao_Paulo**. Mantida ligada por pedido
+  explícito posterior da usuária, sem renovação adicional ou alteração do teto.
+
+Rollback preserva o pacote saudável anterior `3d53e146…adad1f80`, seu ponteiro
+e os backups. Não fazer downgrade automático da tabela. Não afirmar teste
+funcional real de foto, comprovante ou terminal somente a partir destas
+checagens técnicas. Nenhuma política biométrica, limiar ou autorização facial
+foi alterada por esta publicação.
