@@ -2,7 +2,11 @@
 param(
     [string]$KeystorePath = '.secrets/android/frequenia-pilot-release.jks',
     [string]$Alias = 'frequenia-pilot-release',
-    [string]$BaseUrl = 'https://frequenia.duckdns.org'
+    [string]$BaseUrl = 'https://frequenia.duckdns.org',
+    [ValidatePattern('^\d+\.\d+\.\d+$')]
+    [string]$BuildName = '1.0.2',
+    [ValidateRange(1, 2100000000)]
+    [int]$BuildNumber = 3
 )
 
 $ErrorActionPreference = 'Stop'
@@ -28,9 +32,22 @@ $env:FREQUENIA_ANDROID_KEY_ALIAS = $Alias
 $env:FREQUENIA_ANDROID_STORE_PASSWORD = $password
 $env:FREQUENIA_ANDROID_KEY_PASSWORD = $password
 try {
+    $javaCommand = Get-Command java -ErrorAction Stop
+    $keytool = Join-Path (Split-Path -Parent $javaCommand.Source) 'keytool.exe'
+    if (-not (Test-Path -LiteralPath $keytool -PathType Leaf)) {
+        throw 'Keytool nao encontrado para validar a chave antes do build.'
+    }
+    # A senha fica somente no ambiente temporario; nunca na linha de comando.
+    & $keytool -list -keystore $absolutePath -alias $Alias `
+        -storepass:env FREQUENIA_ANDROID_STORE_PASSWORD 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Senha ou alias da chave release recusado. Build nao iniciado; confira a senha guardada.'
+    }
+    Write-Host 'Chave release validada; iniciando build.'
     Push-Location mobile
     try {
         & flutter build apk --release `
+            --build-name=$BuildName --build-number=$BuildNumber `
             --dart-define=APP_ENV=production `
             --dart-define="BASE_URL=$BaseUrl"
         if ($LASTEXITCODE -ne 0) { throw 'Build release do APK falhou.' }
@@ -49,7 +66,7 @@ try {
     } finally {
         $stream.Dispose()
     }
-    Write-Output "release_apk_created=1 version=1.0.1+2 sha256=$hash path=$apk"
+    Write-Output "release_apk_created=1 version=$BuildName+$BuildNumber sha256=$hash path=$apk"
 } finally {
     Remove-Item Env:FREQUENIA_ANDROID_KEYSTORE_PATH -ErrorAction SilentlyContinue
     Remove-Item Env:FREQUENIA_ANDROID_KEY_ALIAS -ErrorAction SilentlyContinue

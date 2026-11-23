@@ -4,7 +4,7 @@ let appliedExtra = {};
 let availableReasons = [];
 let attachmentPreviewObjectUrl = null;
 const labels = {esquecimento_marcacao:"Esquecimento de marcação",horario_incorreto:"Horário incorreto",tipo_incorreto:"Tipo incorreto",justificativa:"Justificativa",outro:"Outro"};
-const statusLabels = {pendente_gestor:"Pendente com gestor",solicitada:"Pendente com gestor",em_analise_gestor:"Pendente com gestor",encaminhada_rh:"Em análise pelo RH",em_analise_rh:"Em análise pelo RH",aprovada:"Aprovada",rejeitada:"Rejeitada",cancelada:"Cancelada"};
+const statusLabels = {pendente_gestor:"Pendente de análise",solicitada:"Pendente de análise",em_analise_gestor:"Pendente de análise",encaminhada_rh:"Em análise pelo RH",em_analise_rh:"Em análise pelo RH",aprovada:"Aprovada",rejeitada:"Rejeitada",cancelada:"Cancelada"};
 
 class ApiError extends Error { constructor(message,status){super(message);this.status=status;} }
 
@@ -217,7 +217,7 @@ function renderRail(rows) {
     .sort((a,b)=>new Date(a.criada_em)-new Date(b.criada_em)).slice(0,3);
   const awaitingManager=rows.filter(item=>["pendente_gestor","solicitada","em_analise_gestor"].includes(item.status)).length;
   operationalTitle.textContent=awaitingManager ? `${awaitingManager} ${awaitingManager===1?"solicitação pendente":"solicitações pendentes"}` : "Nenhuma solicitação pendente";
-  operationalDetail.textContent=awaitingManager ? "Aguardando análise do gestor na consulta atual." : "As solicitações desta consulta estão em análise ou concluídas.";
+  operationalDetail.textContent=awaitingManager ? "Aguardando análise do RH na consulta atual." : "As solicitações desta consulta estão em análise ou concluídas.";
   if(!pending.length) oldest.textContent="Nenhuma solicitação pendente nesta consulta.";
   pending.forEach(item=>{
     const button=document.createElement("button");

@@ -1,1 +1,5 @@
 *.pdf binary
+infra/aws/scripts/rehearse-current-profile-027-operator.sh text eol=lf
+infra/aws/scripts/apply-current-profile-027-operator.sh text eol=lf
+infra/aws/scripts/backup-rehearse-profile-027-operator.sh text eol=lf
+supabase/migrations/027_profile_photos.sql text eol=lf

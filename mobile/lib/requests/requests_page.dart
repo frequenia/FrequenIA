@@ -100,6 +100,7 @@ class _RequestsPageState extends State<RequestsPage> {
         '/api/ocorrencias/$correctionId/comprovante',
         fieldName: 'comprovante',
         filePath: file.path!,
+        fileName: file.name,
         method: 'PUT',
         mimeType: _attachmentMime(file.name),
       );
@@ -138,10 +139,11 @@ class _RequestsPageState extends State<RequestsPage> {
     }
     if (!mounted) return;
     final key = GlobalKey<FormState>();
-    final reason = TextEditingController(),
-        requestedTime = TextEditingController(text: '08:00');
+    String reason = '', requestedTime = '08:00';
     String category = 'esquecimento_marcacao', markingType = 'entrada';
     String? markingId;
+    String? submitError;
+    bool submitting = false;
     PlatformFile? attachment;
     DateTime day = DateTime.now();
     final created = await showModalBottomSheet<bool>(
@@ -194,6 +196,7 @@ class _RequestsPageState extends State<RequestsPage> {
                       category == 'tipo_incorreto') ...[
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
+                      key: const ValueKey('request-original-mark'),
                       decoration: const InputDecoration(
                         labelText: 'Marcação original',
                       ),
@@ -233,7 +236,9 @@ class _RequestsPageState extends State<RequestsPage> {
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
-                      controller: requestedTime,
+                      key: const ValueKey('request-time'),
+                      initialValue: requestedTime,
+                      onChanged: (value) => requestedTime = value,
                       decoration: const InputDecoration(
                         labelText: 'Horário (HH:mm)',
                       ),
@@ -248,6 +253,7 @@ class _RequestsPageState extends State<RequestsPage> {
                       category == 'tipo_incorreto') ...[
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
+                      key: const ValueKey('request-marking-type'),
                       initialValue: markingType,
                       decoration: const InputDecoration(
                         labelText: 'Tipo da marcação',
@@ -271,7 +277,9 @@ class _RequestsPageState extends State<RequestsPage> {
                   ],
                   const SizedBox(height: 12),
                   TextFormField(
-                    controller: reason,
+                    key: const ValueKey('request-reason'),
+                    initialValue: reason,
+                    onChanged: (value) => reason = value,
                     minLines: 3,
                     maxLines: 5,
                     decoration: const InputDecoration(labelText: 'Motivo'),
@@ -312,67 +320,99 @@ class _RequestsPageState extends State<RequestsPage> {
                       child: const Text('Remover arquivo selecionado'),
                     ),
                   const SizedBox(height: 18),
+                  if (submitError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          submitError!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ),
+                    ),
                   FilledButton(
-                    onPressed: () async {
-                      if (!key.currentState!.validate()) return;
-                      final body = <String, dynamic>{
-                        'tipo': category,
-                        'motivo': reason.text.trim(),
-                      };
-                      if (category == 'esquecimento_marcacao') {
-                        final parts = requestedTime.text.split(':');
-                        body['instante_solicitado'] = _withOffset(
-                          DateTime(
-                            day.year,
-                            day.month,
-                            day.day,
-                            int.parse(parts[0]),
-                            int.parse(parts[1]),
-                          ),
-                        );
-                        body['tipo_marcacao_solicitado'] = markingType;
-                      } else if (category == 'horario_incorreto') {
-                        final parts = requestedTime.text.split(':');
-                        body['marcacao_id'] = markingId;
-                        body['instante_solicitado'] = _withOffset(
-                          DateTime(
-                            day.year,
-                            day.month,
-                            day.day,
-                            int.parse(parts[0]),
-                            int.parse(parts[1]),
-                          ),
-                        );
-                      } else if (category == 'tipo_incorreto') {
-                        body['marcacao_id'] = markingId;
-                        body['tipo_marcacao_solicitado'] = markingType;
-                      }
-                      try {
-                        if (attachment == null) {
-                          await widget.api.post('/api/ocorrencias', body);
-                        } else {
-                          await widget.api.postMultipart(
-                            '/api/ocorrencias',
-                            fieldName: 'comprovante',
-                            filePath: attachment!.path!,
-                            fields: body.map(
-                              (key, value) => MapEntry(key, value.toString()),
-                            ),
-                            mimeType: _attachmentMime(attachment!.name),
-                          );
-                        }
-                        if (context.mounted) {
-                          Navigator.pop(context, true);
-                        }
-                      } on ApiException catch (error) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(error.message)),
-                          );
-                        }
-                      }
-                    },
-                    child: const Text('Enviar solicitação'),
+                    onPressed: submitting
+                        ? null
+                        : () async {
+                            if (submitting) return;
+                            if (!key.currentState!.validate()) return;
+                            update(() {
+                              submitting = true;
+                              submitError = null;
+                            });
+                            try {
+                              final body = <String, dynamic>{
+                                'tipo': category,
+                                'motivo': reason.trim(),
+                              };
+                              if (category == 'esquecimento_marcacao') {
+                                final parts = requestedTime.split(':');
+                                body['instante_solicitado'] = _withOffset(
+                                  DateTime(
+                                    day.year,
+                                    day.month,
+                                    day.day,
+                                    int.parse(parts[0]),
+                                    int.parse(parts[1]),
+                                  ),
+                                );
+                                body['tipo_marcacao_solicitado'] = markingType;
+                              } else if (category == 'horario_incorreto') {
+                                final parts = requestedTime.split(':');
+                                body['marcacao_id'] = markingId;
+                                body['instante_solicitado'] = _withOffset(
+                                  DateTime(
+                                    day.year,
+                                    day.month,
+                                    day.day,
+                                    int.parse(parts[0]),
+                                    int.parse(parts[1]),
+                                  ),
+                                );
+                              } else if (category == 'tipo_incorreto') {
+                                body['marcacao_id'] = markingId;
+                                body['tipo_marcacao_solicitado'] = markingType;
+                              }
+                              if (attachment == null) {
+                                await widget.api.post('/api/ocorrencias', body);
+                              } else {
+                                await widget.api.postMultipart(
+                                  '/api/ocorrencias',
+                                  fieldName: 'comprovante',
+                                  filePath: attachment!.path!,
+                                  fileName: attachment!.name,
+                                  fields: body.map(
+                                    (key, value) =>
+                                        MapEntry(key, value.toString()),
+                                  ),
+                                  mimeType: _attachmentMime(attachment!.name),
+                                );
+                              }
+                              if (context.mounted) {
+                                Navigator.pop(context, true);
+                              }
+                            } on ApiException catch (error) {
+                              if (context.mounted) {
+                                update(() => submitError = error.message);
+                              }
+                            } catch (_) {
+                              if (context.mounted) {
+                                update(
+                                  () => submitError = 'Não foi possível confirmar o envio. Consulte o histórico antes de tentar novamente.',
+                                );
+                              }
+                            } finally {
+                              if (context.mounted) {
+                                update(() => submitting = false);
+                              }
+                            }
+                          },
+                    child: Text(
+                      submitting ? 'Enviando…' : 'Enviar solicitação',
+                    ),
                   ),
                 ],
               ),
@@ -381,8 +421,6 @@ class _RequestsPageState extends State<RequestsPage> {
         ),
       ),
     );
-    reason.dispose();
-    requestedTime.dispose();
     if (created == true) load();
   }
 

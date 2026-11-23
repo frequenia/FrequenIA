@@ -898,7 +898,7 @@ def _decision_payload(require_observation=False):
 
 
 @occurrences_bp.post("/api/gestao/ocorrencias/<correction_id>/aprovar")
-@require_roles(*MANAGEMENT_ROLES)
+@require_roles("administrador", "rh")
 def approve_occurrence(correction_id):
     try:
         observation = _decision_payload()
@@ -908,7 +908,7 @@ def approve_occurrence(correction_id):
 
 
 @occurrences_bp.post("/api/gestao/ocorrencias/<correction_id>/rejeitar")
-@require_roles(*MANAGEMENT_ROLES)
+@require_roles("administrador", "rh")
 def reject_occurrence(correction_id):
     try:
         observation = _decision_payload(True)

@@ -12,7 +12,7 @@ String markingLabel(String? value) =>
 
 String statusLabel(String? value) =>
     const {
-      'pendente_gestor': 'Pendente com gestor',
+      'pendente_gestor': 'Pendente de análise',
       'encaminhada_rh': 'Encaminhada ao RH',
       'aprovada': 'Aprovada',
       'rejeitada': 'Rejeitada',

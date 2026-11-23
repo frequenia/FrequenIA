@@ -43,7 +43,7 @@ from services.biometric_governance import (
     resolve_verification_material,
 )
 from utils.auth_decorator import require_roles
-from utils.terminal_auth import terminal_required
+from utils.terminal_auth import terminal_required, terminal_browser_id, remember_terminal, forget_terminal
 
 LOGGER = logging.getLogger(__name__)
 kiosk_bp = Blueprint("kiosk", __name__)
@@ -187,12 +187,12 @@ def activate_terminal():
     session.clear()
     session.permanent = True
     session["terminal_ponto_id"] = str(terminal[0])
-    return _no_store(current_app.make_response(("", 204)))
+    return remember_terminal(_no_store(current_app.make_response(("", 204))), terminal[0])
 
 
 @kiosk_bp.get("/quiosque/ativar")
 def activation_page():
-    terminal_id = session.get("terminal_ponto_id")
+    terminal_id = terminal_browser_id()
     if terminal_id:
         try:
             terminal_id = str(UUID(str(terminal_id)))
@@ -208,11 +208,11 @@ def activation_page():
                         (terminal_id,),
                     )
                     if cursor.fetchone():
-                        return redirect(url_for("kiosk.kiosk_page"))
+                        return remember_terminal(redirect(url_for("kiosk.kiosk_page")), terminal_id)
             finally:
                 connection.close()
             session.pop("terminal_ponto_id", None)
-    return _no_store(current_app.make_response(render_template("ativarTerminal.html")))
+    return forget_terminal(_no_store(current_app.make_response(render_template("ativarTerminal.html"))))
 
 
 @kiosk_bp.get("/quiosque/ponto")

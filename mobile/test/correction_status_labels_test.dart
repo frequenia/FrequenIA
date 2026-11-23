@@ -3,7 +3,7 @@ import 'package:mobile/core/widgets.dart';
 
 void main() {
   test('exibe todos os estados oficiais do workflow de correcoes', () {
-    expect(statusLabel('pendente_gestor'), 'Pendente com gestor');
+    expect(statusLabel('pendente_gestor'), 'Pendente de análise');
     expect(statusLabel('encaminhada_rh'), 'Encaminhada ao RH');
     expect(statusLabel('aprovada'), 'Aprovada');
     expect(statusLabel('rejeitada'), 'Rejeitada');

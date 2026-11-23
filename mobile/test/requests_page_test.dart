@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +16,92 @@ void main() {
         status,
         headers: {'content-type': 'application/json'},
       );
+
+  for (final rejected in [false, true]) {
+    testWidgets(
+      'tipo incorreto mostra envio e resultado (rejeitada=$rejected)',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(1000, 1400));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final response = Completer<http.Response>();
+        final posts = <Map<String, dynamic>>[];
+        final api = ApiClient(
+          baseUrl: baseUrl,
+          client: MockClient((request) async {
+            if (request.url.path == '/api/marcacoes') {
+              return json({
+                'marcacoes': [
+                  {
+                    'id': 'synthetic-mark',
+                    'tipo': 'saida',
+                    'instante': '2026-11-16T15:00:00Z',
+                  },
+                ],
+              });
+            }
+            if (request.method == 'POST') {
+              posts.add(jsonDecode(request.body) as Map<String, dynamic>);
+              return response.future;
+            }
+            return json({'ocorrencias': []});
+          }),
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: RequestsPage(api: api)),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Nova solicitação'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(DropdownButtonFormField<String>).first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Tipo incorreto').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('request-original-mark')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.textContaining('Saída ·').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('request-marking-type')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Saída para intervalo').last);
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const ValueKey('request-reason')),
+          'Correção sintética de teste',
+        );
+        await tester.tap(find.text('Enviar solicitação'));
+        await tester.pump();
+        expect(find.text('Enviando…'), findsOneWidget);
+        expect(posts, hasLength(1));
+        expect(posts.single, {
+          'tipo': 'tipo_incorreto',
+          'motivo': 'Correção sintética de teste',
+          'marcacao_id': 'synthetic-mark',
+          'tipo_marcacao_solicitado': 'saida_intervalo',
+        });
+        final button = tester.widget<FilledButton>(
+          find.widgetWithText(FilledButton, 'Enviando…'),
+        );
+        expect(button.onPressed, isNull);
+        response.complete(
+          rejected
+              ? json({'erro': 'Correção já solicitada.'}, 409)
+              : json({
+                  'ocorrencia': {'id': 'synthetic-request'},
+                }, 201),
+        );
+        await tester.pumpAndSettle();
+        if (rejected) {
+          expect(find.text('Correção já solicitada.'), findsOneWidget);
+          expect(find.text('Enviar solicitação'), findsOneWidget);
+        } else {
+          expect(find.text('Nova solicitação'), findsNothing);
+        }
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   testWidgets('lista somente o contrato oficial de ocorrências', (
     tester,

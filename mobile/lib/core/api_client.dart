@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 // Disponibilizado transitivamente por package:http; o hotfix nao adiciona pacotes.
@@ -118,6 +119,7 @@ class ApiClient {
     String path, {
     required String fieldName,
     required String filePath,
+    String? fileName,
     String method = 'POST',
     Map<String, String> fields = const {},
     String? mimeType,
@@ -126,6 +128,7 @@ class ApiClient {
       path,
       fieldName: fieldName,
       filePath: filePath,
+      fileName: fileName,
       method: method,
       fields: fields,
       mimeType: mimeType,
@@ -137,6 +140,7 @@ class ApiClient {
         path,
         fieldName: fieldName,
         filePath: filePath,
+        fileName: fileName,
         method: method,
         fields: fields,
         mimeType: mimeType,
@@ -252,6 +256,7 @@ class ApiClient {
     String path, {
     required String fieldName,
     required String filePath,
+    String? fileName,
     required String method,
     required Map<String, String> fields,
     String? mimeType,
@@ -265,15 +270,15 @@ class ApiClient {
       request.headers['Authorization'] = 'Bearer $accessToken';
     }
     request.fields.addAll(fields);
-    request.files.add(
-      await http.MultipartFile.fromPath(
-        fieldName,
-        filePath,
-        contentType: MediaType(mimeParts.first, mimeParts.last),
-      ),
-    );
-
     try {
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          fieldName,
+          filePath,
+          filename: fileName,
+          contentType: MediaType(mimeParts.first, mimeParts.last),
+        ),
+      );
       final streamed = await _client.send(request).timeout(_multipartTimeout);
       return await http.Response.fromStream(streamed)
           .timeout(_multipartTimeout);
@@ -283,6 +288,10 @@ class ApiClient {
       );
     } on http.ClientException {
       throw const ApiException('Não foi possível conectar ao servidor.');
+    } on FileSystemException {
+      throw const ApiException(
+        'Não foi possível ler o comprovante. Selecione o arquivo novamente.',
+      );
     }
   }
 

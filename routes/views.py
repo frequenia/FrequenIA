@@ -2,6 +2,7 @@ from flask import (
     Blueprint,
     app,
     current_app,
+    make_response,
     g,
     render_template,
     redirect,
@@ -1475,9 +1476,14 @@ def perfil():
     if not user:
         return "Perfil não encontrado", 404
 
-    return render_template(
-        "perfil.html", user=user, funcionario_id=g.auth_funcionario_id
-    )
+    if not session.get('profile_photo_csrf'):
+        session['profile_photo_csrf'] = secrets.token_urlsafe(32)
+    response = make_response(render_template(
+        "perfil.html", user=user, funcionario_id=g.auth_funcionario_id,
+        photo_token=session['profile_photo_csrf']
+    ))
+    response.headers['Cache-Control'] = 'private, no-store'
+    return response
 
 
 # ==================================================================================================

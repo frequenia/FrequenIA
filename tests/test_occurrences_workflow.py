@@ -149,6 +149,20 @@ class RouteTests(unittest.TestCase):
     def auth(self, role="funcionario"):
         return patch("utils.auth_decorator._load_persistent_authentication", return_value=(context(role), None))
 
+    def test_decisions_only_allow_hr_and_company_admin(self):
+        for role in ('gestor','funcionario','administrador_geral'):
+            for action in ('aprovar','rejeitar'):
+                with self.subTest(role=role,action=action), self.auth(role), patch('routes.occurrences._transition') as transition:
+                    response=self.client.post(f'/api/gestao/ocorrencias/{CORRECTION}/{action}',json={'observacao':'Conferido'})
+                    self.assertEqual(response.status_code,403)
+                    transition.assert_not_called()
+        for role in ('rh','administrador'):
+            for action in ('aprovar','rejeitar'):
+                with self.subTest(role=role,action=action), self.auth(role), patch('routes.occurrences._transition',return_value=({'status':'concluida'},200)) as transition:
+                    response=self.client.post(f'/api/gestao/ocorrencias/{CORRECTION}/{action}',json={'observacao':'Conferido'})
+                    self.assertEqual(response.status_code,200)
+                    transition.assert_called_once()
+
     def test_creation_failure_logs_only_stage_and_sqlstate(self):
         class DatabaseFailure(Exception):
             pgcode = "42501"
@@ -269,7 +283,7 @@ class TransitionAndEffectiveViewTests(unittest.TestCase):
         cursor = Cursor(one=[original, {"id": MARKING}, updated])
         connection = Connection(cursor)
         with self.app.test_request_context(), patch("routes.occurrences.conectar_bd", return_value=connection):
-            g.auth_context = context("gestor")
+            g.auth_context = context("rh")
             body, status = _transition(CORRECTION, "aprovada", "Aprovado")
         self.assertEqual(status, 200)
         self.assertEqual(body["status"], "aprovada")

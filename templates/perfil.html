@@ -13,12 +13,14 @@
   <!-- CSS Global (SEMPRE PRIMEIRO) -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
   <!-- CSS Específico -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/perfil.css') }}">
+
 
   <!--Dark-mode-->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css', v='dark-palette-2026-11') }}">
 
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/perfil.css', v='profile-20261123') }}">
+  <meta name="profile-photo-token" content="{{ photo_token }}">
 </head>
 
 <body>
@@ -30,38 +32,52 @@
     'rh': 'RH'
   } %}
 
-  <div class="perfil-page">
-
-    <!-- DADOS PESSOAIS -->
-    <section class="card">
-      <h3>Dados Pessoais</h3>
-
+  <main class="perfil-page">
+    <header class="profile-heading"><span class="profile-eyebrow">MINHA CONTA</span><h1>Meu perfil</h1><p>Seus dados e sua jornada, em um só lugar.</p></header>
+    <div class="profile-sheet">
+    <section class="profile-hero" aria-labelledby="profile-name">
+      <div class="profile-avatar-control">
+      <button class="profile-avatar-button" id="photo-choose" type="button" aria-label="Adicionar foto de perfil" aria-describedby="photo-help">
+      <span class="profile-avatar" id="profile-avatar" aria-busy="true">
+        <span id="avatar-placeholder" aria-hidden="true"><svg viewBox="0 0 80 80" fill="none"><circle cx="40" cy="29" r="12" fill="currentColor" opacity=".85"/><path d="M16 65c0-13 10.7-22 24-22s24 9 24 22" fill="currentColor" opacity=".65"/></svg></span>
+        <img id="profile-photo" alt="" hidden>
+      </span>
+      <span class="profile-camera" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6l1.5-2h5L16 6h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
+      </button>
+      <button class="profile-remove" id="photo-remove" type="button" hidden>Remover foto</button>
+      <input id="photo-file" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+      </div>
+      <div class="profile-identity"><span class="profile-eyebrow">BEM-VINDO AO SEU ESPAÇO</span><h2 id="profile-name">{{ user.nome }}</h2><p>{{ perfil_labels.get(user.perfil, user.perfil) }}</p><span class="profile-badge">Conta {{ {'ativo':'ativa', 'inativo':'inativa', 'bloqueado':'bloqueada'}.get(user.usuario_status, user.usuario_status) }}</span></div>
+    </section>
+    <p class="profile-photo-message" id="photo-message" role="status" aria-live="polite"></p>
+    <p class="profile-photo-note" id="photo-help">Clique ou toque no avatar para adicionar ou trocar a foto. JPG, PNG ou WebP · até 5 MB. A foto não é usada no reconhecimento facial do ponto.</p>
+    <div class="profile-content">
+    <section class="card profile-personal">
+      <div class="profile-section-title"><span class="profile-section-icon" aria-hidden="true">01</span><div><h3>Dados pessoais</h3><p>Informações vinculadas à sua conta.</p></div></div>
       <div class="dados-pessoais">
-        <div class="foto">Foto</div>
-
         <div class="campos">
           <div class="campo">
-            <label>Nome</label>
+            <label for="nome">Nome</label>
             <input type="text" id="nome" value="{{ user.nome }}" readonly>
           </div>
 
           <div class="campo">
-            <label>Email</label>
+            <label for="email">Email</label>
             <input type="email" id="email" value="{{ user.email or 'Não informado' }}" readonly>
           </div>
 
           <div class="campo">
-            <label>Telefone</label>
+            <label for="telefone">Telefone</label>
             <input type="text" id="telefone" value="{{ user.telefone or 'Não informado' }}" readonly>
           </div>
 
           <div class="campo">
-            <label>CPF</label>
+            <label for="cpf">CPF</label>
             <input type="text" id="cpf" value="{{ user.cpf }}" readonly>
           </div>
 
           <div class="campo">
-            <label>Status da Conta</label>
+            <label for="usuario_status">Status da Conta</label>
             <input type="text" id="usuario_status" value="{{ user.usuario_status|title }}" readonly>
           </div>
         </div>
@@ -70,64 +86,64 @@
 
     <!-- DADOS DO TRABALHADOR -->
     <section class="card">
-      <h3>Dados do Trabalhador</h3>
+      <div class="profile-section-title"><span class="profile-section-icon" aria-hidden="true">02</span><div><h3>Dados profissionais</h3><p>Seu vínculo com a empresa.</p></div></div>
 
       <div class="grid">
         <div class="campo">
-          <label>Empresa</label>
-          <input type="text" id="empresa" value="{{ user.empresa_nome }}" disabled>
+          <label for="empresa">Empresa</label>
+            <input type="text" id="empresa" value="{{ user.empresa_nome }}" readonly>
         </div>
 
         <div class="campo">
-          <label>Unidade</label>
-          <input type="text" id="unidade" value="{{ user.unidade_nome }}" disabled>
+          <label for="unidade">Unidade</label>
+            <input type="text" id="unidade" value="{{ user.unidade_nome }}" readonly>
         </div>
 
         <div class="campo">
-          <label>Equipe</label>
-          <input type="text" id="equipe" value="{{ user.equipe_nome or 'Não definida' }}" disabled>
+          <label for="equipe">Equipe</label>
+            <input type="text" id="equipe" value="{{ user.equipe_nome or 'Não definida' }}" readonly>
         </div>
 
         <div class="campo campo-cargo">
-          <label>Cargo</label>
-          <input type="text" id="cargo" value="{{ user.cargo_nome or 'Não definido' }}" disabled>
+          <label for="cargo">Cargo</label>
+            <input type="text" id="cargo" value="{{ user.cargo_nome or 'Não definido' }}" readonly>
         </div>
 
         <div class="campo">
-          <label>Matrícula</label>
-          <input type="text" id="matricula" value="{{ user.matricula }}" disabled>
+          <label for="matricula">Matrícula</label>
+            <input type="text" id="matricula" value="{{ user.matricula }}" readonly>
         </div>
 
         <div class="campo">
-          <label>Perfil Funcional</label>
-          <input type="text" id="perfil" value="{{ perfil_labels.get(user.perfil, user.perfil) }}" disabled>
+          <label for="perfil">Perfil Funcional</label>
+            <input type="text" id="perfil" value="{{ perfil_labels.get(user.perfil, user.perfil) }}" readonly>
         </div>
 
         <div class="campo">
-          <label>Status do Vínculo</label>
-          <input type="text" id="funcionario_status" value="{{ user.funcionario_status|title }}" disabled>
+          <label for="funcionario_status">Status do Vínculo</label>
+            <input type="text" id="funcionario_status" value="{{ user.funcionario_status|title }}" readonly>
         </div>
 
         <div class="campo">
-          <label>Data de Admissão</label>
-          <input type="text" id="data_admissao" value="{{ user.data_admissao or 'Não definida' }}" disabled>
+          <label for="data_admissao">Data de Admissão</label>
+            <input type="text" id="data_admissao" value="{{ user.data_admissao or 'Não definida' }}" readonly>
         </div>
 
         <div class="campo">
-          <label>Tipo de Contrato</label>
-          <input type="text" id="tipo_contrato" value="{{ (user.tipo_contrato|replace('_', ' ')|title) if user.tipo_contrato else 'Não definido' }}" disabled>
+          <label for="tipo_contrato">Tipo de Contrato</label>
+            <input type="text" id="tipo_contrato" value="{{ (user.tipo_contrato|replace('_', ' ')|title) if user.tipo_contrato else 'Não definido' }}" readonly>
         </div>
 
         <div class="campo">
-          <label>Carga Horária Semanal</label>
-          <input type="text" id="carga_horaria_semanal" value="{{ (user.carga_horaria_semanal ~ ' horas') if user.carga_horaria_semanal is not none else 'Não definida' }}" disabled>
+          <label for="carga_horaria_semanal">Carga Horária Semanal</label>
+            <input type="text" id="carga_horaria_semanal" value="{{ (user.carga_horaria_semanal ~ ' horas') if user.carga_horaria_semanal is not none else 'Não definida' }}" readonly>
         </div>
 
       </div>
     </section>
 
     <section class="card schedule-profile-card" aria-labelledby="tituloMinhaJornada">
-      <h3 id="tituloMinhaJornada">Minha jornada</h3>
+      <div class="profile-section-title"><span class="profile-section-icon" aria-hidden="true">03</span><div><h3 id="tituloMinhaJornada">Minha jornada</h3></div></div>
       <p class="schedule-profile-help">Resumo do turno e dos horários previstos para hoje.</p>
       <div id="resumoJornadaPerfil" class="schedule-profile-summary" role="status" aria-live="polite">Carregando jornada…</div>
       {% if user.perfil == 'funcionario' %}
@@ -138,14 +154,24 @@
     </section>
 
     <section class="card" id="governanca-biometrica" aria-live="polite">
-      <h3>Biometria</h3>
+      <div class="profile-section-title"><span class="profile-section-icon" aria-hidden="true">04</span><div><h3>Biometria e privacidade</h3></div></div>
       <p id="biometria-estado">Consultando estado biométrico…</p>
       <p id="biometria-aviso"></p>
       <p id="biometria-atendimento"></p>
     </section>
 
-  </div>
-
+    </div>
+    <p class="profile-data-note">Precisa corrigir algum dado? Entre em contato com o RH da sua empresa.</p>
+    </div>
+  </main>
+  <dialog id="photo-preview-dialog" aria-labelledby="photo-preview-title">
+    <h2 id="photo-preview-title">Sua nova foto</h2><p>A imagem será centralizada e recortada em um quadrado.</p>
+    <img id="photo-preview" alt="Prévia da foto selecionada">
+    <p id="photo-preview-error" role="alert"></p>
+    <div class="photo-dialog-actions"><button id="photo-cancel" class="btn-secondary" type="button">Cancelar</button><button id="photo-save" class="btn-primary" type="button">Salvar foto</button></div>
+  </dialog>
+  <dialog id="photo-remove-dialog" aria-labelledby="photo-remove-title"><h2 id="photo-remove-title">Remover sua foto?</h2><p>Seu perfil voltará a mostrar o avatar padrão.</p><div class="photo-dialog-actions"><button id="photo-keep" class="btn-secondary" type="button">Manter foto</button><button id="photo-confirm-remove" class="btn-primary" type="button">Remover foto</button></div></dialog>
+  <script src="{{ url_for('static', filename='js/perfil.js', v='profile-20261123') }}" defer></script>
   <script>
     (() => {
       const container = document.getElementById("resumoJornadaPerfil");

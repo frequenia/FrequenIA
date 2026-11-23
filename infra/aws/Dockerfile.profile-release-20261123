@@ -1,0 +1,17 @@
+ARG BASE_IMAGE=frequenia:pilot-web-release-20261122
+FROM ${BASE_IMAGE}
+
+COPY --chown=app:app app.py /app/app.py
+COPY --chown=app:app routes/views.py /app/routes/views.py
+COPY --chown=app:app routes/profile_photo.py /app/routes/profile_photo.py
+COPY --chown=app:app services/profile_photo.py /app/services/profile_photo.py
+COPY --chown=app:app routes/kiosk.py /app/routes/kiosk.py
+COPY --chown=app:app utils/terminal_auth.py /app/utils/terminal_auth.py
+COPY --chown=app:app routes/occurrences.py /app/routes/occurrences.py
+COPY --chown=app:app services/correction_workflow.py /app/services/correction_workflow.py
+COPY --chown=app:app templates/perfil.html /app/templates/perfil.html
+COPY --chown=app:app static/css/perfil.css /app/static/css/perfil.css
+COPY --chown=app:app static/js/perfil.js /app/static/js/perfil.js
+COPY --chown=app:app templates/ativarTerminal.html /app/templates/ativarTerminal.html
+COPY --chown=app:app templates/ocorrencias.html /app/templates/ocorrencias.html
+COPY --chown=app:app static/js/ocorrencias.js /app/static/js/ocorrencias.js

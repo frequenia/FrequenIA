@@ -100,9 +100,9 @@ class WorkflowPolicyTests(unittest.TestCase):
     def test_allowed_transitions_are_role_and_state_specific(self):
         self.assertEqual(
             allowed_actions("gestor", "pendente_gestor"),
-            ["aprovar", "rejeitar", "encaminhar-rh"],
+            ["encaminhar-rh"],
         )
-        self.assertEqual(allowed_actions("rh", "pendente_gestor"), [])
+        self.assertEqual(allowed_actions("rh", "pendente_gestor"), ["aprovar", "rejeitar"])
         self.assertEqual(
             allowed_actions("rh", "encaminhada_rh"), ["aprovar", "rejeitar"]
         )
@@ -134,7 +134,7 @@ class WorkflowPolicyTests(unittest.TestCase):
         self.assertEqual(metadata["empresa_id"], COMPANY)
         self.assertEqual(metadata["funcionario_id"], EMPLOYEE)
 
-    def test_hr_and_admin_only_decide_forwarded_requests(self):
+    def test_hr_and_admin_decide_pending_and_forwarded_requests(self):
         for role in ("rh", "administrador"):
             with self.subTest(role=role):
                 result, connection = run_transition(
@@ -145,17 +145,10 @@ class WorkflowPolicyTests(unittest.TestCase):
                 self.assertNotIn("UPDATE marcacoes", sql)
 
         for role in ("rh", "administrador"):
-            connection = Connection([row("pendente_gestor")])
-            with self.subTest(role=role), self.assertRaises(CorrectionWorkflowError):
-                transition_correction(
-                    lambda: connection,
-                    auth(role),
-                    CORRECTION,
-                    "aprovada",
-                    "Tentativa direta",
-                )
-            self.assertEqual(connection.commits, 0)
-            self.assertEqual(connection.rollbacks, 1)
+            for target in ('aprovada','rejeitada'):
+                result, connection = run_transition(role,'pendente_gestor',target,'Conferido')
+                self.assertEqual(result['estado'],target)
+                self.assertEqual(connection.commits,1)
 
     def test_rejection_and_forward_require_normalized_bounded_observation(self):
         self.assertEqual(normalize_justification("  texto\n  valido ", True), "texto valido")
@@ -184,11 +177,11 @@ class WorkflowPolicyTests(unittest.TestCase):
                     "Justificativa" if target == "rejeitada" else None,
                     own=role == "funcionario",
                 )
-            self.assertEqual(raised.exception.status, 409)
+            self.assertEqual(raised.exception.status, 403 if role == 'gestor' else 409)
 
     def test_rejected_and_cancelled_never_touch_original_or_effective_view(self):
         for target, own in (("rejeitada", False), ("cancelada", True)):
-            role = "gestor" if not own else "funcionario"
+            role = "rh" if not own else "funcionario"
             observation = "Nao procede" if target == "rejeitada" else None
             _, connection = run_transition(
                 role, "pendente_gestor", target, observation, own=own
@@ -207,8 +200,8 @@ class WorkflowPolicyTests(unittest.TestCase):
         self.assertIn("acoes_permitidas", javascript)
         self.assertIn("historico", javascript)
         for label in (
-            "Pendente com gestor",
-            "Encaminhada ao RH",
+            "Pendente de análise",
+            "Em análise pelo RH",
             "Aprovada",
             "Rejeitada",
             "Cancelada",

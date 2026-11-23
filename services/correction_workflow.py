@@ -1,4 +1,4 @@
-"""Workflow transacional das correcoes de ponto Gestor -> RH.
+"""Workflow transacional das correções: decisão exclusiva de RH/administrador.
 
 As rotas apenas traduzem HTTP. Autorizacao, transicoes, lock, auditoria e
 efeitos colaterais da decisao ficam centralizados aqui.
@@ -38,8 +38,8 @@ def allowed_actions(role, state, own=False):
     if own:
         return ["cancelar"] if state == PENDING_MANAGER else []
     if role == "gestor" and state == PENDING_MANAGER:
-        return ["aprovar", "rejeitar", "encaminhar-rh"]
-    if role in {"rh", "administrador"} and state == FORWARDED_HR:
+        return ["encaminhar-rh"]
+    if role in {"rh", "administrador"} and state in {PENDING_MANAGER, FORWARDED_HR}:
         return ["aprovar", "rejeitar"]
     return []
 
@@ -165,6 +165,8 @@ def transition_correction(
     }.get(target)
     if not action_name:
         raise CorrectionWorkflowError("Transição inválida.", 400)
+    if target in {'aprovada', 'rejeitada'} and auth_context['perfil'] not in {'rh','administrador'}:
+        raise CorrectionWorkflowError('Somente RH e administrador da empresa podem decidir solicitações.', 403)
 
     connection = connection_factory()
     cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
