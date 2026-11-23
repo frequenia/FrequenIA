@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unidades — FrequenIA</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css', v='dark-palette-2026-11') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ocorrencias.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/unidades.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/validacaoCadastro.css') }}">
+</head>
+<body>
+  <main class="occurrences-page units-page">
+    <header class="page-header"><div><span class="eyebrow">GESTÃO / CADASTROS</span><h1>Unidades</h1><p>Organize os locais de trabalho da sua empresa.</p></div></header>
+    <section class="filter-card unit-create-card" aria-labelledby="unit-create-title">
+      <div class="section-heading"><div><span class="section-kicker">EXPANDA SUA ESTRUTURA</span><h2 id="unit-create-title">Nova unidade</h2></div></div>
+      <p class="unit-help">A unidade será vinculada à sua empresa. Depois de salvar, você poderá configurar o endereço e o perímetro para marcação pelo celular.</p>
+      <form id="unit-form" data-validate-registration novalidate>
+        <div class="unit-form-grid">
+          <div class="field"><label for="nome">Nome da unidade</label><input type="text" id="nome" name="nome" maxlength="160" placeholder="Ex.: Filial Centro" required></div>
+          <div class="field"><label for="codigo">Código</label><input type="text" id="codigo" name="codigo" maxlength="40" pattern="[A-Za-z0-9_\-]{1,40}" placeholder="Ex.: CENTRO_01" aria-describedby="code-help" required><small id="code-help">Letras sem acento, números, hífen ou sublinhado.</small></div>
+          <div class="field"><label for="timezone">Fuso horário</label><input type="text" id="timezone" name="timezone" maxlength="100" value="America/Sao_Paulo" list="unit-timezones" spellcheck="false" required><datalist id="unit-timezones"><option value="America/Sao_Paulo"><option value="America/Manaus"><option value="America/Cuiaba"><option value="America/Rio_Branco"><option value="America/Porto_Velho"><option value="Atlantic/Noronha"></datalist></div>
+          <div class="field"><label for="equipe_nome">Primeira equipe</label><input type="text" id="equipe_nome" name="equipe_nome" maxlength="160" value="Geral" aria-describedby="team-help" required><small id="team-help">Usada para vincular os primeiros funcionários. Você pode escolher outro nome.</small></div>
+        </div>
+        <div class="unit-form-actions"><p>O endereço é configurado na próxima etapa.</p><button id="unit-save" type="submit" class="btn-primary">Cadastrar unidade</button></div>
+      </form>
+      <div id="unit-created" class="unit-created" hidden role="status"><div><strong id="unit-created-title"></strong><p>A primeira equipe também foi criada. A marcação pelo celular continua desabilitada até a configuração.</p></div><a id="unit-configure" class="btn-secondary">Configurar endereço</a></div>
+    </section>
+    <section class="table-card unit-list-card" aria-labelledby="unit-list-title">
+      <div class="table-heading"><div><span class="section-kicker">ESTRUTURA DA EMPRESA</span><h2 id="unit-list-title">Unidades cadastradas</h2></div><button id="unit-refresh" type="button" class="btn-secondary">Atualizar lista</button></div>
+      <p id="unit-list-status" class="unit-list-status" role="status" aria-live="polite"></p>
+      <div class="unit-table-wrap"><table><thead><tr><th>Unidade</th><th>Código</th><th>Fuso horário</th><th>Situação</th><th>Localização</th></tr></thead><tbody id="unit-rows"></tbody></table></div>
+    </section>
+  </main>
+  <script src="{{ url_for('static', filename='js/validacaoCadastro.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/unidades.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/dark-mode.js') }}"></script>
+</body>
+</html>

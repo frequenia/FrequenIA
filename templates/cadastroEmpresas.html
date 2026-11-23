@@ -21,7 +21,7 @@
       </div>
     </header>
 
-    <form id="companyForm" novalidate>
+    <form id="companyForm" data-validate-registration novalidate>
       <section class="card">
         <div class="section-heading">
           <span class="step">1</span>
@@ -39,10 +39,10 @@
           <div><h2>Primeiro administrador</h2><p>Essa pessoa administrará somente esta empresa e definirá a senha pelo convite enviado por e-mail.</p></div>
         </div>
         <div class="form-grid">
-          <div class="field"><label for="adminNome">Nome completo</label><input type="text" id="adminNome" maxlength="160" autocomplete="name" required></div>
-          <div class="field"><label for="adminCpf">CPF</label><input type="text" id="adminCpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" required></div>
+          <div class="field"><label for="adminNome">Nome completo</label><input type="text" id="adminNome" maxlength="160" autocomplete="name" data-person-name data-server-field="administrador.nome" required></div>
+          <div class="field"><label for="adminCpf">CPF</label><input type="text" id="adminCpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" data-cpf required></div>
           <div class="field"><label for="adminEmail">E-mail</label><input type="email" id="adminEmail" maxlength="254" autocomplete="email" required></div>
-          <div class="field"><label for="adminTelefone">Telefone <span>(opcional)</span></label><input type="tel" id="adminTelefone" maxlength="15" autocomplete="tel" placeholder="(00) 00000-0000"></div>
+          <div class="field"><label for="adminTelefone">Telefone <span>(opcional)</span></label><input type="tel" id="adminTelefone" maxlength="15" autocomplete="tel-national" data-br-phone data-server-field="administrador.telefone" placeholder="(11) 99999-9999"></div>
         </div>
       </section>
 
@@ -57,6 +57,8 @@
       <div class="actions"><button type="submit" class="btn btn-primary" id="saveCompany">Cadastrar empresa e enviar convite</button></div>
     </form>
   </main>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/validacaoCadastro.css') }}">
+  <script src="{{ url_for('static', filename='js/validacaoCadastro.js') }}"></script>
   <script src="{{ url_for('static', filename='js/cadastroEmpresas.js') }}"></script>
   <script src="{{ url_for('static', filename='js/dark-mode.js') }}"></script>
 </body>

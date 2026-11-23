@@ -4,6 +4,7 @@ const empresa = document.getElementById("empresa");
 const unidade = document.getElementById("unidade");
 const equipe = document.getElementById("equipe");
 const cargo = document.getElementById("cargo");
+form.addEventListener("submit", event => { event.preventDefault(); if (document.getElementById("btnSalvar").style.display !== "none") salvarAlteracoes(); });
 
 function preencher(select, items, selectedValue) {
   select.innerHTML = '<option value="">Selecione</option>';
@@ -60,7 +61,7 @@ function bloquearCampos() {
 }
 
 async function salvarAlteracoes() {
-  if (!form.reportValidity()) return;
+  if (!CadastroValidation.validate(form)) return;
   const payload = {
     funcionario_id: funcionarioId,
     nome: document.getElementById("nome").value.trim(),
@@ -77,13 +78,16 @@ async function salvarAlteracoes() {
     data_admissao: document.getElementById("data_admissao").value,
     carga_horaria_semanal: document.getElementById("carga_horaria").value,
   };
+  try {
   const response = await fetch("/atualizar_usuario", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload)});
   const result = await response.json();
+  if (!response.ok) { CadastroValidation.serverErrors(form, result); return; }
   alert(result.mensagem || (response.ok ? "Campos atualizados com sucesso." : "Não foi possível atualizar."));
   if (response.ok) {
     bloquearCampos();
     document.getElementById("btnSalvar").style.display = "none";
   }
+  } catch { CadastroValidation.serverErrors(form, {mensagem: "Falha de conexão. Não foi possível confirmar a atualização. Confira os dados antes de tentar novamente."}); }
 }
 
 async function atualizarStatus() {

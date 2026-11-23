@@ -1,17 +1,19 @@
 function validarSenha() {
   const senha = document.getElementById("novaSenha").value;
 
-  const tamanho = senha.length >= 12 && senha.length <= 128;
+  const tamanho = senha.length >= 8 && senha.length <= 64;
   const letra = /[a-z]/.test(senha);
   const letraMai = /[A-Z]/.test(senha);
   const numero = /[0-9]/.test(senha);
-  const especial = /[@#$]/.test(senha);
+  const especial = [...senha].some((character) => '.+-[]*~_#:?@'.includes(character));
+  const permitidos = [...senha].every((character) => /[A-Za-z0-9]/.test(character) || '.+-[]*~_#:?@'.includes(character));
 
   marcar("req-tamanho", tamanho);
   marcar("req-letra", letra);
   marcar("req-letraMai", letraMai);
   marcar("req-numero", numero);
   marcar("req-especial", especial);
+  marcar("req-caracteres", permitidos && senha.length > 0);
 
   let forca = tamanho + letra + numero + letraMai + especial;
   const barra = document.getElementById("forca");
@@ -112,11 +114,12 @@ async function redefinirSenhaFinal() {
 function senhaValida() {
   const senha = document.getElementById("novaSenha").value;
 
-  const tamanho = senha.length >= 12 && senha.length <= 128;
+  const tamanho = senha.length >= 8 && senha.length <= 64;
   const letra = /[a-z]/.test(senha);
   const letraMai = /[A-Z]/.test(senha);
   const numero = /[0-9]/.test(senha);
-  const especial = /[@#$]/.test(senha);
+  const especial = [...senha].some((character) => '.+-[]*~_#:?@'.includes(character));
+  const permitidos = [...senha].every((character) => /[A-Za-z0-9]/.test(character) || '.+-[]*~_#:?@'.includes(character));
 
-  return tamanho && letra && letraMai && numero && especial;
+  return tamanho && letra && letraMai && numero && especial && permitidos;
 }

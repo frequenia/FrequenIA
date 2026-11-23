@@ -1,46 +1,17 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FrequenIA | Recuperar Senha </title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/recuperacaoSenha.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css', v='dark-palette-2026-11') }}">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap"
-    rel="stylesheet">
-
-</head>
-
-<body>
-
-  <div class="login-container">
-
-    <div class="login-header">
-      <span>WORK</span>SYNC
-    </div>
-
-    <div class="login-body">
-      <h3> Recuperar senha </h3>
-      <label>Informe seu e-mail. Se a conta for elegível, as instruções serão disponibilizadas pelo canal autorizado.</label>
-      <input type="email" id="email" placeholder="E-mail" autocomplete="email" required>
-    </div>
-    <div class="login-body">
-<button onclick="enviarCodigo()">Enviar código</button>
-      <a class="senha" href="/login-page">Voltar</a>
-      <br>
-    </div>
-
+{% extends "auth_layout.html" %}
+{% block title %}Recuperar senha{% endblock %}
+{% block eyebrow %}Recuperação de acesso{% endblock %}
+{% block heading %}Esqueceu sua senha?{% endblock %}
+{% block description %}Informe seu e-mail. Se a conta for elegível, as instruções serão disponibilizadas pelo canal autorizado.{% endblock %}
+{% block form %}
+<form class="auth-form" onsubmit="event.preventDefault(); enviarCodigo()">
+  <div class="auth-field">
+    <label for="email">E-mail</label>
+    <input type="email" id="email" name="email" placeholder="seuemail@exemplo.com" autocomplete="email" required>
   </div>
-
-  <footer>
-    Copyright FrequenIA © 2026
-  </footer>
-
-  <script src="{{ url_for('static', filename='js/login.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/dark-mode.js') }}"></script>
-</body>
-
-</html>
+  <button class="auth-submit" type="submit">Enviar código <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg></button>
+  <a class="auth-back" href="/login-page">Voltar para o login</a>
+</form>
+{% endblock %}
+{% block note %}Uma nova senha, a mesma jornada.{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/login.js') }}"></script>{% endblock %}

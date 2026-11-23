@@ -293,7 +293,7 @@ async function load(){
     document.getElementById("table-count").textContent=`${rows.length} ${rows.length===1?"encontrada":"encontradas"}`;
     if(!rows.length){tbody.innerHTML='<tr><td colspan="6" class="empty">Nenhuma solicitação encontrada para os filtros selecionados.</td></tr>';return;}
     rows.forEach(item=>{const tr=document.createElement("tr");
-      const employee=document.createElement("td");employee.className="employee-cell";employee.innerHTML=`<strong>${value(item.funcionario)}</strong><span>${value(item.matricula)}</span>`;tr.appendChild(employee);
+      const employee=document.createElement("td");employee.className="employee-cell";const employeeName=document.createElement("strong"),employeeRegistration=document.createElement("span");employeeName.textContent=value(item.funcionario);employeeRegistration.textContent=value(item.matricula);employee.append(employeeName,employeeRegistration);tr.appendChild(employee);
       const category=document.createElement("td");category.className="category-cell";category.textContent=labels[item.tipo]||item.tipo;tr.appendChild(category);
       const created=document.createElement("td");created.textContent=localDate(item.criada_em);
       if(["pendente_gestor","encaminhada_rh"].includes(item.status)&&item.criada_em){

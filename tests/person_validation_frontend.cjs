@@ -1,0 +1,16 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const context = vm.createContext({window:{}, document:{querySelectorAll:()=>[]}});
+vm.runInContext(fs.readFileSync('static/js/validacaoCadastro.js','utf8'),context);
+const {personalNameValid,phoneValid,cpfValid,formatPhone} = context.window.CadastroValidation;
+assert.equal(cpfValid('529.982.247-25'),true,'Fixture matemática de CPF válido');
+for (const value of ['111.111.111-11','00000000000','52998224724','5299822472','529982247250','abc52998224725']) assert.equal(cpfValid(value),false);
+for (const name of ['João da Silva','Ana-Maria',"O’Connor",'João Jr.','李 明','Jose\u0301']) assert.equal(personalNameValid(name),true,name);
+for (const name of ['Pessoa2','Pessoa²','Pessoa١','Pessoa１２','---','','A'.repeat(161)]) assert.equal(personalNameValid(name),false,name);
+for (const value of ['1132345678','11987654321','(11) 98765-4321','']) assert.equal(phoneValid(value),true);
+for (const value of ['119999999','119999999999','+55 11 98765-4321','11abc32345678','11876543210','11          32345678']) assert.equal(phoneValid(value),false);
+assert.equal(formatPhone('1132345678'),'(11) 3234-5678');
+assert.equal(formatPhone('11987654321'),'(11) 98765-4321');
+assert.equal(formatPhone('119876543219'),'119876543219','Não truncar silenciosamente um telefone longo');
+console.log('person_validation_frontend=passed');

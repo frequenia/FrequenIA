@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Acesse sua conta{% endblock %} | FrequenIA</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/brand/frequenia-favicon-v4.png') }}?v=4">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/frequenia-global.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css', v='dark-palette-2026-11') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/autenticacao.css') }}">
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <aside class="auth-brand" aria-label="FrequenIA">
+      <img class="auth-logo" src="{{ url_for('static', filename='img/brand/frequenia-logo-white-v4.png') }}" width="2172" height="724" alt="FrequenIA">
+      <div class="auth-brand-copy">
+        <span class="auth-eyebrow">Gestão de ponto</span>
+        <h2>Seu tempo.<br>Em boas mãos.</h2>
+        <p>Uma experiência simples para acompanhar sua jornada.</p>
+      </div>
+      <div class="auth-brand-footer"><span></span> Ponto, jornadas e pessoas.</div>
+      <div class="auth-orbit" aria-hidden="true"><span></span></div>
+    </aside>
+    <section class="auth-panel" aria-labelledby="auth-title">
+      <div class="auth-form-content">
+        <header class="auth-heading">
+          <p class="auth-eyebrow">{% block eyebrow %}Bem-vindo de volta{% endblock %}</p>
+          <h1 id="auth-title">{% block heading %}Acesse sua conta{% endblock %}</h1>
+          <p>{% block description %}Entre para acompanhar seu dia de trabalho.{% endblock %}</p>
+        </header>
+        {% block form %}{% endblock %}
+      </div>
+      <p class="auth-panel-note">{% block note %}Use os dados informados pela sua empresa.{% endblock %}</p>
+    </section>
+  </main>
+  <footer class="auth-footer">FrequenIA © 2026</footer>
+  {% block scripts %}{% endblock %}
+  <script src="{{ url_for('static', filename='js/dark-mode.js') }}"></script>
+</body>
+</html>

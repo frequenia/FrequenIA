@@ -75,6 +75,18 @@ document.addEventListener("DOMContentLoaded", async function () {
     } catch (error) { setStatus(error.message, true); }
   });
 
+  const requestedUnit = new URLSearchParams(window.location.search).get("unidade");
+  if (requestedUnit) {
+    if ([...unitSelect.options].some(option => option.value === requestedUnit)) {
+      unitSelect.value = requestedUnit;
+      unitSelect.dispatchEvent(new Event("change"));
+      card.scrollIntoView({block: "start"});
+    } else {
+      unitSelect.value = "";
+      setStatus("Unidade não encontrada na sua empresa. Selecione uma unidade da lista.", true);
+    }
+  }
+
   document.getElementById("geofence-buscar").addEventListener("click", async () => {
     const query = document.getElementById("geofence-busca").value.trim();
     const results = document.getElementById("geofence-resultados");

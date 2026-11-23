@@ -128,24 +128,8 @@ function mascaraCPF(campo) {
   campo.value = cpf;
 }
 
-function mascaraTelefone(campo) {
-  let telefone = campo.value.replace(/\D/g, "").slice(0, 11);
-  telefone = telefone.replace(/^(\d{2})(\d)/, "($1) $2");
-  telefone = telefone.length > 10
-    ? telefone.replace(/(\d{5})(\d{4})$/, "$1-$2")
-    : telefone.replace(/(\d{4})(\d{4})$/, "$1-$2");
-  campo.value = telefone;
-}
-
 function verificarCPF(value) {
-  const cpf = value.replace(/\D/g, "");
-  if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
-  const numbers = cpf.split("").map(Number);
-  let sum = numbers.slice(0, 9).reduce((total, number, index) => total + number * (10 - index), 0);
-  const first = sum % 11 < 2 ? 0 : 11 - (sum % 11);
-  sum = numbers.slice(0, 10).reduce((total, number, index) => total + number * (11 - index), 0);
-  const second = sum % 11 < 2 ? 0 : 11 - (sum % 11);
-  return first === numbers[9] && second === numbers[10];
+  return CadastroValidation.cpfValid(value);
 }
 
 function limparCadastro() {
@@ -168,11 +152,8 @@ function limparCadastro() {
 }
 
 async function cadastrarUsuario() {
-  if (!document.getElementById("formCadastro").reportValidity()) return;
-  if (!verificarCPF(document.getElementById("cpf").value)) {
-    alert("CPF inválido.");
-    return;
-  }
+  const form = document.getElementById("formCadastro");
+  if (!CadastroValidation.validate(form)) return;
 
   const payload = {
     nome: document.getElementById("nome").value.trim(),
@@ -189,18 +170,22 @@ async function cadastrarUsuario() {
     carga_horaria_semanal: document.getElementById("carga_horaria").value,
   };
 
+  try {
   const response = await fetch("/cadastrar_usuario", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   const result = await response.json();
+  if (!response.ok) { if (result.matricula) result.mensagem = `${result.mensagem || "Cadastro realizado com pendência."} Matrícula: ${result.matricula}.`; CadastroValidation.serverErrors(form, result); return; }
   const matricula = result.matricula ? ` Matrícula: ${result.matricula}.` : "";
   alert((result.mensagem || (response.ok ? "Cadastro concluído." : "Não foi possível cadastrar.")) + matricula);
   if (response.ok) limparCadastro();
+  } catch { CadastroValidation.serverErrors(form, {mensagem: "Falha de conexão. Confira se o cadastro foi salvo antes de tentar novamente."}); }
 }
 
 selectUnidade.addEventListener("change", carregarEquipes);
+document.getElementById("formCadastro").addEventListener("submit", event => { event.preventDefault(); cadastrarUsuario(); });
 document.getElementById("limparCadastro").addEventListener("click", limparCadastro);
 initializeStyledSelects();
 carregarEmpresas();

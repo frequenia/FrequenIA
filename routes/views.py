@@ -53,6 +53,8 @@ from services.biometric_governance import (
     change_employee_status,
 )
 from utils.terminal_auth import terminal_required
+from utils.password_policy import validate_new_password
+from utils.person_validation import PersonValidationError, validate_person_contact
 import os
 
 views_bp = Blueprint("views", __name__)
@@ -212,9 +214,8 @@ def buscar_jornada_data(cursor, empresa_id, funcionario_id, data_consulta):
 
 
 def validar_dados_administrativos(dados, password_required=False, matricula_required=True):
-    nome = str(dados.get("nome") or "").strip()
+    nome, telefone = validate_person_contact(dados.get("nome"), dados.get("telefone"))
     email = str(dados.get("email") or "").strip().lower()
-    telefone = str(dados.get("telefone") or "").strip()
     cpf = normalizar_cpf(dados.get("cpf"))
     matricula = str(dados.get("matricula") or "").strip()
     perfil = str(dados.get("perfil") or "").strip()
@@ -247,8 +248,8 @@ def validar_dados_administrativos(dados, password_required=False, matricula_requ
         raise ValueError("Carga horária inválida.")
 
     password = str(dados.get("senha") or "")
-    if password_required and len(password) < 12:
-        raise ValueError("A senha deve possuir pelo menos 12 caracteres.")
+    if password_required:
+        validate_new_password(password)
 
     return {
         "nome": nome,
@@ -883,7 +884,7 @@ def cadastrar_usuario():
         if conn:
             conn.rollback()
         status_code = exc.status if isinstance(exc, BiometricGovernanceError) else 400
-        return jsonify({"status": "erro", "mensagem": str(exc)}), status_code
+        return jsonify({"status": "erro", "mensagem": str(exc), **({"campos": exc.fields} if isinstance(exc, PersonValidationError) else {})}), status_code
     except psycopg2.errors.UniqueViolation:
         if conn:
             conn.rollback()
@@ -944,6 +945,9 @@ def cadastrar_empresa():
         }
         if not administrador["nome"]:
             raise ValueError("Nome do primeiro administrador é obrigatório.")
+        administrador["nome"], administrador["telefone"] = validate_person_contact(
+            administrador["nome"], administrador["telefone"], prefix="administrador."
+        )
         if not cpf_valido(administrador["cpf"]):
             raise ValueError("CPF do primeiro administrador é inválido.")
         if not EMAIL_PATTERN.fullmatch(administrador["email"]):
@@ -1003,7 +1007,7 @@ def cadastrar_empresa():
     except ValueError as exc:
         if conn:
             conn.rollback()
-        return jsonify({"status": "erro", "mensagem": str(exc)}), 400
+        return jsonify({"status": "erro", "mensagem": str(exc), **({"campos": exc.fields} if isinstance(exc, PersonValidationError) else {})}), 400
     except psycopg2.errors.UniqueViolation:
         if conn:
             conn.rollback()
@@ -1659,7 +1663,7 @@ def atualizar_usuario():
     except ValueError as exc:
         if conn:
             conn.rollback()
-        return jsonify({"status": "erro", "mensagem": str(exc)}), 400
+        return jsonify({"status": "erro", "mensagem": str(exc), **({"campos": exc.fields} if isinstance(exc, PersonValidationError) else {})}), 400
     except psycopg2.errors.UniqueViolation:
         if conn:
             conn.rollback()
@@ -2055,8 +2059,10 @@ def resetar_senha():
     data = request.get_json(silent=True) or {}
     token = data.get("token")
     senha = data.get("new_password") or data.get("senha")
-    if not isinstance(senha, str) or not 12 <= len(senha) <= 128:
-        return jsonify({"erro": "A senha deve possuir entre 12 e 128 caracteres."}), 400
+    try:
+        validate_new_password(senha)
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 400
     if not isinstance(token, str) or not token:
         return jsonify({"erro": PASSWORD_RESET_INVALID_MESSAGE}), 400
 

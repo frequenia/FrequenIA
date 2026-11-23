@@ -196,6 +196,7 @@ from routes.occurrences import occurrences_bp
 from routes.kiosk import kiosk_bp
 from routes.mobile_location import mobile_location_bp
 from routes.journeys import journeys_bp
+from routes.units import units_bp
 
 app.register_blueprint(views_bp)
 app.register_blueprint(face_bp)
@@ -205,6 +206,7 @@ app.register_blueprint(occurrences_bp)
 app.register_blueprint(kiosk_bp)
 app.register_blueprint(mobile_location_bp)
 app.register_blueprint(journeys_bp)
+app.register_blueprint(units_bp)
 
 if __name__ == "__main__":
     app.run(

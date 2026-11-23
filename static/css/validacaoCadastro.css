@@ -1,0 +1,5 @@
+.field-error { margin: 6px 0 0; color: var(--error-text, #b42318); font: 600 12px/1.6 var(--font-family-base, sans-serif); overflow-wrap: anywhere; }
+[aria-invalid="true"] { border-color: var(--error-text, #b42318) !important; box-shadow: 0 0 0 2px #b4231810; }
+.custom-select:has(select[aria-invalid="true"]) .select-trigger { border-color: var(--error-text, #b42318); }
+.validation-summary { margin: 16px 0; padding: 12px 16px; border: 1px solid var(--error-border, #f0c7c4); border-radius: 12px; background: var(--error-bg, #fff1f0); color: var(--error-text, #b42318); font: 600 13px/1.6 var(--font-family-base, sans-serif); }
+.field-error[hidden], .validation-summary[hidden] { display: none; }

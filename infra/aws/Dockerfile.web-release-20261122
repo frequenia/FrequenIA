@@ -1,0 +1,34 @@
+ARG BASE_IMAGE=frequenia:pilot-visual-08100ed
+FROM ${BASE_IMAGE}
+
+# Web: acesso, validacao, busca facial, configuracoes e unidades.
+COPY --chown=app:app app.py /app/app.py
+COPY --chown=app:app routes/views.py /app/routes/views.py
+COPY --chown=app:app routes/units.py /app/routes/units.py
+COPY --chown=app:app services/unit_onboarding.py /app/services/unit_onboarding.py
+COPY --chown=app:app utils/password_policy.py /app/utils/password_policy.py
+COPY --chown=app:app utils/person_validation.py /app/utils/person_validation.py
+COPY --chown=app:app static/css/cadastroFoto.css /app/static/css/cadastroFoto.css
+COPY --chown=app:app static/css/autenticacao.css /app/static/css/autenticacao.css
+COPY --chown=app:app static/css/unidades.css /app/static/css/unidades.css
+COPY --chown=app:app static/css/validacaoCadastro.css /app/static/css/validacaoCadastro.css
+COPY --chown=app:app static/js/cadastroEmpresas.js /app/static/js/cadastroEmpresas.js
+COPY --chown=app:app static/js/cadastroUsuario.js /app/static/js/cadastroUsuario.js
+COPY --chown=app:app static/js/configuracoes.js /app/static/js/configuracoes.js
+COPY --chown=app:app static/js/editarUsuario.js /app/static/js/editarUsuario.js
+COPY --chown=app:app static/js/ocorrencias.js /app/static/js/ocorrencias.js
+COPY --chown=app:app static/js/redefinicaoSenha.js /app/static/js/redefinicaoSenha.js
+COPY --chown=app:app static/js/unidades.js /app/static/js/unidades.js
+COPY --chown=app:app static/js/validacaoCadastro.js /app/static/js/validacaoCadastro.js
+COPY --chown=app:app templates/cadastroEmpresas.html /app/templates/cadastroEmpresas.html
+COPY --chown=app:app templates/cadastroUsuario.html /app/templates/cadastroUsuario.html
+COPY --chown=app:app templates/configuracoes.html /app/templates/configuracoes.html
+COPY --chown=app:app templates/editarUsuario.html /app/templates/editarUsuario.html
+COPY --chown=app:app templates/inserirToken.html /app/templates/inserirToken.html
+COPY --chown=app:app templates/login.html /app/templates/login.html
+COPY --chown=app:app templates/menu.html /app/templates/menu.html
+COPY --chown=app:app templates/recuperacaoSenha.html /app/templates/recuperacaoSenha.html
+COPY --chown=app:app templates/redefinicaoSenha.html /app/templates/redefinicaoSenha.html
+COPY --chown=app:app templates/auth_layout.html /app/templates/auth_layout.html
+COPY --chown=app:app templates/auth_password_field.html /app/templates/auth_password_field.html
+COPY --chown=app:app templates/unidades.html /app/templates/unidades.html

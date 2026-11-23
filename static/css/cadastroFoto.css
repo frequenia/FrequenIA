@@ -65,6 +65,39 @@
   background: var(--color-white);
 }
 
+/* O seletor de funcionário é convertido em busca pelo componente compartilhado. */
+.camera-card .busca-funcionario {
+  width: 100%;
+  max-width: 500px;
+  margin-bottom: var(--spacing-md);
+  flex-shrink: 0;
+}
+
+.camera-card .busca-funcionario input[type="search"] {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid #dce7f0;
+  border-radius: var(--radius-brand);
+  background: var(--color-input-bg);
+  color: var(--color-text-dark);
+  font: 600 13px var(--font-family-base);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.camera-card .busca-funcionario input[type="search"]::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+.camera-card .busca-funcionario input[type="search"]:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background: var(--color-white);
+  box-shadow: 0 0 0 3px rgba(15, 92, 140, 0.1);
+}
+
 /* CAMERA */
 .camera-container {
   position: relative;

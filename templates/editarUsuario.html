@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css', v='dark-palette-2026-11') }}">
 </head>
 <body>
-  <form id="formCadastro" data-funcionario-id="{{ usuario.funcionario_id }}">
+  <form id="formCadastro" data-funcionario-id="{{ usuario.funcionario_id }}" data-validate-registration novalidate>
     <div class="perfil-page profile-edit-page">
       <header class="page-header">
         <div>
@@ -24,10 +24,10 @@
       <section class="card profile-edit-card">
         <div class="profile-edit-heading"><span class="section-kicker">DADOS PESSOAIS</span><h2>Identidade</h2></div>
         <div class="grid">
-          <div class="campo"><label for="nome">Nome</label><input type="text" id="nome" class="campo-editavel" value="{{ usuario.nome }}" readonly required></div>
+          <div class="campo"><label for="nome">Nome</label><input type="text" id="nome" class="campo-editavel" value="{{ usuario.nome }}" maxlength="160" autocomplete="name" data-person-name readonly required></div>
           <div class="campo"><label for="email">E-mail</label><input type="email" id="email" class="campo-editavel" value="{{ usuario.email }}" readonly required></div>
-          <div class="campo"><label for="telefone">Telefone</label><input type="text" id="telefone" class="campo-editavel" value="{{ usuario.telefone or '' }}" readonly required></div>
-          <div class="campo"><label for="cpf">CPF</label><input type="text" id="cpf" class="campo-editavel" value="{{ usuario.cpf }}" readonly required></div>
+          <div class="campo"><label for="telefone">Telefone</label><input type="tel" id="telefone" class="campo-editavel" value="{{ usuario.telefone or '' }}" maxlength="15" autocomplete="tel-national" placeholder="(11) 99999-9999" data-br-phone readonly required></div>
+          <div class="campo"><label for="cpf">CPF</label><input type="text" id="cpf" class="campo-editavel" value="{{ usuario.cpf }}" inputmode="numeric" maxlength="14" data-cpf readonly required></div>
         </div>
       </section>
 
@@ -72,6 +72,8 @@
       </div>
     </div>
   </form>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/validacaoCadastro.css') }}">
+  <script src="{{ url_for('static', filename='js/validacaoCadastro.js') }}"></script>
   <script src="{{ url_for('static', filename='js/editarUsuario.js', v='profile-standard-2026-11') }}"></script>
   <script src="{{ url_for('static', filename='js/dark-mode.js', v='dark-system-2026-11') }}"></script>
 </body>
