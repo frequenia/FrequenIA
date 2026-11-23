@@ -14,8 +14,9 @@ extras, testes, APK ou alterações biométricas preexistentes.
 - Arquivo: `infra/aws/dist/frequenia-profile-20261123.tar.gz`, 921.567.867 bytes.
 - SHA-256 integral: `386e674528cff1937573a09e84e3a65c66db8764ed29108e863592fc427d89e6`.
 - Verificação gzip integral aprovada. Execução local ARM64 indisponível por
-  ausência de emulação; não foi tratada como teste runtime. Hashes e sintaxe
-  devem ser verificados separadamente, antes da troca remota.
+  ausência de emulação; não foi tratada como teste runtime. Os 14 arquivos
+  foram extraídos do pacote/imagem e seus hashes conferem com o manifesto;
+  sintaxe dos oito Python e três templates aprovada, sem importar app/secrets.
 
 Banco preservado: `xoof…esgx/main`. Migration 027 cria somente a tabela privada
 de avatares; SHA-256 `9433dc1129fa3b2c84701f0cfb9d42e8d5eee05c4c298857f4146267f5a7417c`.
@@ -40,3 +41,7 @@ Verificações locais: 55 testes backend das três correções, 7 de foto de per
 18 Flutter e análise estática Android sem problemas. Capturas usam somente
 fixtures sintéticas. Testes de publicação, backup real, foto no Supabase e
 validação no aparelho ainda pendentes.
+
+Commit de implementação `9670c0d240a049cc9aeecc64f48b8e9e6402dc83`, push
+confirmado em `codex/recovery-operators-20261114`. Nenhum arquivo privado,
+artefato binário ou alteração biométrica preexistente entrou no commit.
